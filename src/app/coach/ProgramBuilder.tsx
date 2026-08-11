@@ -439,6 +439,70 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     alert(live ? `Published to ${athleteName} — it’s live in their app now, and only they can see it.` : `Marked published. ${athleteName} is a demo athlete, so nothing is sent.`);
   };
 
+  // Publish every dated, training-bearing week of the block at once — each week
+  // lands on its own start date so the whole block rolls out in one action.
+  const publishBlock = () => {
+    const weeks = meso.weeks.filter((w) => !w.hidden && w.startDate && w.days.some((d) => d.exercises.length));
+    if (!weeks.length) {
+      alert("No dated weeks with training in this block yet. Give each week a start date first.");
+      return;
+    }
+    if (!confirm(`Publish all ${weeks.length} week(s) of ${meso.name} to ${athleteName}?\n\nEach week goes live on its own start date.`)) return;
+    if (live) {
+      for (const w of weeks) {
+        publishProgramWeek(athleteId, toTemplate(w), { blockStart: w.startDate, weekStartsOn: startWeekday(w) ?? undefined, blockName: meso.name, weekName: w.name });
+      }
+    }
+    ensureManyInDb(weeks.flatMap((w) => w.days.flatMap((d) => d.exercises.map((ex) => ({ name: ex.name, mainLift: ex.mainLift })))));
+    mutProgram((p) => {
+      const marked: Program = {
+        ...p,
+        mesocycles: p.mesocycles.map((m) =>
+          m.id === meso.id
+            ? { ...m, weeks: m.weeks.map((w) => (weeks.some((x) => x.id === w.id) ? { ...w, status: "published" as const } : w)) }
+            : m,
+        ),
+      };
+      return { ...marked, currentWeekId: weekForToday(marked, localIso(new Date())) };
+    });
+    alert(live ? `Published ${weeks.length} week(s) of ${meso.name} to ${athleteName}.` : `Marked published. ${athleteName} is a demo athlete, so nothing is sent.`);
+  };
+
+  // Hide a week/block from the builder without deleting it — reversible, and
+  // never touches what the athlete already has. Can't hide the last visible one.
+  const toggleWeekHidden = (m: typeof meso, w: Week) => {
+    const visible = m.weeks.filter((x) => !x.hidden);
+    if (!w.hidden && visible.length === 1) {
+      alert("This is the only visible week in the block — hide the block instead, or add another week first.");
+      return;
+    }
+    commit({
+      ...program,
+      mesocycles: program.mesocycles.map((mm) =>
+        mm.id === m.id ? { ...mm, weeks: mm.weeks.map((x) => (x.id === w.id ? { ...x, hidden: !x.hidden } : x)) } : mm,
+      ),
+    });
+    if (!w.hidden && weekId === w.id) {
+      const next = visible.find((x) => x.id !== w.id);
+      if (next) setWeekId(next.id);
+    }
+  };
+  const toggleMesoHidden = (m: typeof meso) => {
+    const visible = program.mesocycles.filter((x) => !x.hidden);
+    if (!m.hidden && visible.length === 1) {
+      alert("This is the only visible block — you can't hide all of them.");
+      return;
+    }
+    commit({ ...program, mesocycles: program.mesocycles.map((mm) => (mm.id === m.id ? { ...mm, hidden: !mm.hidden } : mm)) });
+    if (!m.hidden && mesoId === m.id) {
+      const next = visible.find((x) => x.id !== m.id);
+      if (next) {
+        setMesoId(next.id);
+        setWeekId(next.weeks[next.weeks.length - 1].id);
+      }
+    }
+  };
+
   const jumpToCurrent = () => {
     if (!current) return;
     setMesoId(current.meso.id);
@@ -477,7 +541,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
             {program.mesocycles.map((m) => {
               const hasCurrent = m.weeks.some((w) => w.id === currentId);
               return (
-                <div key={m.id} className="cc-meso" style={{ marginBottom: 10, marginTop: 10, borderColor: hasCurrent ? "color-mix(in srgb, var(--good) 40%, transparent)" : undefined }}>
+                <div key={m.id} className="cc-meso" style={{ marginBottom: 10, marginTop: 10, opacity: m.hidden ? 0.5 : undefined, borderColor: hasCurrent ? "color-mix(in srgb, var(--good) 40%, transparent)" : undefined }}>
                   <div className="cc-meso-name">
                     <span className="cc-meso-swatch" style={{ background: m.color }} />
                     {renaming?.kind === "meso" && renaming.id === m.id ? (
@@ -498,12 +562,13 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         {m.name}
                       </button>
                     )}
-                    <span style={{ font: "400 10px/1 var(--font-body)", color: "var(--muted)" }}>{m.weeks.length} wk</span>
+                    <span style={{ font: "400 10px/1 var(--font-body)", color: "var(--muted)" }}>{m.weeks.filter((w) => !w.hidden).length} wk</span>
+                    <button className="cc-wk-del" title={m.hidden ? "Un-hide this block" : "Hide this block (keeps it, just declutters)"} style={{ fontSize: 12 }} onClick={() => toggleMesoHidden(m)}>{m.hidden ? "◉" : "⊘"}</button>
                     <button className="cc-wk-del" title="Remove this block" onClick={() => removeMeso(m)}>×</button>
                   </div>
                   {m.id === meso.id &&
                     m.weeks.map((w) => (
-                      <div key={w.id} className={`cc-week-item${w.id === currentId ? " cc-current" : ""}`} aria-current={w.id === week.id} onClick={() => setWeekId(w.id)}>
+                      <div key={w.id} className={`cc-week-item${w.id === currentId ? " cc-current" : ""}`} aria-current={w.id === week.id} style={w.hidden ? { opacity: 0.42 } : undefined} onClick={() => setWeekId(w.id)}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                           {renaming?.kind === "week" && renaming.id === w.id ? (
                             <input
@@ -524,6 +589,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                             <span className="cc-now-badge"><span className="cc-now-dot" style={{ boxShadow: "none" }} />ON NOW</span>
                           )}
                           {(() => { const s = weekState(athleteId, w, live); return <span className={`cc-wk-status cc-st-${s}`}>{WEEK_STATE_LABEL[s]}</span>; })()}
+                          <button className="cc-wk-del" title={w.hidden ? "Un-hide this week" : "Hide this week"} style={{ fontSize: 11 }} onClick={(e) => { e.stopPropagation(); toggleWeekHidden(m, w); }}>{w.hidden ? "◉" : "⊘"}</button>
                           <button className="cc-wk-del" title="Remove this week" onClick={(e) => { e.stopPropagation(); removeWeek(m, w); }}>×</button>
                         </div>
                       </div>
@@ -606,13 +672,13 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
 
             <div className="cc-copy-lab">How many weeks</div>
             <div className="cc-copy-seg">
-              {[2, 3, 4, 5, 6].map((n) => (
+              {[1, 2, 3, 4, 5, 6].map((n) => (
                 <button key={n} aria-current={copyN === n} onClick={() => setCopyN(n)}>{n}</button>
               ))}
             </div>
 
             <button className="cc-fullbtn" style={{ marginTop: 14, background: "var(--navy)", color: "#fff", borderColor: "var(--navy)" }} onClick={() => copyForwardMany(copyN)}>
-              Copy → {copyN} weeks
+              Copy → {copyN} {copyN === 1 ? "week" : "weeks"}
             </button>
             <button className="cc-dash-add" style={{ marginTop: 8 }} onClick={addDeload}>+ Back-off deload week</button>
             <p style={{ font: "400 9.5px/1.4 var(--font-body)", color: "var(--muted)", margin: "8px 0 0" }}>
@@ -677,7 +743,11 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
             </div>
             <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
               <MiniCalendar startDate={week.startDate} trainingWeekdays={trainingDays.map((d) => d.weekday)} onPick={(iso) => setWeekDate(meso, week, iso)} />
-              <button className="cc-mini cc-mini-solid" style={{ padding: "11px 16px", fontSize: 11 }} onClick={publish}>Publish week to athlete</button>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button className="cc-mini cc-mini-solid" style={{ padding: "11px 16px", fontSize: 11 }} onClick={publish}>Publish week to athlete</button>
+                <button className="cc-mini" style={{ padding: "9px 16px", fontSize: 11 }} onClick={publishBlock}>Publish full block →</button>
+                <button className="cc-mini" style={{ padding: "9px 16px", fontSize: 11 }} onClick={() => copyForwardMany(copyN)}>Copy week forward (×{copyN})</button>
+              </div>
             </div>
           </div>
 

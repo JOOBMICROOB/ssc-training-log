@@ -25,8 +25,8 @@ export type ExRow = {
   mainLift: MainLift | null;
 };
 export type Day = { id: string; weekday: number; rest: boolean; exercises: ExRow[] };
-export type Week = { id: string; name: string; status: "draft" | "published"; days: Day[]; startDate?: string };
-export type Mesocycle = { id: string; name: string; color: string; weeks: Week[] };
+export type Week = { id: string; name: string; status: "draft" | "published"; days: Day[]; startDate?: string; hidden?: boolean };
+export type Mesocycle = { id: string; name: string; color: string; weeks: Week[]; hidden?: boolean };
 export type Program = { athleteId: string; mesocycles: Mesocycle[]; currentWeekId?: string };
 
 export type ExGroup = "squat" | "bench" | "deadlift" | "pull" | "accessory";
