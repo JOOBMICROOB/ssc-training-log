@@ -1,0 +1,915 @@
+{
+  "athleteId": "RS1203",
+  "currentWeekId": "wk_renee_2",
+  "mesocycles": [
+    {
+      "id": "meso_renee",
+      "name": "Base · GPP",
+      "color": "#5980a6",
+      "weeks": [
+        {
+          "id": "wk_renee_1",
+          "name": "WEEK 1",
+          "status": "published",
+          "days": [
+            {
+              "id": "day_1_1",
+              "weekday": 1,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_1_1_0",
+                  "name": "COMP SQUATS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_1_1_1",
+                  "name": "COMP SQUATS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Back-off",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_1_1_2",
+                  "name": "DIPS PAUSED",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6-8",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_1_1_3",
+                  "name": "BULGARIAN SPLIT SQUATS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "fixed",
+                  "value": "40",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_1_1_4",
+                  "name": "UNILATERAL ROW",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10",
+                  "intensity": "fixed",
+                  "value": "17,5",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_1_1_5",
+                  "name": "COPENHAGEN PLANKS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "fixed",
+                  "value": "20",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_1_2",
+              "weekday": 2,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_1_2_0",
+                  "name": "CLUSTER DEADLIFT 2CT PAUSE",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "1",
+                  "intensity": "load",
+                  "value": "100",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_1_2_1",
+                  "name": "RDL",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6-8",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Back-off",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_1_2_2",
+                  "name": "LONG PAUSED BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "2",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_1_2_3",
+                  "name": "FEET UP DUMBELL BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_1_2_4",
+                  "name": "UNILATERAL TRICEP EXTENSION",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "fixed",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_1_2_5",
+                  "name": "SUPINATED GRIP PULLDOWN",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "fixed",
+                  "value": "45",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_1_3",
+              "weekday": 3,
+              "rest": true,
+              "exercises": []
+            },
+            {
+              "id": "day_1_4",
+              "weekday": 4,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_1_4_0",
+                  "name": "COMP SQUATS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_1_4_1",
+                  "name": "COMP BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_1_4_2",
+                  "name": "COMP BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Back-off",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_1_4_3",
+                  "name": "LEG EXTENSION",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_1_4_4",
+                  "name": "LATERAL RAISES",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6-10",
+                  "intensity": "fixed",
+                  "value": "6,25",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_1_4_5",
+                  "name": "TRICEP EXTENSION OF CHOICE",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "fixed",
+                  "value": "10",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_1_4_6",
+                  "name": "PLANKS (BRACE EMPHASIS)",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "20-60 sec",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_1_5",
+              "weekday": 5,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_1_5_0",
+                  "name": "COMP DEADLIFT",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "5",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_1_5_1",
+                  "name": "COMP DEADLIFT",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "4",
+                  "scheme": "Back-off",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_1_5_2",
+                  "name": "COMP DEADLIFT",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "5",
+                  "scheme": "Back-off",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_1_5_3",
+                  "name": "COMP DEADLIFT",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Back-off",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_1_5_4",
+                  "name": "LARSEN BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "5",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_1_5_5",
+                  "name": "SHOULDER PRESS MACHINE",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_1_5_6",
+                  "name": "TRICEP EXTENSION OF CHOICE",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_1_5_7",
+                  "name": "ABDUCTION WITH BAND",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_1_6",
+              "weekday": 6,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_1_6_0",
+                  "name": "PAUSED SQUATS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "3",
+                  "intensity": "load",
+                  "value": "90",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_1_6_1",
+                  "name": "2CT PAUSED BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "load",
+                  "value": "65",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_1_6_2",
+                  "name": "COMP BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "3",
+                  "intensity": "load",
+                  "value": "60",
+                  "scheme": "Back-off",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_1_6_3",
+                  "name": "INCLINE PRESS (MACHINE/DUMBELLS)",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_1_6_4",
+                  "name": "CHEST SUPPORTED ROW",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_1_6_5",
+                  "name": "BICEP CURLS OF CHOICE",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_1_0",
+              "weekday": 0,
+              "rest": true,
+              "exercises": []
+            }
+          ],
+          "startDate": "2026-08-03"
+        },
+        {
+          "id": "wk_renee_2",
+          "name": "WEEK 2",
+          "status": "published",
+          "days": [
+            {
+              "id": "day_2_1",
+              "weekday": 1,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_2_1_0",
+                  "name": "COMP SQUATS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_2_1_1",
+                  "name": "COMP SQUATS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Back-off",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_2_1_2",
+                  "name": "DIPS PAUSED",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6-8",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_2_1_3",
+                  "name": "BULGARIAN SPLIT SQUATS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "fixed",
+                  "value": "",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_2_1_4",
+                  "name": "UNILATERAL ROW",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10",
+                  "intensity": "fixed",
+                  "value": "",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_2_1_5",
+                  "name": "COPENHAGEN PLANKS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "fixed",
+                  "value": "",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_2_2",
+              "weekday": 2,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_2_2_0",
+                  "name": "CLUSTER DEADLIFT 2CT PAUSE",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "1",
+                  "intensity": "load",
+                  "value": "",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_2_2_1",
+                  "name": "RDL",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6-8",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Back-off",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_2_2_2",
+                  "name": "LONG PAUSED BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "2",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_2_2_3",
+                  "name": "FEET UP DUMBELL BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_2_2_4",
+                  "name": "UNILATERAL TRICEP EXTENSION",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "fixed",
+                  "value": "",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_2_2_5",
+                  "name": "SUPINATED GRIP PULLDOWN",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "fixed",
+                  "value": "",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_2_3",
+              "weekday": 3,
+              "rest": true,
+              "exercises": []
+            },
+            {
+              "id": "day_2_4",
+              "weekday": 4,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_2_4_0",
+                  "name": "COMP SQUATS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_2_4_1",
+                  "name": "COMP BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_2_4_2",
+                  "name": "COMP BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Back-off",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_2_4_3",
+                  "name": "LEG EXTENSION",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_2_4_4",
+                  "name": "LATERAL RAISES",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6-10",
+                  "intensity": "fixed",
+                  "value": "",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_2_4_5",
+                  "name": "TRICEP EXTENSION OF CHOICE",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "fixed",
+                  "value": "",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_2_4_6",
+                  "name": "PLANKS (BRACE EMPHASIS)",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "20-60 sec",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_2_5",
+              "weekday": 5,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_2_5_0",
+                  "name": "COMP DEADLIFT",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "6,5",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_2_5_1",
+                  "name": "COMP DEADLIFT",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "5",
+                  "scheme": "Back-off",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_2_5_2",
+                  "name": "COMP DEADLIFT",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Back-off",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_2_5_3",
+                  "name": "COMP DEADLIFT",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Back-off",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_2_5_4",
+                  "name": "LARSEN BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "5",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_2_5_5",
+                  "name": "SHOULDER PRESS MACHINE",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_2_5_6",
+                  "name": "TRICEP EXTENSION OF CHOICE",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_2_5_7",
+                  "name": "ABDUCTION WITH BAND",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_2_6",
+              "weekday": 6,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_2_6_0",
+                  "name": "PAUSED SQUATS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "3",
+                  "intensity": "load",
+                  "value": "",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_2_6_1",
+                  "name": "2CT PAUSED BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "load",
+                  "value": "",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_2_6_2",
+                  "name": "COMP BENCHPRESS",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "3",
+                  "intensity": "load",
+                  "value": "",
+                  "scheme": "Back-off",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_2_6_3",
+                  "name": "INCLINE PRESS (MACHINE/DUMBELLS)",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_2_6_4",
+                  "name": "CHEST SUPPORTED ROW",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_2_6_5",
+                  "name": "BICEP CURLS OF CHOICE",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Fatigue",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_2_0",
+              "weekday": 0,
+              "rest": true,
+              "exercises": []
+            }
+          ],
+          "startDate": "2026-08-10"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,307 @@
+{
+  "weekStartsOn": 1,
+  "program": {
+    "blockName": "Base · GPP"
+  },
+  "athlete": {
+    "firstName": "RENÉE",
+    "welcomeSub": "Block 1 · week 1 — your next session is ready.",
+    "sex": "female",
+    "age": "24",
+    "goalClass": "69 KG",
+    "bodyweightTile": "68",
+    "trainingAge": "4 YR",
+    "freeTeeUsed": false
+  },
+  "nextSession": {
+    "status": "Unfinished: Mon, Thu",
+    "title": "DEADLIFT & BENCH SESSION · FRIDAY"
+  },
+  "metrics": {
+    "setsDone": 44,
+    "setsTotal": 65,
+    "rpeDone": 29,
+    "rpeTotal": 42
+  },
+  "blockStart": "2026-08-03",
+  "bwRange": "all",
+  "bwEntries": [
+    {
+      "date": "2026-06-10",
+      "kg": 66.4
+    },
+    {
+      "date": "2026-06-17",
+      "kg": 67.0
+    },
+    {
+      "date": "2026-06-24",
+      "kg": 66.8
+    },
+    {
+      "date": "2026-07-01",
+      "kg": 67.6
+    },
+    {
+      "date": "2026-07-08",
+      "kg": 68.2
+    },
+    {
+      "date": "2026-07-15",
+      "kg": 67.4
+    },
+    {
+      "date": "2026-07-22",
+      "kg": 68.8
+    },
+    {
+      "date": "2026-07-29",
+      "kg": 68.2
+    },
+    {
+      "date": "2026-08-02",
+      "kg": 68.0
+    }
+  ],
+  "totals": {
+    "gym": "330",
+    "gymDelta": "+12,5 kg since starting",
+    "comp": "—",
+    "compNote": "First competition still to come"
+  },
+  "prs": [
+    {
+      "lift": "SQUAT",
+      "value": "105",
+      "date": "Jun 2026",
+      "delta": "+5"
+    },
+    {
+      "lift": "BENCH PRESS",
+      "value": "80",
+      "date": "Jul 2026",
+      "delta": "+2,5"
+    },
+    {
+      "lift": "DEADLIFT",
+      "value": "145",
+      "date": "Jul 2026",
+      "delta": "+5"
+    }
+  ],
+  "gl": {
+    "current": "68,2",
+    "best": "68,9",
+    "goal": "75,0",
+    "note": "GL points from 330 kg at 68 kg bodyweight. Best set at the May meet."
+  },
+  "bodyweight": {
+    "value": "68 kg",
+    "classLabel": "−69 kg class",
+    "note": "1 kg under the limit",
+    "tooltip": "68 kg",
+    "inputValue": "68"
+  },
+  "coach": {
+    "name": "NOA DEPAEPE",
+    "role": "Strength coach"
+  },
+  "shop": {
+    "sub": "Kit, singlets and bottles"
+  },
+  "shopProducts": [
+    {
+      "id": "tee",
+      "name": "COMPETITION TEE",
+      "desc": "Black · club emblem on the chest",
+      "price": 25,
+      "sized": true,
+      "freeEligible": true,
+      "images": [
+        "/assets/product-tee.png"
+      ]
+    },
+    {
+      "id": "oversized",
+      "name": "OVERSIZED TEE",
+      "desc": "Acid wash · navy or stone",
+      "price": 42,
+      "sized": true,
+      "images": [
+        "/assets/product-oversized.png"
+      ]
+    },
+    {
+      "id": "bottle",
+      "name": "STEEL BOTTLE",
+      "desc": "750 ml, olive · engraved emblem",
+      "price": 18,
+      "sized": false,
+      "images": [
+        "/assets/product-bottle.png"
+      ]
+    }
+  ],
+  "shopOrder": {
+    "size": "S",
+    "cart": {},
+    "note": ""
+  },
+  "competitions": [
+    {
+      "id": "vk-subj-jun",
+      "name": "VK Subjunioren & Junioren",
+      "date": "2026-08-15",
+      "location": "Power Gym (Izegem)",
+      "level": "national",
+      "going": 0,
+      "note": "1 deelname in laatste 24 maanden voor inschrijvingsdatum"
+    },
+    {
+      "id": "vk-open",
+      "name": "VK Open & Masters",
+      "date": "2026-08-29",
+      "location": "Exhale Performance (Leuven)",
+      "level": "national",
+      "going": 0,
+      "note": "1 deelname in laatste 24 maanden voor inschrijvingsdatum"
+    },
+    {
+      "id": "bk-open",
+      "name": "BK Open",
+      "date": "2026-10-24",
+      "location": "TBD (Wallonië)",
+      "level": "national",
+      "going": 0,
+      "note": "minima in laatste 12 maanden + 14 beste ingeschreven per gewichtsklasse"
+    },
+    {
+      "id": "kwal-3",
+      "name": "Kwalificatiewedstrijd 3",
+      "date": "2026-10-31",
+      "location": "CrossFit Lokeren",
+      "level": "national",
+      "going": 0
+    },
+    {
+      "id": "benelux-cup",
+      "name": "Vervanging Benelux Cup",
+      "date": "2026-11-07",
+      "location": "Power Gym (Izegem)",
+      "level": "national",
+      "going": 0,
+      "note": "TBD"
+    },
+    {
+      "id": "bk-equipped",
+      "name": "BK Equipped",
+      "date": "2026-11-28",
+      "location": "TBD (Wallonië)",
+      "level": "national",
+      "going": 0,
+      "note": "minima in laatste 12 maanden + 14 beste per gewichtsklasse"
+    },
+    {
+      "id": "bk-bench",
+      "name": "BK Bench",
+      "date": "2026-11-28",
+      "location": "TBD (Wallonië)",
+      "level": "national",
+      "going": 0,
+      "note": "minima in laatste 12 maanden + 14 beste per gewichtsklasse"
+    },
+    {
+      "id": "ek-bench",
+      "name": "EK Bench Classic & Equipped",
+      "date": "2026-08-03",
+      "location": "TBD",
+      "level": "international",
+      "going": 0
+    },
+    {
+      "id": "wk-jun",
+      "name": "WK Junioren Classic & Equipped",
+      "date": "2026-08-29",
+      "location": "TBD",
+      "level": "international",
+      "going": 0
+    },
+    {
+      "id": "wec",
+      "name": "WEC Classic en Equipped",
+      "date": "2026-09-17",
+      "location": "TBD",
+      "level": "international",
+      "going": 0
+    },
+    {
+      "id": "wk-masters",
+      "name": "WK Masters Classic & Equipped",
+      "date": "2026-10-14",
+      "location": "TBD",
+      "level": "international",
+      "going": 0
+    },
+    {
+      "id": "wk-open-eq",
+      "name": "WK Open Equipped",
+      "date": "2026-11-09",
+      "location": "TBD",
+      "level": "international",
+      "going": 0
+    },
+    {
+      "id": "ek-jun",
+      "name": "EK Junioren Classic",
+      "date": "2026-12-06",
+      "location": "TBD",
+      "level": "international",
+      "going": 0
+    },
+    {
+      "id": "benelux-tourn",
+      "name": "Benelux Tournament",
+      "date": "2026-12-19",
+      "location": "Netherlands",
+      "level": "international",
+      "going": 0,
+      "note": "date TBD"
+    }
+  ],
+  "optedInComps": [],
+  "checkin": {
+    "weekStart": null,
+    "submitted": false,
+    "scores": {
+      "training": 8,
+      "sleep": 7,
+      "nutrition": 7,
+      "stress": 5,
+      "overall": 8,
+      "motivation": 9,
+      "pain": 3
+    },
+    "note": ""
+  },
+  "adherenceHistory": [],
+  "lastSnapshotWeek": null,
+  "programLogs": {},
+  "notes": {
+    "tags": [
+      "Travelling next week",
+      "Cannot train Thursday",
+      "Ache's to flag",
+      "Poor Recovery"
+    ],
+    "sent": [
+      {
+        "date": "MON 27 JUL",
+        "text": "Exams next week, so Thursday will have to shift to Wednesday evening."
+      },
+      {
+        "date": "FRI 24 JUL",
+        "text": "Right shoulder felt tight on the long paused bench. Nothing sharp, just stiff."
+      }
+    ]
+  }
+}

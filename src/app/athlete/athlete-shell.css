@@ -1,0 +1,50 @@
+/* Shell that hosts the real design frames. Frost background fills the space
+   around the phone (the "white space"); the frame is the captured design. */
+.athlete-shell {
+  min-height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px 0;
+  background: #eaf0f6 url(/assets/bg-frost-light2.png) center / cover fixed;
+}
+.athlete-frame {
+  /* the captured frames are 380px-wide phone mockups */
+  width: 380px;
+  max-width: 100%;
+}
+.athlete-frame > .blueprint > .corner { display: none; } /* hide canvas registration marks */
+
+.athlete-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 12px;
+  font: 600 22px/1 "Barlow Condensed", sans-serif;
+  color: #eef2f6;
+  background: rgba(255, 255, 255, .12);
+  border: 1px solid rgba(255, 255, 255, .25);
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.athlete-back:hover,
+.athlete-back:active { background: rgba(255, 255, 255, .22); }
+
+@media (max-width: 520px) {
+  .athlete-shell { padding: 0; background: #16232f; min-height: 100dvh; }
+  .athlete-frame { width: 100%; max-width: none; }
+  /* Full-bleed on a real phone: drop the 380px mockup card chrome and fill the
+     screen, clearing the status bar / home indicator via the safe-area insets. */
+  .athlete-frame > .blueprint {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 100dvh;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding-top: env(safe-area-inset-top);
+  }
+}

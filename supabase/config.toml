@@ -1,0 +1,23 @@
+# Supabase project config. `project_id` is set to your project ref when you run
+# `supabase link`. Realtime + Auth are enabled for the app's live-sync and
+# invite-based accounts.
+project_id = "ssc-training-log"
+
+[db]
+major_version = 15
+
+[realtime]
+enabled = true
+
+[auth]
+enable_signup = false          # closed group — accounts are invite-only
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = false
+enable_confirmations = true
+
+# Storage bucket for product images / avatars is created via migration or the
+# dashboard; keep it private and serve through signed URLs.
+[storage]
+enabled = true

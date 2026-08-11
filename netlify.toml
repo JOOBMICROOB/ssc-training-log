@@ -1,0 +1,19 @@
+# Netlify build + hosting config. Connect this repo once (Netlify → Add new
+# site → Import from Git) and every push auto-deploys to the SAME URL, so the
+# coach-side localStorage (programs, drafts) is never lost on an update.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # Public, client-safe values (protected by Supabase Row Level Security, not by
+  # hiding the key) — safe to commit so the build needs no dashboard setup.
+  VITE_SUPABASE_URL = "https://skdjpydjkqjqwrdgqpco.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "sb_publishable_jao8XJVP01S4u1tYkhv3VA__TUUmb3q"
+
+# Single-page app: serve index.html for every route so deep links like /coach work.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

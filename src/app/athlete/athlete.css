@@ -1,0 +1,59 @@
+/* Athlete app — styled to the Claude Design frames (soft, rounded, navy header
+   over a light body; immersive navy for login + lift detail). */
+.a-root {
+  --navy: #1d2d3d; --navy-top: #22344400; --navy-deep: #14212c;
+  --bg: #ececef; --card: #ffffff; --line: rgba(29,31,32,.12);
+  --accent: #5980a6; --accent-deep: #416180; --text: #1d1f20; --muted: #6b7480;
+  font-family: "Barlow", system-ui, sans-serif; color: var(--text);
+  max-width: 440px; margin: 0 auto; min-height: 100%;
+  background: var(--bg); position: relative; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.a-h { font-family: "Barlow Condensed", sans-serif; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+.a-kick { font: 600 10.5px/1 "Barlow Condensed", sans-serif; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.a-muted { color: var(--muted); }
+
+/* top app bar */
+.a-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; background: linear-gradient(180deg,#20313f,#1a2937); color: #eef2f6;
+}
+.a-logo { display: flex; align-items: center; gap: 9px; cursor: pointer; }
+.a-logo svg { display: block; }
+.a-logo b { font: 700 14px/1 "Barlow Condensed", sans-serif; letter-spacing: .04em; }
+.a-bar .a-ctx { font: 600 10.5px/1 "Barlow Condensed", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: rgba(238,242,246,.6); }
+
+.a-body { flex: 1; overflow-y: auto; padding: 18px; -webkit-overflow-scrolling: touch; }
+
+/* cards */
+.a-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; box-shadow: 0 1px 2px rgba(29,31,32,.05); }
+.a-card.navy { background: #1d2d3d; color: #eef2f6; border-color: rgba(255,255,255,.08); }
+.a-stat { background: var(--card); border: 1px solid var(--line); border-radius: 13px; padding: 12px 14px; }
+.a-stat .v { font: 600 22px/1 "Barlow Condensed", sans-serif; }
+
+/* buttons */
+.a-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  font: 600 12.5px/1 "Barlow Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase;
+  padding: 12px 18px; border-radius: 11px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
+.a-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.a-btn.navy { background: var(--navy); border-color: var(--navy); color: #fff; }
+.a-btn.block { width: 100%; }
+.a-btn.sm { padding: 8px 12px; font-size: 11px; border-radius: 9px; }
+
+.a-in { width: 100%; padding: 13px 14px; border-radius: 11px; border: 1px solid var(--line);
+  background: var(--card); font: 500 15px "Barlow", sans-serif; color: var(--text); }
+.a-in::placeholder { color: #b7bcc2; }
+
+/* pills / segmented */
+.a-seg { display: flex; gap: 8px; }
+.a-seg button { flex: 1; padding: 11px 0; border-radius: 11px; border: 1px solid var(--line);
+  background: var(--card); font: 600 12px/1 "Barlow Condensed", sans-serif; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted); cursor: pointer; }
+.a-seg button[data-on="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
+
+/* immersive navy screens (login / detail) */
+.a-navy { background: var(--navy-deep); color: #eef2f6; min-height: 100%; display: flex; flex-direction: column; }
+
+/* Pull-to-refresh spinner (dashboard gimmick) — eased accelerate/decelerate spin. */
+@keyframes ptr-rot { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.ptr-logo.ptr-spinning { animation: ptr-rot .9s cubic-bezier(.66, .02, .34, .98) infinite; }
