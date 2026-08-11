@@ -107,6 +107,7 @@ export type DashboardModel = DashboardData & {
   blockLabel: string;
   compCountdown: string; // "3 WEEKS OUT · <meet>" if opted in, else "" (blank)
   bodyweightAvg4w: string;
+  streak: number; // consecutive training days logged ≥80% (rest days don't break it)
 };
 
 export type LogResult =
@@ -255,6 +256,46 @@ function blockLabelOf(blockName: string | undefined, weekName: string | undefine
   return hasProgram ? `WEEK ${weekNum}` : "";
 }
 
+/**
+ * Streak = consecutive completed training days going back from today. A training
+ * day counts once the athlete has logged ≥80% of its sets; a rest day never
+ * breaks the chain (it just doesn't add to it). Today is given grace — an
+ * unfinished session today doesn't reset the streak, it simply doesn't count yet.
+ */
+function computeStreak(data: DashboardData, today: Date): number {
+  const logs = data.programLogs ?? {};
+  const todayIso = iso(today);
+  let streak = 0;
+  let cursor = todayIso;
+  for (let guard = 0; guard < 400; guard++) {
+    const s = getSession(templateForDate(data, cursor), logs, cursor);
+    if (s.rest || s.exercises.length === 0) {
+      cursor = addDays(cursor, -1);
+      continue; // rest day — doesn't break, doesn't count
+    }
+    let total = 0;
+    let logged = 0;
+    for (const ex of s.exercises) {
+      for (const st of ex.sets) {
+        total++;
+        if ((st.weightKg != null && !st.prefill) || st.failed) logged++;
+      }
+    }
+    const frac = total ? logged / total : 0;
+    if (frac >= 0.8) {
+      streak++;
+      cursor = addDays(cursor, -1);
+      continue;
+    }
+    if (cursor === todayIso) {
+      cursor = addDays(cursor, -1);
+      continue; // today's session still in progress — grace, no break
+    }
+    break; // a past training day left unlogged ends the streak
+  }
+  return streak;
+}
+
 /** Build the render model: compute adherence, the bw chart, and weekly reset. */
 export function buildDashboardModel(data: DashboardData, today = new Date()): DashboardModel {
   const thisWeek = isoWeekStart(data, today);
@@ -312,6 +353,7 @@ export function buildDashboardModel(data: DashboardData, today = new Date()): Da
     totals: { ...data.totals, gym: records.gym, gymDelta: records.gymDelta },
     gl: { ...data.gl, current: records.glCurrent, best: records.glBest, note: records.glNote },
     adherence,
+    streak: computeStreak(data, today),
     weeklySubmitted,
     checkinStatus: weeklySubmitted ? "Submitted ✓" : `Due · ${dueLabel}`,
     bw,

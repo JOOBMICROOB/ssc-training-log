@@ -467,6 +467,7 @@ function ClientsView({
                 <div style={{ minWidth: 0 }}>
                   <div className="cc-name">
                     {c.name}
+                    {c.streak > 0 && <span className="cc-pr-badge" title={`${c.streak}-day logging streak`} style={{ borderColor: "var(--accent-700)", color: "var(--accent-700)" }}>🔥 {c.streak}</span>}
                     {c.competing && <span className="cc-pr-badge">PR</span>}
                     {c.live && <span className="cc-pr-badge" style={{ borderColor: "var(--good)", color: "var(--good)" }}>LIVE</span>}
                   </div>

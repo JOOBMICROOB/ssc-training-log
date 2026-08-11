@@ -63,6 +63,7 @@ export type ClientRow = {
   notes: { id: string; date: string; text: string; checkedAt?: string }[];
   hideMaxes: boolean;
   disabled: boolean; // archived by the coach — hidden from board + switcher, reversible
+  streak: number; // athlete's current logging streak (0 = none / demo)
   opts: MeetOpt[];
 };
 
@@ -179,6 +180,7 @@ const A = (s: Seed): ClientRow => ({
   notes: [],
   hideMaxes: false,
   disabled: false,
+  streak: 0,
   opts: [],
   ...s,
 } as ClientRow);
@@ -317,6 +319,7 @@ function liveRow(model: DashboardModel, overlay: Overlay, opt: { athleteId?: str
     notes: sentNotes(model).sort((a, b) => b.date.localeCompare(a.date)),
     hideMaxes: overlay.hideMaxes ?? false,
     disabled: overlay.disabled ?? false,
+    streak: model.streak ?? 0,
     opts,
   };
 }

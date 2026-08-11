@@ -155,6 +155,18 @@ function applyModel(host: HTMLElement, model: DashboardModel) {
   if (prRows) prRows.innerHTML = model.prs.map(prRowHtml).join("");
 
   setText(host, "welcomeName", model.athlete.firstName);
+  // Streak flame — consecutive training days logged ≥80% (rest days don't break it).
+  const streakBadge = host.querySelector<HTMLElement>("#streakBadge");
+  if (streakBadge) {
+    if (model.streak > 0) {
+      streakBadge.style.display = "inline-flex";
+      streakBadge.title = `${model.streak}-day streak — keep logging ≥80% of every session to grow it. Rest days are safe.`;
+      const num = streakBadge.querySelector("#streakNum");
+      if (num) num.textContent = String(model.streak);
+    } else {
+      streakBadge.style.display = "none";
+    }
+  }
   const pic = host.querySelector<HTMLElement>("#profilePic");
   if (pic)
     pic.innerHTML = model.athlete.avatar
