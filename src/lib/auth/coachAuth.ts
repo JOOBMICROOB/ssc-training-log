@@ -54,6 +54,42 @@ export async function signOutCoach(): Promise<void> {
   await coachSupabase.auth.signOut().catch(() => {});
 }
 
+/** The email an athlete logs in with — derived from their ID/code. */
+export function athleteLoginEmail(athleteId: string): string {
+  return `${athleteId.trim().toLowerCase()}@ssc.app`;
+}
+
+/**
+ * Reset an athlete's password. Changing another user's Supabase password needs
+ * the service_role admin key, which must NEVER live in the browser — so this
+ * calls a server-side Edge Function ('reset-athlete-password') that holds the
+ * key and verifies the caller is the coach who owns this athlete. If the
+ * function isn't deployed yet, it fails with a clear message (see
+ * supabase/functions/reset-athlete-password/README.md to deploy it).
+ */
+export async function resetAthletePassword(athleteCode: string, newPassword: string): Promise<{ ok: boolean; error?: string }> {
+  if (newPassword.length < 6) return { ok: false, error: "Password must be at least 6 characters." };
+  try {
+    const fns = coachSupabase as unknown as {
+      functions: { invoke: (name: string, opts: { body: unknown }) => Promise<{ data: unknown; error: { message?: string } | null }> };
+    };
+    const { data, error } = await fns.functions.invoke("reset-athlete-password", {
+      body: { code: athleteCode.trim().toUpperCase(), password: newPassword },
+    });
+    if (error) {
+      const msg = /not found|failed to fetch|404/i.test(error.message ?? "")
+        ? "The reset function isn't deployed yet — see supabase/functions/reset-athlete-password/README.md."
+        : error.message ?? "Reset failed.";
+      return { ok: false, error: msg };
+    }
+    const res = data as { ok?: boolean; error?: string } | null;
+    if (res && res.ok === false) return { ok: false, error: res.error ?? "Reset was refused." };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Couldn't reach the reset function — is it deployed?" };
+  }
+}
+
 /**
  * Provision a new athlete: create their Supabase login (id → email, password),
  * which the 0015 trigger turns into a profile owned by this coach, then seed

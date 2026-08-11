@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getDashboardModel, getDashboard, getSessionFor, setAthleteInfo, setCompPr, setCompTotal, setPrBaseline, markNoteChecked, setWeekLockOff, IPF_CLASSES } from "../../lib/data/athleteData";
-import { createAthlete } from "../../lib/auth/coachAuth";
+import { createAthlete, athleteLoginEmail, resetAthletePassword } from "../../lib/auth/coachAuth";
 import { fmtKg } from "../../lib/calc/records";
 import { renderBwSvgInner, DASH_STYLE } from "../../lib/calc/bwChart";
 import { Avatar } from "./Avatar";
@@ -174,6 +174,7 @@ function FullProfile({ client }: { client: ClientRow }) {
             </span>
           </span>
         </label>
+        <LoginAccess athleteId={athleteId} firstName={a.firstName} live={live} />
         {!live && <p className="cc-cell-s" style={{ marginTop: 12 }}>This is a demo entry — the training panels below fill in once they’re a real synced account (create one with “+ New athlete”).</p>}
       </div>
 
@@ -279,6 +280,68 @@ export function AthletePanels({ client }: { client: ClientRow }) {
   );
 }
 
+
+/* --------------------------------------------------------- login & access -- */
+function LoginAccess({ athleteId, firstName, live }: { athleteId: string; firstName: string; live: boolean }) {
+  const username = athleteId.toUpperCase();
+  const email = athleteLoginEmail(athleteId);
+  const [newPw, setNewPw] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const copy = (v: string) => navigator.clipboard?.writeText(v).catch(() => {});
+  const gen = () => setNewPw(rnd(8));
+
+  const doReset = async () => {
+    if (newPw.length < 6) { setMsg({ ok: false, text: "Password must be at least 6 characters." }); return; }
+    if (!confirm(`Reset ${firstName}'s password to “${newPw}”?\n\nTheir old password stops working immediately — hand them the new one.`)) return;
+    setBusy(true);
+    setMsg(null);
+    const res = await resetAthletePassword(athleteId, newPw);
+    setBusy(false);
+    setMsg(res.ok
+      ? { ok: true, text: `Done. ${firstName} now logs in with “${newPw}”.` }
+      : { ok: false, text: res.error ?? "Reset failed." });
+  };
+
+  return (
+    <>
+      <div className="cc-side-k" style={{ marginTop: 18, marginBottom: 5 }}>Login &amp; access</div>
+      <div className="cc-form-grid">
+        <Field label="Username / ID">
+          <div style={{ display: "flex", gap: 6 }}>
+            <input className="cc-db-search" value={username} readOnly onFocus={(e) => e.currentTarget.select()} />
+            <button className="cc-mini" onClick={() => copy(username)}>Copy</button>
+          </div>
+        </Field>
+        <Field label="Login email">
+          <div style={{ display: "flex", gap: 6 }}>
+            <input className="cc-db-search" value={email} readOnly onFocus={(e) => e.currentTarget.select()} />
+            <button className="cc-mini" onClick={() => copy(email)}>Copy</button>
+          </div>
+        </Field>
+      </div>
+      <p style={{ font: "400 10px/1.45 var(--font-body)", color: "var(--muted)", margin: "8px 0 0" }}>
+        Passwords are stored encrypted — no one can read a forgotten one, not even here. If {firstName} is locked out, set them a new one below and hand it over.
+      </p>
+
+      {live ? (
+        <>
+          <div style={{ height: 10 }} />
+          <Field label="Set a new password">
+            <div style={{ display: "flex", gap: 6 }}>
+              <input className="cc-db-search" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="min 6 characters" />
+              <button className="cc-mini" onClick={gen}>Generate</button>
+            </div>
+          </Field>
+          <button className="cc-fullbtn" style={{ marginTop: 10 }} disabled={busy} onClick={doReset}>{busy ? "Resetting…" : "Reset password"}</button>
+          {msg && <div style={{ marginTop: 10, font: "500 11.5px/1.5 var(--font-body)", color: msg.ok ? "var(--good)" : "var(--bad)" }}>{msg.text}</div>}
+        </>
+      ) : (
+        <p className="cc-cell-s" style={{ marginTop: 8 }}>Password reset is available once this is a real synced account.</p>
+      )}
+    </>
+  );
+}
 
 function latestSession(athleteId: string) {
   const d = getDashboard(athleteId);
