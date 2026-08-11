@@ -62,6 +62,7 @@ export type ClientRow = {
   // The athlete's real notes to the coach — the coach sees all of them forever.
   notes: { id: string; date: string; text: string; checkedAt?: string }[];
   hideMaxes: boolean;
+  disabled: boolean; // archived by the coach — hidden from board + switcher, reversible
   opts: MeetOpt[];
 };
 
@@ -79,7 +80,7 @@ export function setRealAthletes(list: RealAthlete[]) {
 }
 
 // --- coach-side overlay (private notes, program-due) -------------------------
-type Overlay = { note?: string; hideMaxes?: boolean; coachId?: string };
+type Overlay = { note?: string; hideMaxes?: boolean; coachId?: string; disabled?: boolean };
 const OVERLAY_KEY = "ssc.coach.overlay";
 function readOverlay(): Record<string, Overlay> {
   try {
@@ -106,6 +107,17 @@ export function setHideMaxes(athleteId: string, hideMaxes: boolean) {
   o[athleteId] = { ...o[athleteId], hideMaxes };
   writeOverlay(o);
   emit();
+}
+/** Archive (disable) or restore an athlete — hides them from the board and the
+ * top-right switcher without deleting anything. Fully reversible. */
+export function setAthleteDisabled(athleteId: string, disabled: boolean) {
+  const o = readOverlay();
+  o[athleteId] = { ...o[athleteId], disabled };
+  writeOverlay(o);
+  emit();
+}
+export function athleteDisabled(athleteId: string): boolean {
+  return readOverlay()[athleteId]?.disabled === true;
 }
 /** Reassign an athlete to a coach — the coach picks manually, persisted locally. */
 export function setCoach(athleteId: string, coachId: string) {
@@ -166,6 +178,7 @@ const A = (s: Seed): ClientRow => ({
   message: "",
   notes: [],
   hideMaxes: false,
+  disabled: false,
   opts: [],
   ...s,
 } as ClientRow);
@@ -303,6 +316,7 @@ function liveRow(model: DashboardModel, overlay: Overlay, opt: { athleteId?: str
     message: lastMsg?.text ?? "",
     notes: sentNotes(model).sort((a, b) => b.date.localeCompare(a.date)),
     hideMaxes: overlay.hideMaxes ?? false,
+    disabled: overlay.disabled ?? false,
     opts,
   };
 }
@@ -341,7 +355,7 @@ function withPlan(r: ClientRow, today: string): ClientRow {
   };
 }
 
-export function getClients(coachId?: string): ClientRow[] {
+export function getClients(coachId?: string, opts?: { includeDisabled?: boolean }): ClientRow[] {
   const overlay = readOverlay();
   const today = isoToday();
   const seen = new Set<string>();
@@ -378,11 +392,14 @@ export function getClients(coachId?: string): ClientRow[] {
     if (seen.has(d.athleteId)) continue;
     const o = overlay[d.athleteId] as (Overlay & { opts?: Record<string, boolean> }) | undefined;
     const opts = demoOpts(d.athleteId, o?.opts);
-    rows.push({ ...d, note: o?.note ?? d.note, hideMaxes: o?.hideMaxes ?? d.hideMaxes, coachId: o?.coachId ?? d.coachId, opts, competing: d.competing || opts.some((x) => x.opted) });
+    rows.push({ ...d, note: o?.note ?? d.note, hideMaxes: o?.hideMaxes ?? d.hideMaxes, disabled: o?.disabled ?? false, coachId: o?.coachId ?? d.coachId, opts, competing: d.competing || opts.some((x) => x.opted) });
   }
 
   const withPlans = rows.map((r) => withPlan(r, today));
-  return coachId ? withPlans.filter((r) => r.coachId === coachId) : withPlans;
+  const scoped = coachId ? withPlans.filter((r) => r.coachId === coachId) : withPlans;
+  // Disabled (archived) athletes are hidden everywhere unless explicitly asked
+  // for — that's how the roster and the top-right switcher stay decluttered.
+  return opts?.includeDisabled ? scoped : scoped.filter((r) => !r.disabled);
 }
 
 // --- competition catalogue (coach-managed, shared to every athlete) ----------

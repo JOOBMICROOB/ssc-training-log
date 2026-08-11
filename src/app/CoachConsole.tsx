@@ -16,6 +16,7 @@ import {
   teamSummary,
   setCoachNote,
   setHideMaxes,
+  setAthleteDisabled,
   toggleOpt,
   subscribeCoach,
   setRealAthletes,
@@ -149,6 +150,9 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
   // client board can still filter to other coaches for the head-coach overview.
   const myCoach = session.code;
   const myAthletes = allClients.filter((c) => c.coachId === myCoach);
+  // Archived athletes (hidden from the board + switcher) — surfaced only in the
+  // picker footer so the coach can restore them.
+  const disabledMine = getClients(undefined, { includeDisabled: true }).filter((c) => c.coachId === myCoach && c.disabled);
   const selected =
     allClients.find((c) => c.athleteId === selectedId) ??
     myAthletes[0] ??
@@ -201,17 +205,40 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
                   {myAthletes
                     .filter((c) => c.name.toLowerCase().includes(pickerQ.toLowerCase()))
                     .map((c) => (
-                      <button
-                        key={c.athleteId}
-                        className={`cc-athlete-menu-item${c.athleteId === selected?.athleteId ? " cc-current" : ""}`}
-                        onClick={() => { setSelectedId(c.athleteId); setPickerOpen(false); setPickerQ(""); }}
-                      >
-                        <Avatar src={c.avatar} name={c.name} size={26} />
-                        <span>{c.name}</span>
-                        {c.live && <span className="cc-pr-badge" style={{ marginLeft: "auto", borderColor: "var(--good)", color: "var(--good)" }}>LIVE</span>}
-                      </button>
+                      <div key={c.athleteId} className="cc-athlete-menu-row">
+                        <button
+                          className={`cc-athlete-menu-item${c.athleteId === selected?.athleteId ? " cc-current" : ""}`}
+                          style={{ flex: 1 }}
+                          onClick={() => { setSelectedId(c.athleteId); setPickerOpen(false); setPickerQ(""); }}
+                        >
+                          <Avatar src={c.avatar} name={c.name} size={26} />
+                          <span>{c.name}</span>
+                          {c.live && <span className="cc-pr-badge" style={{ marginLeft: "auto", borderColor: "var(--good)", color: "var(--good)" }}>LIVE</span>}
+                        </button>
+                        <button
+                          className="cc-athlete-menu-arch"
+                          title={`Archive ${c.name} — hides them from the board and this switcher (reversible)`}
+                          onClick={(e) => { e.stopPropagation(); if (confirm(`Archive ${c.name}? They disappear from the board and the switcher. You can restore them here anytime.`)) setAthleteDisabled(c.athleteId, true); }}
+                        >
+                          ⊘
+                        </button>
+                      </div>
                     ))}
                 </div>
+                {disabledMine.length > 0 && (
+                  <div className="cc-athlete-menu-archived">
+                    <div className="cc-athlete-menu-archived-k">Archived · {disabledMine.length}</div>
+                    {disabledMine.map((c) => (
+                      <div key={c.athleteId} className="cc-athlete-menu-row" style={{ opacity: 0.7 }}>
+                        <span className="cc-athlete-menu-item" style={{ flex: 1, cursor: "default" }}>
+                          <Avatar src={c.avatar} name={c.name} size={22} />
+                          <span>{c.name}</span>
+                        </span>
+                        <button className="cc-athlete-menu-arch" title={`Restore ${c.name}`} onClick={(e) => { e.stopPropagation(); setAthleteDisabled(c.athleteId, false); }}>↩</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <button className="cc-athlete-menu-new" onClick={() => { setPickerOpen(false); setHeading("program"); setSub("athlete"); setNewAthleteSignal((n) => n + 1); }}>+ New athlete</button>
               </div>
             </>

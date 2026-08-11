@@ -153,6 +153,47 @@
 .cc-athlete-menu-new:hover {
   border-color: var(--accent);
 }
+.cc-athlete-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.cc-athlete-menu-arch {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+.cc-athlete-menu-row:hover .cc-athlete-menu-arch {
+  opacity: 1;
+}
+.cc-athlete-menu-arch:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-700);
+}
+.cc-athlete-menu-archived {
+  margin: 6px 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--divider);
+}
+.cc-athlete-menu-archived-k {
+  font: 600 9.5px/1 var(--font-heading);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 6px 4px;
+}
+.cc-athlete-menu-archived .cc-athlete-menu-arch {
+  opacity: 1;
+}
 
 .cc-coach-pill {
   display: flex;
