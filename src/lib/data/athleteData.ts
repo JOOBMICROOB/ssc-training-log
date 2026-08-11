@@ -99,7 +99,13 @@ export type DashboardData = {
   // for specific week-starts (weekLockBypass), so the coach can grant access.
   weekLockOff?: boolean;
   weekLockBypass?: string[];
+  // Coach-set time off + events for this athlete — shown on the coach calendar
+  // and on the athlete's own calendar + dashboard. `endDate` (inclusive) makes a
+  // multi-day span like a holiday; omit it for a single-day event.
+  events?: AthleteEvent[];
 };
+
+export type AthleteEvent = { id: string; date: string; endDate?: string; type: "vacation" | "event"; title: string };
 
 /** The flat view the UI renders: raw data plus computed adherence + bw chart. */
 export type DashboardModel = DashboardData & {
@@ -655,6 +661,33 @@ export function grantWeekAccess(athleteId: string, weekStartISO: string) {
   const set = new Set(d.weekLockBypass ?? []);
   set.add(weekStartISO);
   save(athleteId, { ...d, weekLockBypass: [...set] });
+}
+
+// --- athlete events / time off (coach-set, visible to the athlete too) --------
+export function getAthleteEvents(athleteId: string): AthleteEvent[] {
+  return (getDashboard(athleteId).events ?? []).slice().sort((a, b) => a.date.localeCompare(b.date));
+}
+export function addAthleteEvent(athleteId: string, e: Omit<AthleteEvent, "id">) {
+  const d = getDashboard(athleteId);
+  const ev: AthleteEvent = { ...e, id: `ev_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}` };
+  save(athleteId, { ...d, events: [...(d.events ?? []), ev] });
+}
+export function removeAthleteEvent(athleteId: string, id: string) {
+  const d = getDashboard(athleteId);
+  save(athleteId, { ...d, events: (d.events ?? []).filter((x) => x.id !== id) });
+}
+/** Map of ISO date → the event covering it (single day or within a span). */
+export function eventsByDate(events: AthleteEvent[]): Record<string, AthleteEvent> {
+  const map: Record<string, AthleteEvent> = {};
+  for (const e of events) {
+    let d = e.date;
+    const end = e.endDate && e.endDate >= e.date ? e.endDate : e.date;
+    for (let guard = 0; guard < 400 && d <= end; guard++) {
+      if (!map[d]) map[d] = e;
+      d = addDays(d, 1);
+    }
+  }
+  return map;
 }
 
 /** Log (or clear) one set's weight / RPE / note for a given date. */

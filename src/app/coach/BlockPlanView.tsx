@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { loadProgram, weekOrder, dayDate, type Mesocycle, type Week } from "./coachProgram";
 import { getCompetitions, getClients } from "./coachData";
-import { getDashboard, getSessionFor } from "../../lib/data/athleteData";
+import { getDashboard, getSessionFor, getAthleteEvents, addAthleteEvent, removeAthleteEvent, eventsByDate, type AthleteEvent } from "../../lib/data/athleteData";
 import { Avatar } from "./Avatar";
 import type { MainLift } from "../../lib/program/program";
 
@@ -21,7 +21,7 @@ const MON_LONG = ["January", "February", "March", "April", "May", "June", "July"
 const localIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const addMonths = (y: number, m: number, n: number) => { const d = new Date(y, m + n, 1); return { y: d.getFullYear(), m: d.getMonth() }; };
 
-type DayInfo = { mesoColor: string; mesoName: string; weekName: string; weekIdxInMeso: number; training: boolean; isCurrent: boolean; published: boolean; exCount: number; lifts: MainLift[] };
+type DayInfo = { mesoColor: string; mesoName: string; mesoIdx: number; weekName: string; weekIdxInMeso: number; training: boolean; isCurrent: boolean; published: boolean; exCount: number; lifts: MainLift[] };
 const sessionLabel = (info: DayInfo | undefined): string => {
   if (!info) return "";
   if (!info.training) return "Rest day";
@@ -31,9 +31,14 @@ const sessionLabel = (info: DayInfo | undefined): string => {
 
 export function BlockPlanView({ athleteId, athleteName, avatar, onOpenBuilder }: { athleteId: string; athleteName: string; avatar?: string; onOpenBuilder: () => void }) {
   const [mode, setMode] = useState<Mode>("meso");
+  const [hideUnopted, setHideUnopted] = useState(false);
+  const [eventTick, setEventTick] = useState(0);
   const program = useMemo(() => loadProgram(athleteId), [athleteId]);
   const comps = getCompetitions();
   const clients = getClients();
+  const optedIds = useMemo(() => new Set(getDashboard(athleteId).optedInComps ?? []), [athleteId]);
+  const events = useMemo(() => getAthleteEvents(athleteId), [athleteId, eventTick]);
+  const eventMap = useMemo(() => eventsByDate(events), [events]);
 
   // date → program day info
   const { dayMap, loggedSet, compMap, months, summary } = useMemo(() => {
@@ -41,9 +46,10 @@ export function BlockPlanView({ athleteId, athleteName, avatar, onOpenBuilder }:
     let minDate = "", maxDate = "";
     const track = (iso: string) => { if (!minDate || iso < minDate) minDate = iso; if (!maxDate || iso > maxDate) maxDate = iso; };
 
-    program.mesocycles.forEach((meso: Mesocycle) => {
+    program.mesocycles.forEach((meso: Mesocycle, mi: number) => {
+      if (meso.hidden) return;
       meso.weeks.forEach((week: Week, wi: number) => {
-        if (!week.startDate) return;
+        if (!week.startDate || week.hidden) return;
         weekOrder(week).forEach((wd) => {
           const date = dayDate(week, wd);
           if (!date) return;
@@ -51,6 +57,7 @@ export function BlockPlanView({ athleteId, athleteName, avatar, onOpenBuilder }:
           dayMap[date] = {
             mesoColor: meso.color,
             mesoName: meso.name,
+            mesoIdx: mi,
             weekName: week.name,
             weekIdxInMeso: wi,
             training: !!day && !day.rest && day.exercises.length > 0,
@@ -69,9 +76,14 @@ export function BlockPlanView({ athleteId, athleteName, avatar, onOpenBuilder }:
     const logs = getDashboard(athleteId).programLogs ?? {};
     const loggedSet = new Set(Object.keys(logs).filter((d) => getSessionFor(athleteId, d).finished));
 
-    // meets
-    const compMap: Record<string, { level: "national" | "international"; name: string }> = {};
-    comps.forEach((c) => { compMap[c.date] = { level: c.level, name: c.name }; track(c.date); });
+    // meets — optionally only the ones THIS athlete is opted into.
+    const compMap: Record<string, { level: "national" | "international"; name: string; opted: boolean }> = {};
+    comps.forEach((c) => {
+      const opted = optedIds.has(c.id);
+      if (hideUnopted && !opted) return;
+      compMap[c.date] = { level: c.level, name: c.name, opted };
+      track(c.date);
+    });
 
     // month span (default: this month + next 5 if nothing dated)
     const start = minDate ? new Date(minDate + "T00:00:00") : new Date();
@@ -95,7 +107,7 @@ export function BlockPlanView({ athleteId, athleteName, avatar, onOpenBuilder }:
       weeksWritten: totalWeeks,
     };
     return { dayMap, loggedSet, compMap, months, summary };
-  }, [program, comps, athleteId]);
+  }, [program, comps, athleteId, hideUnopted, optedIds]);
 
   const today = localIso(new Date());
   const mesoList = program.mesocycles;
@@ -109,11 +121,15 @@ export function BlockPlanView({ athleteId, athleteName, avatar, onOpenBuilder }:
           <h1 style={{ display: "flex", alignItems: "center", gap: 12 }}><Avatar src={avatar} name={athleteName} size={40} />Planning · {athleteName}</h1>
           <p className="cc-sub">Programmed weeks, logged sessions and competitions on one board. Colour by block or by week to see pacing.</p>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <span className="cc-side-k" style={{ marginBottom: 0 }}>Colour</span>
           {(["plain", "meso", "week"] as Mode[]).map((mo) => (
             <button key={mo} className="cc-chip" aria-current={mode === mo} onClick={() => setMode(mo)}>{mo === "meso" ? "By block" : mo === "week" ? "By week" : "Plain"}</button>
           ))}
+          <span style={{ width: 1, alignSelf: "stretch", background: "var(--divider)", margin: "0 2px" }} />
+          <button className="cc-chip" aria-current={hideUnopted} onClick={() => setHideUnopted((v) => !v)} title="Only show meets this athlete is opted into">
+            {hideUnopted ? "Opted-in meets only ✓" : "All meets"}
+          </button>
         </div>
       </div>
 
@@ -124,9 +140,11 @@ export function BlockPlanView({ athleteId, athleteName, avatar, onOpenBuilder }:
           : mode === "week"
             ? <><span><i style={{ background: "color-mix(in srgb, var(--accent) 20%, transparent)" }} />early week</span><span><i style={{ background: "var(--accent)" }} />later week</span></>
             : <span><i style={{ background: "color-mix(in srgb, var(--accent) 22%, transparent)" }} />training day</span>}
+        <span><i style={{ background: "color-mix(in srgb, var(--good) 26%, transparent)", border: "1px solid color-mix(in srgb, var(--good) 55%, transparent)" }} />logged</span>
+        <span><i style={{ background: "color-mix(in srgb, var(--bad) 14%, transparent)", border: "1px solid color-mix(in srgb, var(--bad) 45%, transparent)" }} />missed</span>
+        <span><i style={{ background: "color-mix(in srgb, var(--navy) 5%, transparent)" }} />rest</span>
         <span><i style={{ background: "transparent", border: "1px solid var(--accent)" }} />national</span>
         <span><i style={{ background: "var(--navy)" }} />international</span>
-        <span><i className="cc-lg-dot" />logged</span>
       </div>
 
       <p className="cc-cell-s" style={{ marginTop: 10 }}>Click a day to see its session; click an empty day to start a block there.</p>
@@ -134,7 +152,7 @@ export function BlockPlanView({ athleteId, athleteName, avatar, onOpenBuilder }:
       <div className="cc-plan-grid">
         <div className="cc-months">
           {months.map(({ y, m }) => (
-            <MonthCard key={`${y}-${m}`} year={y} month={m} dayMap={dayMap} loggedSet={loggedSet} compMap={compMap} today={today} mode={mode} selected={selected} onDayClick={setSelected} />
+            <MonthCard key={`${y}-${m}`} year={y} month={m} dayMap={dayMap} loggedSet={loggedSet} compMap={compMap} eventMap={eventMap} today={today} mode={mode} selected={selected} onDayClick={setSelected} />
           ))}
         </div>
 
@@ -146,7 +164,9 @@ export function BlockPlanView({ athleteId, athleteName, avatar, onOpenBuilder }:
               {(() => {
                 const info = dayMap[selected];
                 const comp = compMap[selected];
+                const ev = eventMap[selected];
                 if (comp) return <><div style={{ font: "600 15px/1.1 var(--font-heading)", color: "var(--navy)" }}>{comp.name}</div><div className="cc-cell-s" style={{ marginTop: 3 }}>Competition · {comp.level}</div></>;
+                if (ev) return <><div style={{ font: "600 15px/1.1 var(--font-heading)", color: "var(--navy)" }}>{ev.type === "vacation" ? "🌴 " : "★ "}{ev.title}</div><div className="cc-cell-s" style={{ marginTop: 3 }}>{ev.type === "vacation" ? "Time off" : "Event"}{ev.endDate && ev.endDate !== ev.date ? ` · ${fmtLong(ev.date)} → ${fmtLong(ev.endDate)}` : ""} · visible to {athleteName.split(" ")[0]}</div><button className="cc-mini" style={{ marginTop: 10 }} onClick={() => { removeAthleteEvent(athleteId, ev.id); setEventTick((t) => t + 1); }}>Remove</button></>;
                 if (!info) return <><div className="cc-cell-s">No session here yet — build it in the program builder and it shows up on this calendar.</div><button className="cc-mini cc-mini-solid" style={{ marginTop: 10 }} onClick={onOpenBuilder}>Open program builder →</button></>;
                 return (
                   <>
@@ -166,6 +186,15 @@ export function BlockPlanView({ athleteId, athleteName, avatar, onOpenBuilder }:
           <RailRow k="Weeks written" v={String(summary.weeksWritten)} />
           <RailRow k="Coach" v="Noa Depaepe" />
           <button className="cc-fullbtn" style={{ marginTop: 14, background: "var(--navy)", color: "#fff", borderColor: "var(--navy)" }} onClick={onOpenBuilder}>Open program builder →</button>
+
+          <EventEditor
+            athleteId={athleteId}
+            athleteName={athleteName}
+            events={events}
+            presetDate={selected}
+            onChange={() => setEventTick((t) => t + 1)}
+            onSelectDate={setSelected}
+          />
 
           <div className="cc-side-k" style={{ marginTop: 22 }}>On the calendar</div>
           {comps.map((c) => {
@@ -188,9 +217,10 @@ export function BlockPlanView({ athleteId, athleteName, avatar, onOpenBuilder }:
   );
 }
 
-function MonthCard({ year, month, dayMap, loggedSet, compMap, today, mode, selected, onDayClick }: {
+function MonthCard({ year, month, dayMap, loggedSet, compMap, eventMap, today, mode, selected, onDayClick }: {
   year: number; month: number; dayMap: Record<string, DayInfo>; loggedSet: Set<string>;
-  compMap: Record<string, { level: "national" | "international"; name: string }>; today: string; mode: Mode;
+  compMap: Record<string, { level: "national" | "international"; name: string; opted?: boolean }>;
+  eventMap: Record<string, AthleteEvent>; today: string; mode: Mode;
   selected: string | null; onDayClick: (iso: string) => void;
 }) {
   const first = new Date(year, month, 1);
@@ -211,13 +241,29 @@ function MonthCard({ year, month, dayMap, loggedSet, compMap, today, mode, selec
           const comp = compMap[iso];
           const logged = loggedSet.has(iso);
           const isToday = iso === today;
+          // A training day in the past that was never logged = missed/open.
+          const missed = !!info && info.training && !logged && iso < today;
+          const restDay = !!info && !info.training;
 
           let bg = "transparent", color = "var(--navy)", border = "1px solid transparent";
           if (info) {
-            if (mode === "meso") bg = `color-mix(in srgb, ${info.mesoColor} ${info.training ? 30 : 12}%, transparent)`;
-            else if (mode === "week") bg = `color-mix(in srgb, var(--accent) ${Math.min(45, 12 + info.weekIdxInMeso * 8 + (info.training ? 10 : 0))}%, transparent)`;
+            if (mode === "meso") {
+              // Alternate the tint per block (mesoIdx) and per week (stripes) so
+              // adjacent blocks and weeks read apart even when colours match.
+              const strength = info.training ? 26 + (info.weekIdxInMeso % 2) * 12 + (info.mesoIdx % 2) * 6 : 10;
+              bg = `color-mix(in srgb, ${info.mesoColor} ${strength}%, transparent)`;
+            } else if (mode === "week") bg = `color-mix(in srgb, var(--accent) ${Math.min(48, 12 + info.weekIdxInMeso * 9 + (info.training ? 10 : 0))}%, transparent)`;
             else bg = info.training ? "color-mix(in srgb, var(--accent) 22%, transparent)" : "color-mix(in srgb, var(--navy) 5%, transparent)";
-            if (info.isCurrent) border = "1px solid color-mix(in srgb, var(--good) 55%, transparent)";
+            if (restDay) color = "var(--muted)";
+            if (logged) { bg = "color-mix(in srgb, var(--good) 26%, transparent)"; border = "1px solid color-mix(in srgb, var(--good) 55%, transparent)"; }
+            else if (missed) { bg = "color-mix(in srgb, var(--bad) 14%, transparent)"; border = "1px solid color-mix(in srgb, var(--bad) 45%, transparent)"; }
+            if (info.isCurrent && !logged && !missed) border = "1px solid color-mix(in srgb, var(--good) 55%, transparent)";
+          }
+          const ev = eventMap[iso];
+          if (ev && !comp) {
+            // Time off / events override the block tint so they never hide.
+            if (ev.type === "vacation") { bg = "color-mix(in srgb, #e8a13a 26%, transparent)"; border = "1px solid color-mix(in srgb, #e8a13a 55%, transparent)"; }
+            else { bg = "color-mix(in srgb, #7c6bd6 22%, transparent)"; border = "1px solid color-mix(in srgb, #7c6bd6 55%, transparent)"; }
           }
           if (comp) {
             if (comp.level === "international") { bg = "var(--navy)"; color = "#fff"; border = "1px solid var(--navy)"; }
@@ -227,21 +273,93 @@ function MonthCard({ year, month, dayMap, loggedSet, compMap, today, mode, selec
           if (info?.published) shadows.push("inset 0 1px 5px rgba(20,36,52,.16)"); // "made / published" texture
           if (isToday) shadows.push("inset 0 0 0 2px var(--good)");
           if (iso === selected) shadows.push("0 0 0 2px var(--accent)");
+          const stateTitle = comp
+            ? comp.name
+            : ev
+              ? `${ev.type === "vacation" ? "Time off" : "Event"} · ${ev.title}`
+              : info
+                ? `${info.mesoName} · ${info.weekName} · ${restDay ? "rest" : logged ? "logged ✓" : missed ? "missed / not logged" : info.training ? "to log" : ""}${info.published ? "" : " · draft"}`
+                : "no block";
           return (
             <button
               key={i}
               className={`cc-month-day${info?.published ? " cc-day-made" : ""}`}
-              title={comp ? comp.name : info ? `${info.mesoName} · ${info.weekName}${info.published ? " · published" : " · draft"}` : "no block"}
+              title={stateTitle}
               onClick={() => onDayClick(iso)}
               style={{ backgroundColor: bg, color, border, cursor: "pointer", ...(shadows.length ? { boxShadow: shadows.join(", ") } : {}) } as React.CSSProperties}
             >
               {Number(iso.slice(-2))}
+              {ev && !comp && <span style={{ position: "absolute", top: 2, right: 3, fontSize: 8, lineHeight: 1 }}>{ev.type === "vacation" ? "🌴" : "★"}</span>}
               {logged && !comp && <i className="cc-day-logged" />}
+              {missed && !comp && <i style={{ position: "absolute", bottom: 3, left: "50%", transform: "translateX(-50%)", width: 4, height: 4, borderRadius: 4, background: "var(--bad)" }} />}
+              {restDay && !comp && !logged && !missed && <i style={{ position: "absolute", bottom: 4, left: "50%", transform: "translateX(-50%)", width: 8, height: 1.5, borderRadius: 2, background: "var(--muted)", opacity: 0.6 }} />}
             </button>
           );
         })}
       </div>
     </div>
+  );
+}
+
+/** Coach-side add / list / remove of an athlete's time off + events. */
+function EventEditor({ athleteId, athleteName, events, presetDate, onChange, onSelectDate }: {
+  athleteId: string; athleteName: string; events: AthleteEvent[]; presetDate: string | null;
+  onChange: () => void; onSelectDate: (iso: string) => void;
+}) {
+  const [type, setType] = useState<AthleteEvent["type"]>("vacation");
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState("");
+  const [end, setEnd] = useState("");
+  const start = date || presetDate || "";
+
+  const add = () => {
+    if (!start) { alert("Pick a start date first."); return; }
+    addAthleteEvent(athleteId, {
+      date: start,
+      endDate: end && end >= start ? end : undefined,
+      type,
+      title: title.trim() || (type === "vacation" ? "Time off" : "Event"),
+    });
+    setTitle(""); setDate(""); setEnd("");
+    onChange();
+  };
+  const upcoming = events.filter((e) => (e.endDate ?? e.date) >= localIso(new Date()));
+
+  return (
+    <>
+      <div className="cc-side-k" style={{ marginTop: 22 }}>Time off &amp; events</div>
+      <p style={{ font: "400 10px/1.4 var(--font-body)", color: "var(--muted)", margin: "-2px 0 8px" }}>
+        Shows on this calendar and on {athleteName.split(" ")[0]}'s own app.
+      </p>
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <button className="cc-chip" aria-current={type === "vacation"} onClick={() => setType("vacation")}>🌴 Time off</button>
+        <button className="cc-chip" aria-current={type === "event"} onClick={() => setType("event")}>★ Event</button>
+      </div>
+      <input className="cc-db-search" placeholder={type === "vacation" ? "e.g. Holiday in Spain" : "e.g. Photoshoot"} value={title} onChange={(e) => setTitle(e.target.value)} style={{ marginBottom: 6 }} />
+      <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+        <label style={{ flex: 1, font: "400 9px/1.3 var(--font-body)", color: "var(--muted)" }}>From<input type="date" className="cc-db-search" value={start} onChange={(e) => setDate(e.target.value)} /></label>
+        <label style={{ flex: 1, font: "400 9px/1.3 var(--font-body)", color: "var(--muted)" }}>To (optional)<input type="date" className="cc-db-search" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
+      </div>
+      <button className="cc-mini cc-mini-solid" style={{ width: "100%" }} onClick={add}>+ Add to calendar</button>
+
+      {upcoming.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          {upcoming.map((e) => {
+            const d = new Date(e.date + "T00:00:00");
+            return (
+              <div key={e.id} className="cc-rail-meet">
+                <div className="cc-rail-meet-date">{d.getDate()} {MON[d.getMonth()]}</div>
+                <div style={{ flex: 1, cursor: "pointer" }} onClick={() => onSelectDate(e.date)}>
+                  <div className="cc-rail-meet-name">{e.type === "vacation" ? "🌴 " : "★ "}{e.title}</div>
+                  <div className="cc-rail-meet-sub">{e.endDate && e.endDate !== e.date ? `until ${new Date(e.endDate + "T00:00:00").getDate()} ${MON[new Date(e.endDate + "T00:00:00").getMonth()]}` : "single day"}</div>
+                </div>
+                <button className="cc-wk-del" title="Remove" onClick={() => { removeAthleteEvent(athleteId, e.id); onChange(); }}>×</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }
 
