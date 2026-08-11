@@ -11,7 +11,7 @@ import { getSharedData, setSharedData } from "../../lib/data/athleteData";
 import type { ExerciseTemplate, MainLift, WeekTemplate } from "../../lib/program/program";
 import reneeProgram from "./reneeProgram.json";
 
-export type IntensityType = "rpe" | "percent" | "load" | "fixed";
+export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure";
 export type ExRow = {
   id: string;
   name: string;
@@ -39,7 +39,7 @@ export function inferGroup(mainLift: MainLift | null): ExGroup {
 
 // Monday-first weekday order for display (0=Sun … 6=Sat).
 /** Set schemes the coach can tag a row with — shown on the athlete's app too. */
-export const SCHEMES = ["Warm-up", "Top set", "Back-off", "M.Fatigue", "Fatigue"] as const;
+export const SCHEMES = ["Warm-up", "Top set", "Working set", "Back-off", "M.Fatigue", "Fatigue", "Accessory", "Optional"] as const;
 export type Scheme = (typeof SCHEMES)[number];
 
 export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -88,8 +88,15 @@ export function weekForToday(p: Program, todayIso: string): string | undefined {
 // --- converters --------------------------------------------------------------
 function exToRow(ex: ExerciseTemplate): ExRow {
   const first = ex.sets[0];
-  const intensity: IntensityType = first?.fixedLoad ? "fixed" : first?.targetLoad ? "load" : first?.targetPercent ? "percent" : "rpe";
-  const value = intensity === "fixed" || intensity === "load" ? first?.targetLoad ?? "" : intensity === "percent" ? first?.targetPercent ?? "" : first?.targetRpe ?? "";
+  const intensity: IntensityType = first?.toFailure
+    ? "failure"
+    : first?.fixedLoad || first?.targetLoad
+      ? "fixed"
+      : first?.targetPercent
+        ? "percent"
+        : "rpe";
+  const value =
+    intensity === "fixed" ? first?.targetLoad ?? "" : intensity === "percent" ? first?.targetPercent ?? "" : intensity === "failure" ? "" : first?.targetRpe ?? "";
   return {
     id: uid("ex"),
     name: ex.name,
@@ -106,15 +113,18 @@ function exToRow(ex: ExerciseTemplate): ExRow {
 
 function rowToEx(row: ExRow): ExerciseTemplate {
   const requiresRpe = row.intensity === "rpe" && row.mainLift != null;
-  const fixed = row.intensity === "fixed";
+  // "load" (legacy) and "fixed" are the same now — a prescribed working weight.
+  const fixed = row.intensity === "fixed" || row.intensity === "load";
+  const failure = row.intensity === "failure";
   const sets = Array.from({ length: Math.max(1, row.sets) }, () => ({
     targetReps: row.reps,
     targetRpe: row.intensity === "rpe" ? row.value : "",
     requiresRpe,
     // Carry the coach's prescription through to the athlete's set.
-    targetLoad: row.intensity === "load" || fixed ? row.value : undefined,
+    targetLoad: fixed ? row.value : undefined,
     targetPercent: row.intensity === "percent" ? row.value : undefined,
     fixedLoad: fixed || undefined,
+    toFailure: failure || undefined,
   }));
   return {
     name: row.name,

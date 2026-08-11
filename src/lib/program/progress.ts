@@ -94,8 +94,9 @@ export function liftProgress(
       if (ex.mainLift !== lift) continue;
       for (const st of ex.sets) {
         if (st.weightKg == null || st.failed || st.prefill) continue;
+        // Min of a rep range (a "3-5" set proves at least a 3RM at that weight).
         const reps = parseInt(st.targetReps, 10);
-        if (!Number.isInteger(reps) || String(reps) !== st.targetReps) continue;
+        if (!Number.isFinite(reps) || reps < 1) continue;
         if (ex.competition) {
           points.push({ reps, weight: st.weightKg });
         } else {

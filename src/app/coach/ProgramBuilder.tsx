@@ -29,7 +29,7 @@ import {
   type ExGroup,
   type IntensityType,
 } from "./coachProgram";
-import { publishProgramWeek, setProgramLabels, getSessionFor } from "../../lib/data/athleteData";
+import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel } from "../../lib/data/athleteData";
 import { fmtKg } from "../../lib/calc/records";
 import { weekState, WEEK_STATE_LABEL, weekLiftStats } from "./coachStats";
 import { Avatar } from "./Avatar";
@@ -37,6 +37,7 @@ import { Avatar } from "./Avatar";
 const LIFT_LABEL: Record<"squat" | "bench" | "deadlift", string> = { squat: "SQUAT", bench: "BENCH", deadlift: "DEADLIFT" };
 const tons = (kg: number) => (kg >= 1000 ? `${(kg / 1000).toFixed(1)} t` : `${Math.round(kg)} kg`);
 const REP_RANGES = ["2-4", "4-6", "6-8", "8-10", "8-12", "10-12", "12-15", "15-20"];
+const RPE_OPTS = ["5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
 
 /**
  * Program builder (Program & Planner → 3 · Program). Three columns: mesocycles /
@@ -118,6 +119,19 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
 
   // Live volume / e1RM for the week being edited, from the athlete's logged loads.
   const stats = useMemo(() => weekLiftStats(athleteId, week, live), [athleteId, week, live]);
+
+  // The athlete's 1RM per lift, for turning a %1RM prescription into kg.
+  const oneRm = useMemo(() => {
+    const prs = getDashboardModel(athleteId).prs;
+    const get = (k: string) => { const p = prs.find((x) => x.key === k); return p ? parseFloat(p.value.replace(",", ".")) : 0; };
+    return { squat: get("squat"), bench: get("bench"), deadlift: get("deadlift") } as Record<string, number>;
+  }, [athleteId]);
+  const pctToKg = (ex: ExRow): string => {
+    const rm = ex.mainLift ? oneRm[ex.mainLift] : 0;
+    const pct = parseFloat(String(ex.value).replace(",", "."));
+    if (!rm || !isFinite(pct)) return "";
+    return `${Math.round((pct / 100) * rm / 2.5) * 2.5} kg`;
+  };
 
   // Loads the athlete actually logged on a given date, keyed by exercise name.
   const loggedForDate = (date: string | null): Record<string, string> => {
@@ -609,6 +623,9 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
 
         {/* ---------------- centre: the week ---------------- */}
         <section>
+          {/* autocomplete sources — exercise names from the shared DB, RPE steps */}
+          <datalist id="ex-db">{exercises.map((x) => <option key={x.id} value={x.name} />)}</datalist>
+          <datalist id="rpe-opts">{RPE_OPTS.map((r) => <option key={r} value={r} />)}</datalist>
           <div className="cc-build-head">
             <div>
               {onBack && (
@@ -713,7 +730,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                   >
                     <div className="cc-ex-cols">
                       <div className="cc-ex-grip">
-                        <input className="cc-ex-name" value={ex.name} onChange={(e) => mutRow(d.id, ex.id, { name: e.target.value })} onBlur={(e) => ensureInDb(e.target.value, ex.mainLift)} />
+                        <input className="cc-ex-name" list="ex-db" value={ex.name} onChange={(e) => mutRow(d.id, ex.id, { name: e.target.value })} onBlur={(e) => ensureInDb(e.target.value, ex.mainLift)} />
                         <input className="cc-ex-cue" placeholder="coach cue" value={ex.cue} onChange={(e) => mutRow(d.id, ex.id, { cue: e.target.value })} />
                         {loggedByWeekday[d.weekday]?.[ex.name.toLowerCase()] && (
                           <div className="cc-ex-logged">{loggedByWeekday[d.weekday][ex.name.toLowerCase()]}</div>
@@ -724,7 +741,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                       </div>
                       <input className="cc-in" placeholder="url" value={ex.video} onChange={(e) => mutRow(d.id, ex.id, { video: e.target.value })} />
                       <input className="cc-in" type="number" min={1} value={ex.sets} onChange={(e) => mutRow(d.id, ex.id, { sets: Math.max(1, Number(e.target.value)) })} />
-                      {repRange ? (
+                      {repRange || ex.scheme === "Accessory" ? (
                         <select className="cc-in" value={ex.reps} onChange={(e) => mutRow(d.id, ex.id, { reps: e.target.value })}>
                           {!REP_RANGES.includes(ex.reps) && <option value={ex.reps}>{ex.reps || "—"}</option>}
                           {REP_RANGES.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -732,19 +749,25 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                       ) : (
                         <input className="cc-in" value={ex.reps} onChange={(e) => mutRow(d.id, ex.id, { reps: e.target.value })} />
                       )}
-                      <select className="cc-in" value={ex.intensity} onChange={(e) => mutRow(d.id, ex.id, { intensity: e.target.value as IntensityType })}>
+                      <select
+                        className="cc-in"
+                        value={ex.intensity === "load" ? "fixed" : ex.intensity}
+                        onChange={(e) => mutRow(d.id, ex.id, { intensity: e.target.value as IntensityType, ...(e.target.value === "failure" ? { value: "" } : {}) })}
+                      >
                         <option value="rpe">RPE</option>
                         <option value="percent">%1RM</option>
-                        <option value="load">Load</option>
-                        <option value="fixed">Fixed</option>
+                        <option value="fixed">Load</option>
+                        <option value="failure">Failure</option>
                       </select>
-                      <input
-                        className="cc-in"
-                        value={ex.value}
-                        placeholder={ex.intensity === "load" || ex.intensity === "fixed" ? "kg" : ex.intensity === "percent" ? "%" : "RPE"}
-                        title={ex.intensity === "fixed" ? "fixed working load (kg) — athlete can only go lighter" : ex.intensity === "load" ? "working load (kg)" : ex.intensity === "percent" ? "% of 1RM" : "target RPE"}
-                        onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })}
-                      />
+                      {ex.intensity === "failure" ? (
+                        <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)", font: "500 10px/1 var(--font-body)", letterSpacing: ".05em" }} title="No target — the athlete pushes to failure.">TO FAILURE</div>
+                      ) : ex.intensity === "rpe" ? (
+                        <input className="cc-in" list="rpe-opts" value={ex.value} placeholder="RPE" title="Target RPE (5–10, or a range)" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
+                      ) : ex.intensity === "percent" ? (
+                        <input className="cc-in" value={ex.value} placeholder="%" title={pctToKg(ex) ? `${ex.value}% ≈ ${pctToKg(ex)} of their 1RM` : "% of 1RM (set their PR to compute kg)"} onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
+                      ) : (
+                        <input className="cc-in" value={ex.value} placeholder="kg" title="Working load (kg) — the athlete can only go lighter" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
+                      )}
                       <select className="cc-in cc-in-scheme" value={ex.scheme} onChange={(e) => mutRow(d.id, ex.id, { scheme: e.target.value })}>
                         {!SCHEMES.includes(ex.scheme as (typeof SCHEMES)[number]) && <option value={ex.scheme}>{ex.scheme || "—"}</option>}
                         {SCHEMES.map((s) => <option key={s} value={s}>{s}</option>)}

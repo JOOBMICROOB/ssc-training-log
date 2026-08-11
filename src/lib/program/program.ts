@@ -20,6 +20,7 @@ export type SetTemplate = {
   targetLoad?: string; // coach-prescribed working weight (kg)
   targetPercent?: string; // coach-prescribed %1RM
   fixedLoad?: boolean; // load is fixed — the athlete may only go lighter, with a warning
+  toFailure?: boolean; // no target — push to failure and log what you did
 };
 export type ExerciseTemplate = {
   name: string;
@@ -110,6 +111,18 @@ export function sessionName(ex: ExerciseTemplate[]): string {
   return `${lifts.map((l) => l.toUpperCase()).join(" & ")} SESSION`;
 }
 
+const BARE_LIFT: Record<MainLift, string[]> = {
+  squat: ["squat"],
+  bench: ["bench", "bench press", "benchpress"],
+  deadlift: ["deadlift", "dead lift"],
+};
+/** The competition lift for a main movement: a "COMP …" name or the bare name. */
+function isCompLift(name: string, mainLift: MainLift | null): boolean {
+  if (mainLift == null) return false;
+  const n = name.trim().toLowerCase();
+  return /^comp\b|^competition\b/.test(n) || BARE_LIFT[mainLift].includes(n);
+}
+
 export function getSession(template: WeekTemplate, logs: ProgramLogs, date: string): Session {
   const weekday = fromISO(date).getDay();
   const day = template[weekday] ?? { rest: true, exercises: [] };
@@ -168,9 +181,10 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
           scheme: ex.scheme,
           clip: ex.clip,
           // The comp lift: flagged by the coach, or auto-detected from "COMP <lift>".
-          // Any "COMP …" main lift counts as the competition movement (so
-          // "COMP SQUATS" / "COMP BENCHPRESS" feed the rep-max, not variants).
-          competition: ex.competition ?? (ex.mainLift != null && /^comp\b/i.test(ex.name.trim())),
+          // The competition movement: a "COMP …" name or the bare lift name
+          // (so "COMP SQUATS", "Competition Squat" and "Squat" all feed the
+          // rep-max, while paused/tempo/front variants stay separate).
+          competition: ex.competition ?? isCompLift(ex.name, ex.mainLift),
           sets,
           setCount: sets.length,
           loggedCount: sets.filter((s) => (s.weightKg != null && !s.prefill) || s.failed).length,

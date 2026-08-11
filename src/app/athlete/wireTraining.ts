@@ -26,8 +26,10 @@ const MONTHS = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const parseKg = (s: string) => parseFloat(s.replace(",", ".").replace(/[^0-9.]/g, ""));
 
-// The coach's prescribed target for a set: a fixed load, a %1RM, or an RPE.
-function targetShort(st: { targetRpe: string; targetLoad?: string; targetPercent?: string }): string {
+// The coach's prescribed target for a set: a fixed load, a %1RM, an RPE, or
+// "to failure" (no number — push until you can't).
+function targetShort(st: { targetRpe: string; targetLoad?: string; targetPercent?: string; toFailure?: boolean }): string {
+  if (st.toFailure) return "to failure";
   if (st.targetLoad) return `${st.targetLoad} kg`;
   if (st.targetPercent) return `${st.targetPercent}%`;
   if (st.targetRpe) return `RPE${st.targetRpe}`;
