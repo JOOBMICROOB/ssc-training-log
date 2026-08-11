@@ -5,8 +5,8 @@
  * data the Block Plan draws on — so a week the coach writes shows up in both.
  */
 import { addDays } from "../../lib/program/program";
-import { peekProgram, mondayOf, type Week } from "./coachProgram";
-import { getDashboard } from "../../lib/data/athleteData";
+import { peekProgram, mondayOf, weekOrder, dayDate, WEEKDAY_NAME, type Week } from "./coachProgram";
+import { getDashboard, getSessionFor } from "../../lib/data/athleteData";
 import { weekHasLogsIn } from "./coachStats";
 
 /** A week counts as "planned" once it is dated and holds at least one training day. */
@@ -59,6 +59,85 @@ export function plannedWeeks(athleteId: string): Map<string, PlannedWeek> {
     }
   }
   return map;
+}
+
+// --- per-week session detail (Weeks-grid hover + click) ----------------------
+export type SessionState = "logged" | "started" | "empty";
+export type SessionLine = {
+  date: string;
+  dayName: string; // "THU"
+  title: string; // main lifts of the day, e.g. "Squat · Bench"
+  state: SessionState;
+  loggedSets: number;
+  totalSets: number;
+};
+export type WeekDetail = {
+  mesoName: string;
+  weekName: string;
+  firstTrainingDay: string | null; // "THURSDAY 14 Aug"
+  sessions: SessionLine[];
+  loggedSessions: number;
+  totalSessions: number;
+};
+
+const DAY_SHORT = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+/**
+ * Detail for the week that fills a given Monday-column: each training session,
+ * whether the athlete has logged it, and the week's FIRST training day — so a
+ * Thursday-start block never gets missed in a hover.
+ */
+export function weekDetailFor(athleteId: string, monday: string): WeekDetail | null {
+  const p = peekProgram(athleteId);
+  if (!p) return null;
+  let found: { m: string; w: Week } | null = null;
+  for (const m of p.mesocycles) {
+    for (const w of m.weeks) {
+      if (!w.startDate || !weekHasContent(w)) continue;
+      if (mondayOf(w.startDate) === monday || mondayOf(addDays(w.startDate, 6)) === monday) {
+        // Prefer the week that actually starts in this column.
+        if (!found || mondayOf(w.startDate) === monday) found = { m: m.name, w };
+      }
+    }
+  }
+  if (!found) return null;
+  const { w } = found;
+  const sessions: SessionLine[] = [];
+  for (const wd of weekOrder(w)) {
+    const date = dayDate(w, wd);
+    if (!date) continue;
+    const day = w.days.find((d) => d.weekday === wd);
+    if (!day || day.rest || day.exercises.length === 0) continue;
+    const s = getSessionFor(athleteId, date);
+    let logged = 0;
+    let total = 0;
+    for (const ex of s.exercises) {
+      for (const st of ex.sets) {
+        total++;
+        if ((st.weightKg != null && !st.prefill) || st.failed) logged++;
+      }
+    }
+    const lifts = Array.from(new Set(day.exercises.map((e) => e.name).filter(Boolean))).slice(0, 3).join(" · ");
+    sessions.push({
+      date,
+      dayName: DAY_SHORT[new Date(`${date}T00:00:00`).getDay()],
+      title: lifts || "Session",
+      state: logged === 0 ? "empty" : logged >= Math.ceil(total * 0.7) ? "logged" : "started",
+      loggedSets: logged,
+      totalSets: total,
+    });
+  }
+  const firstTrainingDay = sessions[0]
+    ? `${WEEKDAY_NAME[new Date(`${sessions[0].date}T00:00:00`).getDay()]} ${fmtDay(sessions[0].date)}`
+    : null;
+  return {
+    mesoName: found.m,
+    weekName: w.name,
+    firstTrainingDay,
+    sessions,
+    loggedSessions: sessions.filter((x) => x.state === "logged").length,
+    totalSessions: sessions.length,
+  };
 }
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];

@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { getClients, COACHES, type ClientRow } from "./coachData";
-import { plannedWeeks, yearMondays, monthOf, type Coverage } from "./coachPlanning";
+import { plannedWeeks, yearMondays, monthOf, weekDetailFor, weekLabel, type Coverage } from "./coachPlanning";
 import { mondayOf } from "./coachProgram";
 import { Avatar } from "./Avatar";
 
 /** Square style for a planned week: solid, or a half square for a part-week. */
-function cellFill(state: "filled" | "avail" | "draft", coverage: Coverage): import("react").CSSProperties {
+function cellFill(state: "filled" | "avail" | "draft", coverage: Coverage, now: boolean): import("react").CSSProperties {
   const fill = state === "filled" ? "var(--good)" : state === "avail" ? "var(--navy)" : "color-mix(in srgb, var(--accent) 32%, transparent)";
   const border = state === "draft" ? "1.5px dashed var(--accent-700)" : `1px solid ${fill}`;
   const bg =
@@ -14,7 +14,45 @@ function cellFill(state: "filled" | "avail" | "draft", coverage: Coverage): impo
       : coverage === "start"
         ? `linear-gradient(90deg, transparent 0 50%, ${fill} 50% 100%)` // week starts mid-week → right half
         : `linear-gradient(90deg, ${fill} 0 50%, transparent 50% 100%)`; // week ends mid-week → left half
-  return { width: 14, height: 14, borderRadius: 4, background: bg, border, display: "inline-block", boxSizing: "border-box" };
+  return {
+    width: 14,
+    height: 14,
+    borderRadius: 4,
+    background: bg,
+    border,
+    display: "inline-block",
+    boxSizing: "border-box",
+    cursor: "pointer",
+    // The week in progress right now stands out with an amber ring — it's the one being filled in.
+    ...(now ? { boxShadow: "0 0 0 2px var(--bg, #fff), 0 0 0 3.5px var(--accent-700)" } : {}),
+  };
+}
+
+/** Multi-line hover text for a week cell — status + per-session breakdown. */
+function hoverText(
+  name: string,
+  athleteId: string,
+  mon: string,
+  mesoName: string,
+  weekName: string,
+  state: "filled" | "avail" | "draft",
+  coverage: Coverage,
+  isNow: boolean,
+): string {
+  const st = state === "filled" ? "filled in" : state === "avail" ? "available — not logged yet" : "draft — not sent";
+  const lines = [`${name} · ${mesoName} · ${weekName}${isNow ? "  (THIS WEEK)" : ""}`, st];
+  if (coverage !== "full") lines.push("part-week");
+  const d = weekDetailFor(athleteId, mon);
+  if (d) {
+    if (d.firstTrainingDay) lines.push(`First training day: ${d.firstTrainingDay}`);
+    lines.push(`Sessions logged: ${d.loggedSessions}/${d.totalSessions}`);
+    for (const s of d.sessions) {
+      const mark = s.state === "logged" ? "✓" : s.state === "started" ? "◐" : "·";
+      lines.push(`  ${mark} ${s.dayName} — ${s.title} (${s.loggedSets}/${s.totalSets})`);
+    }
+  }
+  lines.push("— click for full detail —");
+  return lines.join("\n");
 }
 
 /**
@@ -35,6 +73,7 @@ export function WeeksGridView({
 }) {
   const [scope, setScope] = useState<string>(coachId);
   const [year, setYear] = useState<number>(new Date().getFullYear());
+  const [detail, setDetail] = useState<{ athleteId: string; name: string; monday: string } | null>(null);
 
   const rows: ClientRow[] = getClients(scope === "all" ? undefined : scope);
   const mondays = useMemo(() => yearMondays(year), [year]);
@@ -127,8 +166,9 @@ export function WeeksGridView({
                     <div key={mon} className={`cc-yg-cell${isNow ? " cc-yg-cell-now" : ""}`}>
                       {w && state && (
                         <span
-                          style={cellFill(state, w.coverage)}
-                          title={`${r.name} · ${w.mesoName} · ${w.weekName} · ${state === "filled" ? "filled in" : state === "avail" ? "available" : "draft"}${w.coverage !== "full" ? " · part-week" : ""}`}
+                          style={cellFill(state, w.coverage, isNow)}
+                          title={hoverText(r.name, r.athleteId, mon, w.mesoName, w.weekName, state, w.coverage, isNow)}
+                          onClick={() => setDetail({ athleteId: r.athleteId, name: r.name, monday: mon })}
                         />
                       )}
                     </div>
@@ -140,6 +180,94 @@ export function WeeksGridView({
         </div>
       </div>
       {rows.length === 0 && <p className="cc-sub" style={{ marginTop: 18 }}>No athletes on this list yet.</p>}
+
+      {detail && (
+        <WeekDetailModal
+          athleteId={detail.athleteId}
+          name={detail.name}
+          monday={detail.monday}
+          onClose={() => setDetail(null)}
+          onOpen={() => { onSelect(detail.athleteId); onOpenProgram(detail.athleteId); setDetail(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Full-detail card for a single week: every session, logged vs to-fill. */
+function WeekDetailModal({
+  athleteId,
+  name,
+  monday,
+  onClose,
+  onOpen,
+}: {
+  athleteId: string;
+  name: string;
+  monday: string;
+  onClose: () => void;
+  onOpen: () => void;
+}) {
+  const d = weekDetailFor(athleteId, monday);
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(10,20,30,0.44)", display: "grid", placeItems: "center", zIndex: 60, padding: 20 }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: "min(420px, 94vw)", background: "var(--card, #fff)", borderRadius: 16, padding: 20, boxShadow: "0 24px 60px rgba(0,0,0,0.28)" }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+          <div>
+            <div style={{ font: "700 15px/1.2 var(--font-head, inherit)" }}>{name}</div>
+            <div className="cc-sub" style={{ marginTop: 2 }}>
+              Week of {weekLabel(monday)}
+              {d ? ` · ${d.mesoName} · ${d.weekName}` : ""}
+            </div>
+          </div>
+          <button className="cc-wk-del" title="Close" onClick={onClose}>×</button>
+        </div>
+
+        {!d ? (
+          <p className="cc-sub" style={{ marginTop: 14 }}>No training written for this week.</p>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: 14, margin: "14px 0 10px", flexWrap: "wrap" }}>
+              <Badge k="Sessions logged" v={`${d.loggedSessions}/${d.totalSessions}`} />
+              {d.firstTrainingDay && <Badge k="First training day" v={d.firstTrainingDay} />}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {d.sessions.map((s) => {
+                const tone = s.state === "logged" ? "var(--good)" : s.state === "started" ? "var(--accent-700)" : "var(--muted)";
+                return (
+                  <div key={s.date} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 10, background: "color-mix(in srgb, var(--divider) 40%, transparent)" }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 8, background: tone, flex: "0 0 auto" }} />
+                    <span style={{ font: "700 11px/1 var(--font-body)", minWidth: 34 }}>{s.dayName}</span>
+                    <span style={{ flex: 1, font: "500 12px/1.3 var(--font-body)" }}>{s.title}</span>
+                    <span style={{ font: "600 11px/1 var(--font-body)", color: tone }}>
+                      {s.state === "logged" ? "logged" : s.state === "started" ? "started" : "to fill"} · {s.loggedSets}/{s.totalSets}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        <button className="cc-mini cc-mini-solid" style={{ marginTop: 16, width: "100%", padding: "11px 16px", fontSize: 12 }} onClick={onOpen}>
+          Open programme →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Badge({ k, v }: { k: string; v: string }) {
+  return (
+    <div>
+      <div style={{ font: "600 9.5px/1 var(--font-body)", color: "var(--muted)", letterSpacing: "0.04em", textTransform: "uppercase" }}>{k}</div>
+      <div style={{ font: "700 13px/1.2 var(--font-body)", marginTop: 3 }}>{v}</div>
     </div>
   );
 }
