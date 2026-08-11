@@ -9,6 +9,8 @@ import {
   isDateWeekLocked,
   weekCompletionPct,
   getDashboard,
+  getAthleteEvents,
+  eventsByDate,
 } from "../../lib/data/athleteData";
 import { addDays, type Session, type SessionExercise, type LoggedSet } from "../../lib/program/program";
 import { fmtKg } from "../../lib/calc/records";
@@ -192,22 +194,27 @@ function buildCalendar(
   function draw() {
     const selected = getSelected();
     const cells = getMonthFor(athleteId, year, month, today);
+    const eventMap = eventsByDate(getAthleteEvents(athleteId));
     const grid = cells
       .map((c) => {
         if (!c.date) return `<div></div>`;
         const sel = c.date === selected;
+        const ev = eventMap[c.date];
         // No dot on rest days (a plain tile already reads as rest).
         const dotColor = c.status === "rest" ? "transparent" : c.status === "logged" ? "#1d2d3d" : "#5980a6";
         const tile = sel
           ? "background:#1d2d3d;color:#f2f2f3;"
-          : c.status === "logged"
-            ? "background:rgba(89,128,166,.22);color:#1d2d3d;" // logged → light blue
-            : c.status === "training"
-              ? "background:#e6eaef;color:#1d2d3d;" // planned, not logged → light grey
-              : "background:transparent;color:#aab0b8;"; // rest → plain
+          : ev
+            ? (ev.type === "vacation" ? "background:rgba(232,161,58,.24);color:#1d2d3d;" : "background:rgba(124,107,214,.2);color:#1d2d3d;")
+            : c.status === "logged"
+              ? "background:rgba(89,128,166,.22);color:#1d2d3d;" // logged → light blue
+              : c.status === "training"
+                ? "background:#e6eaef;color:#1d2d3d;" // planned, not logged → light grey
+                : "background:transparent;color:#aab0b8;"; // rest → plain
         const ring = c.isToday && !sel ? "box-shadow:0 0 0 2.5px #5980a6 inset;" : "";
-        return `<button data-cal="${c.date}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:44px;border:0;border-radius:11px;cursor:pointer;font:600 13px/1 'Barlow Condensed',sans-serif;${tile}${ring}">
-          <span>${c.day}</span><span style="width:5px;height:5px;border-radius:50%;background:${dotColor};"></span></button>`;
+        const evMark = ev ? `<span style="position:absolute;top:2px;right:4px;font-size:8px;line-height:1;">${ev.type === "vacation" ? "🌴" : "★"}</span>` : "";
+        return `<button data-cal="${c.date}" title="${ev ? ev.title.replace(/"/g, "&quot;") : ""}" style="position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;height:44px;border:0;border-radius:11px;cursor:pointer;font:600 13px/1 'Barlow Condensed',sans-serif;${tile}${ring}">
+          ${evMark}<span>${c.day}</span><span style="width:5px;height:5px;border-radius:50%;background:${dotColor};"></span></button>`;
       })
       .join("");
     const week = getWeekFor(athleteId, selected, today).filter((d) => !d.rest);

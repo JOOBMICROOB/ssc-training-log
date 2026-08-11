@@ -117,6 +117,24 @@ function applyModel(host: HTMLElement, model: DashboardModel) {
 
   setText(host, "blockLabel", model.blockLabel);
   setText(host, "welcomeSub", model.compCountdown);
+  // Coach-set time off / events — show the nearest upcoming one as a chip.
+  {
+    const el = host.querySelector<HTMLElement>("#nextEvent");
+    if (el) {
+      const nowIso = new Date().toISOString().slice(0, 10);
+      const next = (model.events ?? [])
+        .filter((e) => (e.endDate ?? e.date) >= nowIso)
+        .sort((a, b) => a.date.localeCompare(b.date))[0];
+      if (next) {
+        const d = new Date(next.date + "T00:00:00");
+        const when = `${d.getDate()}/${d.getMonth() + 1}`;
+        el.style.display = "inline-flex";
+        el.textContent = `${next.type === "vacation" ? "🌴" : "★"} ${next.title} · ${when}`;
+      } else {
+        el.style.display = "none";
+      }
+    }
+  }
   renderSentNotes(host, model);
   setText(host, "nextLabel", model.todayCard.label);
   setText(host, "nextTitle", model.todayCard.title);
