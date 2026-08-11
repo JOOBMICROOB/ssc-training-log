@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getDashboardModel, getDashboard, getSessionFor, setAthleteInfo, setCompPr, setCompTotal, setPrBaseline, markNoteChecked, IPF_CLASSES } from "../../lib/data/athleteData";
+import { getDashboardModel, getDashboard, getSessionFor, setAthleteInfo, setCompPr, setCompTotal, setPrBaseline, markNoteChecked, setWeekLockOff, IPF_CLASSES } from "../../lib/data/athleteData";
 import { createAthlete } from "../../lib/auth/coachAuth";
 import { fmtKg } from "../../lib/calc/records";
 import { renderBwSvgInner, DASH_STYLE } from "../../lib/calc/bwChart";
@@ -104,6 +104,7 @@ function FullProfile({ client }: { client: ClientRow }) {
   const cp = m.compPr ?? { squat: "", bench: "", deadlift: "" };
   const prVal = (lift: "squat" | "bench" | "deadlift") => m.prs.find((p) => p.key === lift)?.value ?? "";
   const [sex, setSex] = useState<Sex>(a.sex === "male" ? "male" : "female");
+  const [lockOff, setLockOff] = useState<boolean>(getDashboard(athleteId).weekLockOff ?? false);
   const save = (patch: Parameters<typeof setAthleteInfo>[1]) => setAthleteInfo(athleteId, patch);
   const firstDefault = live ? a.firstName : client.name.split(" ")[0];
 
@@ -158,6 +159,21 @@ function FullProfile({ client }: { client: ClientRow }) {
           <Field label="Comp deadlift"><input className="cc-db-search" defaultValue={cp.deadlift} onBlur={(e) => setCompPr(athleteId, { deadlift: e.target.value })} /></Field>
           <Field label="Best comp total"><input className="cc-db-search" defaultValue={m.totals.comp === "—" ? "" : m.totals.comp} onBlur={(e) => setCompTotal(athleteId, e.target.value.trim() || "—", e.target.value.trim() ? "Coach-entered" : "First competition still to come")} /></Field>
         </div>
+        <div className="cc-side-k" style={{ marginTop: 18, marginBottom: 5 }}>Coaching controls</div>
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={!lockOff}
+            style={{ marginTop: 2 }}
+            onChange={(e) => { const on = e.target.checked; setLockOff(!on); setWeekLockOff(athleteId, !on); }}
+          />
+          <span>
+            <span style={{ font: "600 12px/1.2 var(--font-body)", color: "var(--navy)" }}>Week-lock (motivate logging)</span>
+            <span style={{ display: "block", font: "400 10.5px/1.45 var(--font-body)", color: "var(--muted)", marginTop: 2 }}>
+              Blurs next week for {a.firstName} until they keep this week ≥50% logged. Turn off for athletes who don't need the nudge.
+            </span>
+          </span>
+        </label>
         {!live && <p className="cc-cell-s" style={{ marginTop: 12 }}>This is a demo entry — the training panels below fill in once they’re a real synced account (create one with “+ New athlete”).</p>}
       </div>
 

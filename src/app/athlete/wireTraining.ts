@@ -6,6 +6,9 @@ import {
   logSet,
   setSessionMeta,
   subscribeDashboard,
+  isDateWeekLocked,
+  weekCompletionPct,
+  getDashboard,
 } from "../../lib/data/athleteData";
 import { addDays, type Session, type SessionExercise, type LoggedSet } from "../../lib/program/program";
 import { fmtKg } from "../../lib/calc/records";
@@ -147,6 +150,22 @@ function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selec
   </div>`;
   const exercises = session.exercises.map((ex, ei) => exerciseBlock(ex, ei, ei === expanded, session.finished)).join("");
   return dayRow + title + exercises;
+}
+
+/** Blurred lock screen for a future week the athlete hasn't earned yet. */
+function lockMarkup(week: ReturnType<typeof getWeekFor>, selected: string, currentPct: number): string {
+  const dayRow = `<div style="flex:0 0 auto;display:flex;gap:5px;padding:14px 0 12px;">${dayButtons(week, selected)}</div>`;
+  return `${dayRow}
+    <div style="flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:34px 22px;gap:14px;">
+      <div style="width:64px;height:64px;border-radius:20px;display:grid;place-items:center;background:rgba(89,128,166,.12);border:1px solid rgba(89,128,166,.3);font-size:30px;">🔒</div>
+      <div style="font:600 22px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(29,45,61);">NEXT WEEK IS LOCKED</div>
+      <div style="max-width:280px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(89,101,115);">
+        You've logged <strong>${currentPct}%</strong> of this week so far. Get to <strong>50%</strong> and next week unlocks automatically — it keeps your training honest and your coach's data clean.
+      </div>
+      <div style="max-width:280px;font:400 11px/1.5 Barlow,sans-serif;color:rgb(138,146,156);">
+        Tap a day from this week above to keep logging. Need it opened early? Message your coach — they can unlock it for you.
+      </div>
+    </div>`;
 }
 
 // --- calendar popup ----------------------------------------------------------
@@ -303,6 +322,27 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   function render() {
     const session = getSessionFor(athleteId, selected);
     const week = getWeekFor(athleteId, selected, today);
+
+    // Week-lock: a future week stays blurred until this week hits ≥50% logging.
+    if (isDateWeekLocked(athleteId, selected, today)) {
+      const data = getDashboard(athleteId);
+      const curWeekStart = getWeekFor(athleteId, today, today)[0]?.date ?? today;
+      const pct = weekCompletionPct(data, curWeekStart, today);
+      if (body) body.innerHTML = lockMarkup(week, selected, pct);
+      const finishTxt = host.querySelector<HTMLElement>("#finishTxt");
+      const finishNote = host.querySelector<HTMLElement>("#finishNote");
+      if (finishTxt) finishTxt.textContent = "LOCKED";
+      if (finishNote) finishNote.textContent = "Log this week to unlock the next one.";
+      if (finishBtn) {
+        finishBtn.style.cursor = "default";
+        finishBtn.style.background = "transparent";
+        finishBtn.style.color = "rgb(138,146,156)";
+        finishBtn.style.border = "1px solid rgba(29,31,32,.16)";
+      }
+      shareBtn.style.display = "none";
+      return;
+    }
+
     if (body) body.innerHTML = bodyMarkup(week, session, selected, expanded);
 
     if (painSlider && session.pain != null) painSlider.value = String(session.pain);

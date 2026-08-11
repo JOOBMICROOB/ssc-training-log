@@ -94,6 +94,11 @@ export type DashboardData = {
   // read — that starts the 4-week window before it drops off the athlete's screen
   // (the coach keeps it forever).
   notes: { tags: string[]; sent: { id?: string; date: string; text: string; checkedAt?: string }[] };
+  // Week-lock: future weeks blur until the athlete keeps ≥50% logging in the
+  // week before them. Coach-controlled — off for good (weekLockOff) or unlocked
+  // for specific week-starts (weekLockBypass), so the coach can grant access.
+  weekLockOff?: boolean;
+  weekLockBypass?: string[];
 };
 
 /** The flat view the UI renders: raw data plus computed adherence + bw chart. */
@@ -294,6 +299,55 @@ function computeStreak(data: DashboardData, today: Date): number {
     break; // a past training day left unlogged ends the streak
   }
   return streak;
+}
+
+/**
+ * Average logged fraction across the week's DUE training sessions (0–100). Only
+ * sessions on/before `todayISO` count, so a week is judged on what's elapsed. No
+ * due sessions yet → 100 (nothing to hold against the athlete).
+ */
+export function weekCompletionPct(data: DashboardData, weekStartISO: string, todayISO: string): number {
+  const logs = data.programLogs ?? {};
+  let fracSum = 0;
+  let sessions = 0;
+  for (let i = 0; i < 7; i++) {
+    const date = addDays(weekStartISO, i);
+    if (date > todayISO) break;
+    const s = getSession(templateForDate(data, date), logs, date);
+    if (s.rest || s.exercises.length === 0) continue;
+    let total = 0;
+    let logged = 0;
+    for (const ex of s.exercises) {
+      for (const st of ex.sets) {
+        total++;
+        if ((st.weightKg != null && !st.prefill) || st.failed) logged++;
+      }
+    }
+    if (total === 0) continue;
+    fracSum += logged / total;
+    sessions++;
+  }
+  return sessions ? Math.round((fracSum / sessions) * 100) : 100;
+}
+
+function weekStartFor(data: DashboardData, dateISO: string): string {
+  return iso(currentWeekWindow(data.weekStartsOn, new Date(`${dateISO}T00:00:00`)).start);
+}
+
+/**
+ * Is a session on `date` locked behind the current week? Future weeks blur until
+ * the athlete keeps ≥50% logging this week. Coach can switch it off entirely
+ * (weekLockOff) or grant a specific week (weekLockBypass). Current and past
+ * weeks are always open.
+ */
+export function isDateWeekLocked(athleteId: string, date: string, todayISO = iso(new Date())): boolean {
+  const data = getDashboard(athleteId);
+  if (data.weekLockOff) return false;
+  const dw = weekStartFor(data, date);
+  const cw = weekStartFor(data, todayISO);
+  if (dw <= cw) return false;
+  if ((data.weekLockBypass ?? []).includes(dw)) return false;
+  return weekCompletionPct(data, cw, todayISO) < 50;
 }
 
 /** Build the render model: compute adherence, the bw chart, and weekly reset. */
@@ -588,6 +642,19 @@ export function publishProgramWeek(
 export function setProgramLabels(athleteId: string, patch: { blockName?: string; weekName?: string }) {
   const d = getDashboard(athleteId);
   save(athleteId, { ...d, program: { ...d.program, ...patch } });
+}
+
+/** Coach turns the week-lock motivator off (or back on) for an athlete — all-time. */
+export function setWeekLockOff(athleteId: string, off: boolean) {
+  const d = getDashboard(athleteId);
+  save(athleteId, { ...d, weekLockOff: off });
+}
+/** Coach unlocks a single upcoming week for an athlete (a one-week pass). */
+export function grantWeekAccess(athleteId: string, weekStartISO: string) {
+  const d = getDashboard(athleteId);
+  const set = new Set(d.weekLockBypass ?? []);
+  set.add(weekStartISO);
+  save(athleteId, { ...d, weekLockBypass: [...set] });
 }
 
 /** Log (or clear) one set's weight / RPE / note for a given date. */
