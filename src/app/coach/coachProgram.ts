@@ -264,14 +264,16 @@ export function loadProgram(athleteId: string): Program {
     if (raw) {
       const parsed = JSON.parse(raw) as Program;
       const migrated = ensureDated(parsed);
-      if (migrated !== parsed) saveProgram(migrated);
+      // Local-only: dating is recomputed per device and a seed must never push
+      // up and clobber a cloud program the coach built on another device.
+      if (migrated !== parsed) saveProgramLocalOnly(migrated);
       return migrated;
     }
   } catch {
     /* ignore */
   }
   const p = seedProgram(athleteId);
-  saveProgram(p);
+  saveProgramLocalOnly(p);
   return p;
 }
 /** Read a saved program without creating a seed — for read-only planning views. */
@@ -286,12 +288,24 @@ export function peekProgram(athleteId: string): Program | null {
   if (athleteId === "RS1203") return structuredClone(reneeProgram) as Program;
   return null;
 }
-export function saveProgram(p: Program) {
+// A save hook lets the cloud-sync layer mirror every real edit to Supabase
+// without coachProgram needing to know about the network. Seeds/migrations use
+// saveProgramLocalOnly so they never trigger it.
+let saveHook: ((p: Program) => void) | null = null;
+export function setProgramSaveHook(fn: ((p: Program) => void) | null) {
+  saveHook = fn;
+}
+/** Write to this device only — no cloud push. */
+export function saveProgramLocalOnly(p: Program) {
   try {
     localStorage.setItem(progKey(p.athleteId), JSON.stringify(p));
   } catch {
     /* storage may be unavailable */
   }
+}
+export function saveProgram(p: Program) {
+  saveProgramLocalOnly(p);
+  saveHook?.(p);
 }
 
 // The exercise database is a shared catalogue (synced across coaches + the

@@ -24,6 +24,7 @@ import {
   type Coach,
 } from "./coach/coachData";
 import { getCoachSession, signInCoach, signOutCoach, startCoachSync, type CoachSession } from "../lib/auth/coachAuth";
+import { enableCoachProgramSync, pullCoachPrograms, disableCoachProgramSync } from "./coach/coachProgramSync";
 
 /**
  * Coach desktop console (/coach). Rebuilt from Noa's Claude Design coach frames
@@ -56,18 +57,24 @@ function useForceRender() {
 export function CoachConsole() {
   const [session, setSession] = useState<CoachSession | null | "loading">("loading");
 
-  const load = () =>
-    getCoachSession().then((s) => {
-      setSession(s);
-      if (s) void startCoachSync(s.userId).then((list) => setRealAthletes(list.map((a) => ({ ...a, coachId: s.code }))));
-    });
+  const load = async () => {
+    const s = await getCoachSession();
+    if (s) {
+      // Pull the coach's cloud programs into localStorage BEFORE the console
+      // renders, so the builder/calendar show the same on every device.
+      enableCoachProgramSync(s.userId);
+      await pullCoachPrograms().catch(() => {});
+    }
+    setSession(s);
+    if (s) void startCoachSync(s.userId).then((list) => setRealAthletes(list.map((a) => ({ ...a, coachId: s.code }))));
+  };
   useEffect(() => { void load(); }, []);
 
   if (session === "loading") {
     return <div className="cc" style={{ display: "grid", placeItems: "center", minHeight: "100vh", color: "var(--muted)" }}>Loading…</div>;
   }
   if (!session) return <CoachLogin onSignedIn={load} />;
-  return <ConsoleShell session={session} onSignOut={async () => { await signOutCoach(); setSession(null); }} />;
+  return <ConsoleShell session={session} onSignOut={async () => { disableCoachProgramSync(); await signOutCoach(); setSession(null); }} />;
 }
 
 function CoachLogin({ onSignedIn }: { onSignedIn: () => void }) {
