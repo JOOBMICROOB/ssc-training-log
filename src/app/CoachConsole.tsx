@@ -141,6 +141,21 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQ, setPickerQ] = useState("");
   const [newAthleteSignal, setNewAthleteSignal] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Re-pull every athlete's latest cloud data (logs, bodyweight, notes) + the
+  // coach's own programs. Same thing that happens on load, on demand.
+  const refreshAll = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await pullCoachPrograms();
+      const list = await startCoachSync(session.userId);
+      setRealAthletes(list.map((a) => ({ ...a, coachId: session.code })));
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Remember the current page + day so a reopen resumes it (fresh each new day).
   useEffect(() => {
@@ -251,6 +266,15 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
             </>
           )}
         </div>
+        <button
+          className={`cc-refresh${refreshing ? " cc-refreshing" : ""}`}
+          title="Refresh — pull every athlete's latest logs from the cloud"
+          onClick={() => void refreshAll()}
+          disabled={refreshing}
+        >
+          <span className="cc-refresh-ico">↻</span>
+          <span className="cc-refresh-txt">{refreshing ? "Refreshing…" : "Refresh"}</span>
+        </button>
         <div className="cc-coach-pill">
           <img src="/assets/coach-noa.png" alt="" onError={(e) => (e.currentTarget.style.display = "none")} />
           <span className="cc-coach-name">{coach.name.toUpperCase()}</span>

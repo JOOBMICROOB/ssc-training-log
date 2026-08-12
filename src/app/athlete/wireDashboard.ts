@@ -3,7 +3,6 @@ import {
   getDashboardModel,
   submitCheckin,
   subscribeDashboard,
-  hydrateFromServer,
   athleteVisibleNotes,
   sendNoteToCoach,
   setAthleteInfo,
@@ -457,68 +456,6 @@ function buildModal(model: DashboardModel): {
   return { root, open: () => (root.style.display = "flex"), onSubmit: (cb) => (submitCb = cb) };
 }
 
-/**
- * Instagram-style pull-to-refresh: pull down at the top of the dashboard and a
- * spinning emblem drops in with a bit of resistance, then snaps away quickly
- * after it kicks a cloud re-sync. Pure gimmick to make the app feel legit.
- */
-function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void) {
-  // Keep the native scroll on its fast path (listeners stay PASSIVE — a
-  // non-passive touchmove is what made scrolling choppy) and stop the bounce
-  // from chaining to the page.
-  scroll.style.overscrollBehaviorY = "contain";
-  const chip = document.createElement("div");
-  chip.style.cssText =
-    "position:absolute;top:0;left:50%;width:38px;height:38px;border-radius:50%;background:#1d2d3d;display:grid;place-items:center;box-shadow:rgba(20,36,52,.28) 0 5px 14px;opacity:0;z-index:6;pointer-events:none;transform:translate(-50%,-50px);";
-  chip.innerHTML = '<img class="ptr-logo" src="/assets/logo-emblem-white.png" style="height:22px;width:auto;display:block;">';
-  const img = chip.firstElementChild as HTMLElement;
-  scroll.appendChild(chip);
-
-  let startY = 0;
-  let pulling = false;
-  let pull = 0;
-  let refreshing = false;
-  const THRESH = 66;
-  const hide = (ms: number) => {
-    chip.style.transition = `transform ${ms}ms ease, opacity ${ms}ms ease`;
-    chip.style.opacity = "0";
-    chip.style.transform = "translate(-50%,-50px)";
-    window.setTimeout(() => { chip.style.transition = "none"; img.classList.remove("ptr-spinning"); refreshing = false; }, ms);
-  };
-  scroll.addEventListener("touchstart", (e) => {
-    if (!refreshing && scroll.scrollTop <= 0) { startY = e.touches[0].clientY; pulling = true; pull = 0; }
-  }, { passive: true });
-  scroll.addEventListener("touchmove", (e) => {
-    if (!pulling) return;
-    if (scroll.scrollTop > 0) { pulling = false; hide(150); return; }
-    pull = e.touches[0].clientY - startY;
-    if (pull <= 0) { chip.style.opacity = "0"; chip.style.transform = "translate(-50%,-50px)"; return; }
-    const d = Math.min(pull * 0.5, 86);
-    chip.style.transition = "none";
-    chip.style.opacity = String(Math.min(1, d / 38));
-    chip.style.transform = `translate(-50%, ${d - 50}px)`;
-    if (!refreshing) img.style.transform = `rotate(${d * 4}deg)`;
-  }, { passive: true });
-  const end = () => {
-    if (!pulling) return;
-    pulling = false;
-    if (pull > THRESH) {
-      refreshing = true;
-      img.style.transform = "";
-      img.classList.add("ptr-spinning");
-      chip.style.transition = "transform .2s ease";
-      chip.style.transform = "translate(-50%,22px)";
-      chip.style.opacity = "1";
-      try { onRefresh(); } catch { /* ignore */ }
-      window.setTimeout(() => hide(320), 1500); // let it spin a good while
-    } else {
-      hide(200);
-    }
-  };
-  scroll.addEventListener("touchend", end, { passive: true });
-  scroll.addEventListener("touchcancel", end, { passive: true });
-}
-
 export function wireDashboard(
   host: HTMLElement,
   athleteId: string,
@@ -527,9 +464,6 @@ export function wireDashboard(
   onOpenProgress: (lift: string) => void,
 ): () => void {
   applyModel(host, getDashboardModel(athleteId));
-
-  const scroll = host.querySelector<HTMLElement>('div[style*="overflow-y: auto"]');
-  if (scroll) wirePullToRefresh(scroll, () => void hydrateFromServer(athleteId));
 
   const modal = buildModal(getDashboardModel(athleteId));
   document.body.appendChild(modal.root);

@@ -56,4 +56,5 @@
 
 /* Pull-to-refresh spinner (dashboard gimmick) — eased accelerate/decelerate spin. */
 @keyframes ptr-rot { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-.ptr-logo.ptr-spinning { animation: ptr-rot .9s cubic-bezier(.66, .02, .34, .98) infinite; }
+/* Quick, snappy spin that eases in and out each turn (not a constant drone). */
+.ptr-logo.ptr-spinning { animation: ptr-rot .62s cubic-bezier(.62, 0, .38, 1) infinite; }

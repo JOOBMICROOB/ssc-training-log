@@ -11,6 +11,7 @@ import { wireCompetitions } from "./athlete/wireCompetitions";
 import type { MainLift } from "../lib/program/program";
 import { getSession, signOut, subscribe, type AthleteSession } from "../lib/auth/authClient";
 import { finalizeWeeklyAdherence, hydrateFromServer } from "../lib/data/athleteData";
+import { wirePullToRefresh } from "./athlete/pullToRefresh";
 
 // The REAL design frames (rendered markup captured from Claude Design), imported
 // verbatim. The app renders these directly so it IS the design, not a rebuild.
@@ -114,6 +115,14 @@ export function AthleteApp() {
 
     let cleanup: (() => void) | undefined;
 
+    // Pull-to-refresh on every screen → a real cloud resync (and it retries any
+    // logs that failed to upload earlier).
+    let ptrCleanup: (() => void) | undefined;
+    if (session) {
+      const scrollEl = host.querySelector<HTMLElement>('div[style*="overflow-y: auto"]');
+      if (scrollEl) ptrCleanup = wirePullToRefresh(scrollEl, () => hydrateFromServer(session.athleteId));
+    }
+
     if (screen === "dashboard") {
       // Data-driven adherence + interactive weekly check-in, bodyweight log
       // (tap chart → 6e), next-session card → training, and each PR → progress.
@@ -184,7 +193,7 @@ export function AthleteApp() {
       cleanup = wireTraining(host, session.athleteId);
     }
 
-    return () => cleanup?.();
+    return () => { cleanup?.(); ptrCleanup?.(); };
   }, [screen, showFrame, session, selectedLift]);
 
   return (

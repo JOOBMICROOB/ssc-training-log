@@ -957,11 +957,38 @@ function mergeDashboard(server: Partial<DashboardData>, incoming: DashboardData)
   };
 }
 
+// A logged set that fails to upload (offline / weak signal / lapsed auth) must
+// never be stranded on the phone. Failed pushes are remembered here and retried
+// automatically — on reconnect, on the next app open, and on a short timer — so
+// the athlete's data always catches up to the cloud.
+const pendingPush = new Set<string>();
+let onlineHooked = false;
+function hookOnline() {
+  if (onlineHooked || typeof window === "undefined") return;
+  onlineHooked = true;
+  window.addEventListener("online", () => void flushPendingSync());
+}
+function queuePending(athleteId: string, delay = 6000) {
+  pendingPush.add(athleteId);
+  hookOnline();
+  window.setTimeout(() => {
+    if (pendingPush.has(athleteId)) pushToServer(athleteId, getDashboard(athleteId));
+  }, delay);
+}
+/** Re-push every athlete whose last upload failed. Safe to call anytime. */
+export function flushPendingSync() {
+  for (const id of [...pendingPush]) pushToServer(id, getDashboard(id));
+}
+/** True if any local change is still waiting to reach the cloud (for UI hints). */
+export function hasPendingSync(): boolean {
+  return pendingPush.size > 0;
+}
+
 // Serialize pushes per athlete so read-merge-write steps never race each other.
 const pushChain: Record<string, Promise<void>> = {};
 function pushToServer(athleteId: string, data: DashboardData) {
   const t = syncTargets[athleteId];
-  if (!t) return; // not a synced athlete → stay local-only
+  if (!t) { queuePending(athleteId); return; } // not synced yet → remember + retry
   const sb = untyped(t.raw);
   const run = async () => {
     try {
@@ -974,9 +1001,11 @@ function pushToServer(athleteId: string, data: DashboardData) {
       } catch {
         /* ignore */
       }
+      pendingPush.delete(athleteId); // upload landed
       listeners.forEach((cb) => cb());
     } catch (e) {
-      console.warn("[sync] push failed", e);
+      console.warn("[sync] push failed — will retry", e);
+      queuePending(athleteId); // remember it and try again later
     }
   };
   pushChain[athleteId] = (pushChain[athleteId] ?? Promise.resolve()).then(run, run);
@@ -1036,6 +1065,7 @@ export async function hydrateFromServer(athleteId: string): Promise<void> {
   const uid = userRes.user?.id ?? null;
   if (!uid) return; // no session → stay local-only
   await hydrateTarget(athleteId, uid, true, supabase);
+  flushPendingSync(); // re-push anything a previous session failed to upload
   await hydrateShared(false); // pull the shared competition list too
 }
 
