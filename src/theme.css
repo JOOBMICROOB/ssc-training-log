@@ -24,10 +24,16 @@
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
+/* Stop the whole document from rubber-banding on touch — pulls should move our
+   own content, never bounce the page and flash the background behind the app. */
+html, body { overscroll-behavior: none; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font-family: var(--font-body); font-size: 15px; line-height: 1.5;
 }
+/* On the athlete app the backdrop is navy, so any overscroll or safe-area gutter
+   shows navy (matching the frame) instead of a tacky light gap. */
+body.athlete-route { background: #16232f; }
 h1, h2, h3, h4, h5 {
   font-family: var(--font-heading); font-weight: 600; line-height: 1.1;
   letter-spacing: -.01em; margin: 0;

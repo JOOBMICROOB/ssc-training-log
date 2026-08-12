@@ -41,6 +41,12 @@ export default function App() {
 
   const isCoach = isCoachPath(path);
 
+  // Navy backdrop for the athlete app so overscroll never flashes a light gap.
+  useEffect(() => {
+    document.body.classList.toggle("athlete-route", !isCoach);
+    return () => document.body.classList.remove("athlete-route");
+  }, [isCoach]);
+
   return (
     <div style={{ minHeight: "100%", background: isCoach ? "var(--bg)" : "var(--navy-2)" }}>
       {/* preview switch — dev convenience; production uses the plain /coach link (or role-based login). */}
