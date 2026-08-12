@@ -1,5 +1,6 @@
 {
   "athleteId": "LV222",
+  "currentWeekId": "wk_lieze_3",
   "mesocycles": [
     {
       "id": "meso_lieze",
@@ -883,6 +884,457 @@
             }
           ],
           "startDate": "2026-08-03"
+        },
+        {
+          "id": "wk_lieze_3",
+          "name": "WEEK 3",
+          "status": "published",
+          "days": [
+            {
+              "id": "day_3_1",
+              "weekday": 1,
+              "rest": true,
+              "exercises": []
+            },
+            {
+              "id": "day_3_2",
+              "weekday": 2,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_3_2_0",
+                  "name": "Tempo squats met belt 320",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "2",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_3_2_1",
+                  "name": "Belt squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_3_2_2",
+                  "name": "2CT paused benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "7-8",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_3_2_3",
+                  "name": "Feet up db press",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Top set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_3_2_4",
+                  "name": "Rear delt flies",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Top set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_3_2_5",
+                  "name": "AB wheel rollout",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Top set",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_3_3",
+              "weekday": 3,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_3_3_0",
+                  "name": "2CT paused deadlift",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "7-8",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_3_3_1",
+                  "name": "Comp deadlift",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "5,5",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_3_3_2",
+                  "name": "Comp deadlift",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "6-6,5",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_3_3_3",
+                  "name": "Comp deadlift",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_3_3_4",
+                  "name": "Comp benchpress met commands",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "7,5-8,5",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_3_3_5",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "3",
+                  "intensity": "rpe",
+                  "value": "7-8",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_3_3_6",
+                  "name": "Unilateral row seated",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Top set",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_3_4",
+              "weekday": 4,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_3_4_0",
+                  "name": "2CT paused squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "2",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_3_4_1",
+                  "name": "Midgrip benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "5",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_3_4_2",
+                  "name": "Leg extension",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Top set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_3_4_3",
+                  "name": "Dips paused",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6-8",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Top set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_3_4_4",
+                  "name": "Unilateral lat pulldown",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Top set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_3_4_5",
+                  "name": "QL raises",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Top set",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_3_5",
+              "weekday": 5,
+              "rest": true,
+              "exercises": []
+            },
+            {
+              "id": "day_3_6",
+              "weekday": 6,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_3_6_0",
+                  "name": "Comp squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_3_6_1",
+                  "name": "Comp squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "5",
+                  "intensity": "percent",
+                  "value": "11",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_3_6_2",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "2",
+                  "intensity": "rpe",
+                  "value": "7,5",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_3_6_3",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "2",
+                  "intensity": "percent",
+                  "value": "-8",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_3_6_4",
+                  "name": "Hacksquats paused",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Top set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_3_6_5",
+                  "name": "Single arm tricep extension",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "7-8",
+                  "scheme": "Top set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_3_6_6",
+                  "name": "Hammer curls",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "7-8",
+                  "scheme": "Top set",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_3_0",
+              "weekday": 0,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_3_0_0",
+                  "name": "Stiff legged deadlift",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "5",
+                  "intensity": "rpe",
+                  "value": "7-8",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_3_0_1",
+                  "name": "Larsen benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_3_0_2",
+                  "name": "Chest pressaround",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Top set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_3_0_3",
+                  "name": "Lat pulldown machine hammerstrength",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Top set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_3_0_4",
+                  "name": "Lateral raises",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "7-8",
+                  "scheme": "Top set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_3_0_5",
+                  "name": "Seated unilateral row",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Top set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_3_0_6",
+                  "name": "Lazy bear",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "40-60s",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Top set",
+                  "mainLift": null
+                }
+              ]
+            }
+          ],
+          "startDate": "2026-08-10"
         }
       ]
     }
