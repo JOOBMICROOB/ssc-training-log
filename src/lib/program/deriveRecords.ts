@@ -35,7 +35,7 @@ const LIFT_WORDS: [MainLift, RegExp][] = [
   ["bench", /^(comp\.?\s*|competition\s*)?bench(\s*press)?e?s?$/],
   ["deadlift", /^(comp\.?\s*|competition\s*)?(conventional\s*|sumo\s*)?deadlifts?$/],
 ];
-function inferLift(name: string): MainLift | null {
+export function inferLift(name: string): MainLift | null {
   const n = name.trim().toLowerCase().replace(/\s+/g, " ");
   for (const [lift, re] of LIFT_WORDS) if (re.test(n)) return lift;
   return null;

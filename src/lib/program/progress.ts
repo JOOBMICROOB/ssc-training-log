@@ -3,6 +3,7 @@ import { ipfGlPoints, type Sex } from "../calc/scores";
 import { currentWeekWindow, type Weekday } from "../calc/adherence";
 import { fmtKg, fmtGl } from "../calc/records";
 import { getSession, addDays, type WeekTemplate, type ProgramLogs, type MainLift } from "./program";
+import { inferLift } from "./deriveRecords";
 
 /**
  * Per-lift progress for the 6a page. The estimated 1RM each week is Epley from
@@ -40,11 +41,13 @@ function weekE1rm(template: WeekTemplate, logs: ProgramLogs, lift: MainLift, wee
   for (let i = 0; i < 7; i++) {
     const s = getSession(template, logs, d);
     for (const ex of s.exercises) {
-      if (ex.mainLift !== lift || !ex.competition) continue;
+      // The comp lift for this week: flagged competition, or recognised by name
+      // (comp squat / squat) — same rule as the dashboard PRs.
+      if (ex.mainLift !== lift || !(ex.competition || inferLift(ex.name) === lift)) continue;
       for (const st of ex.sets) {
-        if (st.weightKg == null || st.failed) continue;
-        const reps = parseInt(st.targetReps, 10);
-        if (!Number.isInteger(reps) || String(reps) !== st.targetReps) continue; // pure integer reps only
+        if (st.weightKg == null || st.failed || st.prefill) continue; // real logs only
+        const reps = parseInt(st.targetReps, 10); // min of a range ("3-5" → 3)
+        if (!Number.isFinite(reps) || reps < 1) continue;
         if (reps < lowestReps || (reps === lowestReps && st.weightKg > weightAtLowest)) {
           lowestReps = reps;
           weightAtLowest = st.weightKg;
@@ -92,12 +95,15 @@ export function liftProgress(
     const s = getSession(templateAt ? templateAt(date) : template, logs, date);
     for (const ex of s.exercises) {
       if (ex.mainLift !== lift) continue;
+      // The comp lift (flagged, or recognised by name — comp squat = squat) feeds
+      // the rep-maxes; genuine variations (paused, tempo, box…) get their own row.
+      const isCompLift = ex.competition || inferLift(ex.name) === lift;
       for (const st of ex.sets) {
         if (st.weightKg == null || st.failed || st.prefill) continue;
         // Min of a rep range (a "3-5" set proves at least a 3RM at that weight).
         const reps = parseInt(st.targetReps, 10);
         if (!Number.isFinite(reps) || reps < 1) continue;
-        if (ex.competition) {
+        if (isCompLift) {
           points.push({ reps, weight: st.weightKg });
         } else {
           const cur = variantBest[ex.name];
