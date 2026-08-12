@@ -32,8 +32,9 @@ body {
   font-family: var(--font-body); font-size: 15px; line-height: 1.5;
 }
 /* On the athlete app the backdrop is navy, so any overscroll or safe-area gutter
-   shows navy (matching the frame) instead of a tacky light gap. */
-body.athlete-route { background: #16232f; }
+   shows navy instead of a tacky light gap. This matches the frame's top gradient
+   colour (rgb(26,44,62)) so the status-bar area blends seamlessly into the app. */
+body.athlete-route { background: #1a2c3e; }
 h1, h2, h3, h4, h5 {
   font-family: var(--font-heading); font-weight: 600; line-height: 1.1;
   letter-spacing: -.01em; margin: 0;

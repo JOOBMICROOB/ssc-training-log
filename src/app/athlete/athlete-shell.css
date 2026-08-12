@@ -35,7 +35,7 @@
 .athlete-back:active { background: rgba(255, 255, 255, .22); }
 
 @media (max-width: 520px) {
-  .athlete-shell { padding: 0; background: #16232f; min-height: 100dvh; }
+  .athlete-shell { padding: 0; background: #1a2c3e; min-height: 100dvh; }
   .athlete-frame { width: 100%; max-width: none; }
   /* Full-bleed on a real phone: drop the 380px mockup card chrome and fill the
      screen, clearing the status bar / home indicator via the safe-area insets. */
