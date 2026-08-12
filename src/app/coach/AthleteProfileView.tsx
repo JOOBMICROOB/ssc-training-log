@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getDashboardModel, getDashboard, getSessionFor, setAthleteInfo, setCompPr, setCompTotal, setPrBaseline, markNoteChecked, setWeekLockOff, IPF_CLASSES } from "../../lib/data/athleteData";
+import { getDashboardModel, getDashboard, getSessionFor, setAthleteInfo, setCompPr, setCompTotal, setPrBaseline, markNoteChecked, removeNote, clearNotes, setWeekLockOff, IPF_CLASSES } from "../../lib/data/athleteData";
 import { createAthlete, athleteLoginEmail, resetAthletePassword } from "../../lib/auth/coachAuth";
 import { fmtKg } from "../../lib/calc/records";
 import { renderBwSvgInner, DASH_STYLE } from "../../lib/calc/bwChart";
@@ -248,15 +248,23 @@ export function AthletePanels({ client }: { client: ClientRow }) {
         </Panel>
 
         <Panel title="Notes from athlete">
-          <div className="cc-cell-s" style={{ marginTop: 8 }}>Last logged: <strong style={{ color: "var(--navy)" }}>{client.lastLogged.what}</strong> · {client.lastLogged.when}</div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 8 }}>
+            <div className="cc-cell-s">Last logged: <strong style={{ color: "var(--navy)" }}>{client.lastLogged.what}</strong> · {client.lastLogged.when}</div>
+            {client.notes.length > 0 && (
+              <button className="cc-mini" style={{ flex: "0 0 auto" }} onClick={() => { if (confirm(`Clear all ${client.notes.length} note(s) from ${client.name}? This can't be undone.`)) clearNotes(client.athleteId); }}>Clear all</button>
+            )}
+          </div>
           {client.notes.length === 0 && <div className="cc-cell-s" style={{ marginTop: 8 }}>No notes sent yet.</div>}
           {client.notes.map((n) => (
             <div key={n.id} className="cc-msg-box" style={{ marginTop: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                 <span className="cc-d-k">{fmtDay(n.date)}</span>
-                {n.checkedAt
-                  ? <span className="cc-cell-s" style={{ color: "var(--good)" }}>read · {fmtDay(n.checkedAt)}</span>
-                  : <button className="cc-mini cc-mini-solid" onClick={() => markNoteChecked(client.athleteId, n.id)}>Mark read</button>}
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {n.checkedAt
+                    ? <span className="cc-cell-s" style={{ color: "var(--good)" }}>read · {fmtDay(n.checkedAt)}</span>
+                    : <button className="cc-mini cc-mini-solid" onClick={() => markNoteChecked(client.athleteId, n.id)}>Mark read</button>}
+                  <button className="cc-wk-del" title="Delete this note" onClick={() => { if (confirm("Delete this note?")) removeNote(client.athleteId, n.id); }}>×</button>
+                </div>
               </div>
               <div style={{ marginTop: 5, fontSize: 12.5, lineHeight: 1.45, color: "var(--navy)" }}>{n.text}</div>
             </div>

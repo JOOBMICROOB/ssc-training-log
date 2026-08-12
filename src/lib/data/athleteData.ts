@@ -802,6 +802,19 @@ export function markNoteChecked(athleteId: string, noteId: string) {
   save(athleteId, { ...d, notes: { ...d.notes, sent } });
 }
 
+/** Coach deletes a single note for good (removes it from athlete + coach). */
+export function removeNote(athleteId: string, noteId: string) {
+  const d = getDashboard(athleteId);
+  const sent = sentNotes(d).filter((n) => n.id !== noteId);
+  save(athleteId, { ...d, notes: { ...d.notes, sent } });
+}
+
+/** Coach clears an athlete's whole note history — a fresh start. */
+export function clearNotes(athleteId: string) {
+  const d = getDashboard(athleteId);
+  save(athleteId, { ...d, notes: { ...d.notes, sent: [] } });
+}
+
 /** Opt in to a meet. Athletes can opt in but only the coach can undo it. */
 export function optInComp(athleteId: string, compId: string) {
   const d = getDashboard(athleteId);
