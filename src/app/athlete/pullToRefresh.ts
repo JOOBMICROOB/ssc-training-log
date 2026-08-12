@@ -17,13 +17,18 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
   scroll.style.overscrollBehaviorY = "contain";
   scroll.style.willChange = "transform";
 
-  // Spinning emblem, parked above the card in the navy gap.
+  // Spinning emblem, parked above the card in the navy gap. Inverted for the navy
+  // backdrop: a light-blue disc with a navy emblem (masked from the white PNG so
+  // the colour is exact).
   const chip = document.createElement("div");
   chip.style.cssText =
-    "position:absolute;top:52px;left:50%;width:40px;height:40px;border-radius:50%;background:#16232f;" +
-    "display:grid;place-items:center;box-shadow:rgba(0,0,0,.3) 0 6px 16px;opacity:0;z-index:2;pointer-events:none;" +
+    "position:absolute;top:52px;left:50%;width:42px;height:42px;border-radius:50%;background:#dbe9f7;" +
+    "display:grid;place-items:center;box-shadow:rgba(0,0,0,.34) 0 7px 18px;opacity:0;z-index:2;pointer-events:none;" +
     "transform:translate(-50%,-46px);";
-  chip.innerHTML = '<img class="ptr-logo" src="/assets/logo-emblem-white.png" style="height:23px;width:auto;display:block;">';
+  chip.innerHTML =
+    '<span class="ptr-logo" style="width:24px;height:24px;display:block;background:#1d2d3d;' +
+    "-webkit-mask:url(/assets/logo-emblem-white.png) center/contain no-repeat;" +
+    'mask:url(/assets/logo-emblem-white.png) center/contain no-repeat;"></span>';
   const img = chip.firstElementChild as HTMLElement;
   frame.appendChild(chip);
 
