@@ -138,7 +138,7 @@ function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locke
   return `<div>${header}${body}</div>`;
 }
 
-function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selected: string, expanded: number | null): string {
+function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selected: string, isOpen: (ei: number) => boolean): string {
   const dayRow = `<div style="flex:0 0 auto;display:flex;gap:5px;padding:14px 0 12px;">${dayButtons(week, selected)}</div>`;
   if (session.rest) {
     return `${dayRow}<div style="flex:0 0 auto;padding:24px 0;text-align:center;font:600 20px/1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(107,116,128);">REST DAY</div>`;
@@ -150,7 +150,7 @@ function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selec
     </div>
     <div style="margin-top:6px;font:400 11px/1 Barlow,sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">${session.exercises.length} EXERCISES · ${session.loggedCount} / ${session.setCount} SETS LOGGED</div>
   </div>`;
-  const exercises = session.exercises.map((ex, ei) => exerciseBlock(ex, ei, ei === expanded, session.finished)).join("");
+  const exercises = session.exercises.map((ex, ei) => exerciseBlock(ex, ei, isOpen(ei), session.finished)).join("");
   return dayRow + title + exercises;
 }
 
@@ -297,7 +297,13 @@ function firstOpenDate(athleteId: string, today: string): string {
 export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   const today = iso(new Date());
   let selected = firstOpenDate(athleteId, today);
-  let expanded: number | null = 0;
+  // Exercises start collapsed — the athlete taps one to open it. A per-exercise
+  // manual override wins; otherwise an exercise auto-opens while it's mid-log
+  // (some but not all sets done) so logging never collapses under you.
+  const manualOpen = new Map<number, boolean>();
+  const inProgress = (ex: SessionExercise) => ex.loggedCount > 0 && ex.loggedCount < ex.setCount;
+  const isExOpen = (session: Session, ei: number) =>
+    manualOpen.has(ei) ? manualOpen.get(ei)! : !!session.exercises[ei] && inProgress(session.exercises[ei]);
 
   const body = host.querySelector<HTMLElement>("#trainBody");
   const painSlider = host.querySelector<HTMLInputElement>("#painSlider");
@@ -321,7 +327,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
 
   const calendar = buildCalendar(athleteId, () => selected, (date) => {
     selected = date;
-    expanded = 0;
+    manualOpen.clear();
     render();
   });
   document.body.appendChild(calendar.root);
@@ -350,7 +356,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       return;
     }
 
-    if (body) body.innerHTML = bodyMarkup(week, session, selected, expanded);
+    if (body) body.innerHTML = bodyMarkup(week, session, selected, (ei) => isExOpen(session, ei));
 
     if (painSlider && session.pain != null) painSlider.value = String(session.pain);
     host.querySelector("#painVal") && (host.querySelector<HTMLElement>("#painVal")!.textContent = String(session.pain ?? painSlider?.value ?? 0));
@@ -414,10 +420,14 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   body?.addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
     const dayBtn = t.closest<HTMLElement>("[data-day]");
-    if (dayBtn) { selected = dayBtn.dataset.day!; expanded = 0; return render(); }
+    if (dayBtn) { selected = dayBtn.dataset.day!; manualOpen.clear(); return render(); }
     if (t.closest("#dayPickBtn")) return calendar.open();
     const exBtn = t.closest<HTMLElement>("[data-ex]");
-    if (exBtn) { const i = Number(exBtn.dataset.ex); expanded = expanded === i ? null : i; return render(); }
+    if (exBtn) {
+      const i = Number(exBtn.dataset.ex);
+      manualOpen.set(i, !isExOpen(getSessionFor(athleteId, selected), i)); // manual toggle wins
+      return render();
+    }
 
     // edits are gated when the session is confirmed/locked
     if (t.closest("[data-inc],[data-dec],[data-same],[data-fail],[data-wi],[data-note]") && !unlockGate()) return;
