@@ -26,6 +26,21 @@ export type DerivedRecords = {
 const LABEL: Record<MainLift, string> = { squat: "SQUAT", bench: "BENCH PRESS", deadlift: "DEADLIFT" };
 const ORDER: MainLift[] = ["squat", "bench", "deadlift"];
 
+// Fallback when an exercise has no mainLift set: recognise the competition lift
+// or the plain lift by name — "comp squat" counts as squat — but NOT variations
+// (romanian deadlift, paused/box/front squat, etc.) so accessories never inflate
+// a main-lift PR. The coach normally sets mainLift, so this is just a safety net.
+const LIFT_WORDS: [MainLift, RegExp][] = [
+  ["squat", /^(comp\.?\s*|competition\s*)?(back\s*)?squats?$/],
+  ["bench", /^(comp\.?\s*|competition\s*)?bench(\s*press)?e?s?$/],
+  ["deadlift", /^(comp\.?\s*|competition\s*)?(conventional\s*|sumo\s*)?deadlifts?$/],
+];
+function inferLift(name: string): MainLift | null {
+  const n = name.trim().toLowerCase().replace(/\s+/g, " ");
+  for (const [lift, re] of LIFT_WORDS) if (re.test(n)) return lift;
+  return null;
+}
+
 const monthLabel = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 
@@ -50,22 +65,29 @@ export function deriveRecords(
   baselines: Record<MainLift, Baseline>,
   bwEntries: BwPoint[],
   sexInput: Sex,
+  // Resolve the template that was active on a given date, so every logged set
+  // maps onto the exercises it was actually done under. Without this, logs from
+  // an earlier week get read against today's layout and their loads are missed.
+  templateAt?: (date: string) => WeekTemplate,
 ): DerivedRecords {
   const sex: Sex = sexInput === "male" ? "male" : "female"; // guard undefined/legacy data
-  // Heaviest logged weight per main lift, with the date it was hit.
+  // Heaviest logged weight per main lift, with the date it was hit. A lift's
+  // competition variant (comp squat, etc.) carries the same mainLift, so it's
+  // counted here too — logging a heavier comp squat lifts the squat PR.
   const maxByLift: Record<MainLift, { weight: number; date: string } | null> = {
     squat: null,
     bench: null,
     deadlift: null,
   };
   for (const date of Object.keys(logs)) {
-    const s = getSession(template, logs, date);
+    const s = getSession(templateAt ? templateAt(date) : template, logs, date);
     for (const ex of s.exercises) {
-      if (!ex.mainLift) continue;
+      const lift = ex.mainLift ?? inferLift(ex.name);
+      if (!lift) continue;
       for (const st of ex.sets) {
-        if (st.weightKg != null && !st.failed) {
-          const cur = maxByLift[ex.mainLift];
-          if (!cur || st.weightKg > cur.weight) maxByLift[ex.mainLift] = { weight: st.weightKg, date };
+        if (st.weightKg != null && !st.failed && !st.prefill) {
+          const cur = maxByLift[lift];
+          if (!cur || st.weightKg > cur.weight) maxByLift[lift] = { weight: st.weightKg, date };
         }
       }
     }

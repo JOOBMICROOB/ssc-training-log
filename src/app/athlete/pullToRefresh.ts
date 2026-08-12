@@ -25,10 +25,11 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
     "position:absolute;top:52px;left:50%;width:42px;height:42px;border-radius:50%;background:#dbe9f7;" +
     "display:grid;place-items:center;box-shadow:rgba(0,0,0,.34) 0 7px 18px;opacity:0;z-index:2;pointer-events:none;" +
     "transform:translate(-50%,-46px);";
+  // Plain <img> recoloured to navy by filter — rotates reliably on iOS (a masked
+  // element needs compositing hints and can still refuse to spin in WebKit).
   chip.innerHTML =
-    '<span class="ptr-logo" style="width:24px;height:24px;display:block;background:#1d2d3d;' +
-    "-webkit-mask:url(/assets/logo-emblem-white.png) center/contain no-repeat;" +
-    'mask:url(/assets/logo-emblem-white.png) center/contain no-repeat;"></span>';
+    '<img class="ptr-logo" src="/assets/logo-emblem-white.png" style="height:24px;width:auto;display:block;' +
+    'filter:brightness(0) saturate(100%) invert(13%) sepia(24%) saturate(1400%) hue-rotate(174deg) brightness(93%) contrast(90%);">';
   const img = chip.firstElementChild as HTMLElement;
   frame.appendChild(chip);
 

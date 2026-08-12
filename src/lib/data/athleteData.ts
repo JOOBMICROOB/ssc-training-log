@@ -406,6 +406,7 @@ export function buildDashboardModel(data: DashboardData, today = new Date()): Da
     },
     data.bwEntries ?? [],
     data.athlete.sex,
+    (d) => templateForDate(data, d), // resolve each logged date's own week template
   );
   return {
     ...data,
