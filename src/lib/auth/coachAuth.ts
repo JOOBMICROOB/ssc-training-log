@@ -42,8 +42,14 @@ export async function signInCoach(email: string, password: string): Promise<{ ok
 export async function startCoachSync(coachUserId: string): Promise<{ athleteId: string; userId: string; name: string }[]> {
   enableCoachSync();
   const { data, error } = await q.from("app_profiles").select("code,name,user_id").eq("coach_user_id", coachUserId);
-  if (error || !data) return [];
-  const list = data.map((r) => ({ athleteId: r.code, userId: r.user_id, name: r.name }));
+  const list = !error && data ? data.map((r) => ({ athleteId: r.code, userId: r.user_id, name: r.name })) : [];
+  // Safety net: always try to hydrate the live athlete (RS1203) even if her
+  // profile isn't linked to this coach — otherwise the coach sees her seeded
+  // program but none of her real logged sets (those live only in her cloud row).
+  if (!list.some((a) => a.athleteId === "RS1203")) {
+    const { data: renee } = await q.from("app_profiles").select("code,name,user_id").eq("code", "RS1203").maybeSingle();
+    if (renee?.user_id) list.push({ athleteId: renee.code, userId: renee.user_id, name: renee.name });
+  }
   await hydrateAthletes(list);
   await hydrateShared(true); // coach seeds the shared competition list if empty
   return list;
