@@ -31,8 +31,10 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
   let pulling = false;
   let pull = 0;
   let refreshing = false;
+  let armed = false; // pulled far enough to trigger — logo spins while held here
   const THRESH = 64;
   const MAXD = 96;
+  const MIN_SPIN = 900; // keep the emblem visibly spinning at least this long
 
   const setCard = (y: number, animate: boolean) => {
     scroll.style.transition = animate ? "transform .34s cubic-bezier(.22,1,.36,1)" : "none";
@@ -45,13 +47,14 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
   };
 
   const reset = () => {
+    armed = false;
     setCard(0, true);
     setChip(-46, 0, true);
-    window.setTimeout(() => { img.classList.remove("ptr-spinning"); refreshing = false; }, 340);
+    window.setTimeout(() => { img.classList.remove("ptr-spinning"); img.style.transform = ""; refreshing = false; }, 340);
   };
 
   const onStart = (e: TouchEvent) => {
-    if (!refreshing && scroll.scrollTop <= 0) { startY = e.touches[0].clientY; pulling = true; pull = 0; }
+    if (!refreshing && scroll.scrollTop <= 0) { startY = e.touches[0].clientY; pulling = true; pull = 0; armed = false; }
   };
   const onMove = (e: TouchEvent) => {
     if (!pulling) return;
@@ -61,7 +64,13 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
     const d = Math.min(pull * 0.55, MAXD); // eased resistance
     setCard(d, false);
     setChip(Math.min(d * 0.55, 30), Math.min(1, d / 44), false);
-    if (!refreshing) img.style.transform = `rotate(${d * 3}deg)`; // track the drag before it spins
+    // Once pulled far enough, the emblem spins on its own — so holding it there
+    // (standing still) keeps it spinning, not frozen. Ease back to drag-rotate
+    // if they pull below the line again.
+    const past = pull > THRESH;
+    if (past && !armed) { armed = true; img.style.transform = ""; img.classList.add("ptr-spinning"); }
+    else if (!past && armed) { armed = false; img.classList.remove("ptr-spinning"); }
+    if (!armed) img.style.transform = `rotate(${d * 3}deg)`; // track the drag before it arms
   };
   const onEnd = () => {
     if (!pulling) return;
@@ -69,17 +78,18 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
     if (pull > THRESH) {
       refreshing = true;
       img.style.transform = "";
-      img.classList.add("ptr-spinning");
+      img.classList.add("ptr-spinning"); // keep spinning through the refresh
       setCard(52, true);
       setChip(28, 1, true);
-      const done = () => window.setTimeout(reset, 260);
+      const started = Date.now();
+      const done = () => window.setTimeout(reset, Math.max(MIN_SPIN - (Date.now() - started), 200));
       try {
         const r = onRefresh();
         if (r && typeof (r as Promise<void>).then === "function") {
           (r as Promise<void>).then(done, done);
           window.setTimeout(reset, 4000); // hard stop if the sync hangs
         } else {
-          window.setTimeout(reset, 1200);
+          window.setTimeout(reset, MIN_SPIN);
         }
       } catch {
         done();
@@ -87,6 +97,7 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
     } else {
       setCard(0, true);
       setChip(-46, 0, true);
+      armed = false;
     }
   };
 

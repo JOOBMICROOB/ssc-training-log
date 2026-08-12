@@ -116,11 +116,16 @@ export function AthleteApp() {
     let cleanup: (() => void) | undefined;
 
     // Pull-to-refresh on every screen → a real cloud resync (and it retries any
-    // logs that failed to upload earlier).
+    // logs that failed to upload earlier). Target the main content card (the
+    // direct flex:1 child of the navy frame) so it works on every page, whether
+    // that card scrolls or not.
     let ptrCleanup: (() => void) | undefined;
     if (session) {
-      const scrollEl = host.querySelector<HTMLElement>('div[style*="overflow-y: auto"]');
-      if (scrollEl) ptrCleanup = wirePullToRefresh(scrollEl, () => hydrateFromServer(session.athleteId));
+      const bp = host.querySelector<HTMLElement>(".blueprint");
+      const card =
+        bp?.querySelector<HTMLElement>(':scope > div[style*="flex: 1 1 0%"]') ??
+        host.querySelector<HTMLElement>('div[style*="overflow-y: auto"]');
+      if (card) ptrCleanup = wirePullToRefresh(card, () => hydrateFromServer(session.athleteId));
     }
 
     if (screen === "dashboard") {
