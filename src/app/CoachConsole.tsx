@@ -157,6 +157,20 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
     }
   };
 
+  // Keep the console current with the cloud on its own: re-pull the roster +
+  // programs whenever it's reopened or refocused. New athletes and programs
+  // then appear without any manual refresh or cache clearing.
+  useEffect(() => {
+    const resync = () => {
+      void pullCoachPrograms();
+      void startCoachSync(session.userId).then((list) => setRealAthletes(list.map((a) => ({ ...a, coachId: session.code }))));
+    };
+    const onVis = () => { if (document.visibilityState === "visible") resync(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", resync);
+    return () => { document.removeEventListener("visibilitychange", onVis); window.removeEventListener("focus", resync); };
+  }, [session.userId, session.code]);
+
   // Remember the current page + day so a reopen resumes it (fresh each new day).
   useEffect(() => {
     try {

@@ -265,11 +265,23 @@ function ensureDated(p: Program): Program {
   return changed ? { ...p, mesocycles } : p;
 }
 
+/** Any block with at least one real training day. */
+function programHasTraining(p: Program): boolean {
+  return p.mesocycles.some((m) => m.weeks.some(hasTraining));
+}
+
 export function loadProgram(athleteId: string): Program {
   try {
     const raw = localStorage.getItem(progKey(athleteId));
     if (raw) {
       const parsed = JSON.parse(raw) as Program;
+      // A blank cached program (e.g. from opening a seeded athlete on an older
+      // build) must not shadow their real backfilled block — fall back to the seed.
+      if (!programHasTraining(parsed) && (athleteId === "RS1203" || athleteId === "LV222")) {
+        const seed = seedProgram(athleteId);
+        saveProgramLocalOnly(seed);
+        return seed;
+      }
       const migrated = ensureDated(parsed);
       // Local-only: dating is recomputed per device and a seed must never push
       // up and clobber a cloud program the coach built on another device.
