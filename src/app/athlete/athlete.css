@@ -54,7 +54,10 @@
 /* immersive navy screens (login / detail) */
 .a-navy { background: var(--navy-deep); color: #eef2f6; min-height: 100%; display: flex; flex-direction: column; }
 
-/* Pull-to-refresh spinner (dashboard gimmick) — eased accelerate/decelerate spin. */
-@keyframes ptr-rot { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+/* Pull-to-refresh spinner — eased accelerate/decelerate spin. translateZ(0) forces
+   its own compositing layer so the rotation actually renders on iOS WebKit even
+   with a -webkit-mask on the element. */
+@keyframes ptr-rot { from { transform: translateZ(0) rotate(0deg); } to { transform: translateZ(0) rotate(360deg); } }
+.ptr-logo { transform-origin: 50% 50%; will-change: transform; }
 /* Quick, snappy spin that eases in and out each turn (not a constant drone). */
 .ptr-logo.ptr-spinning { animation: ptr-rot .62s cubic-bezier(.62, 0, .38, 1) infinite; }

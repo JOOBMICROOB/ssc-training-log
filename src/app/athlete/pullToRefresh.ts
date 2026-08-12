@@ -70,12 +70,11 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
     setCard(d, false);
     setChip(Math.min(d * 0.55, 30), Math.min(1, d / 44), false);
     // Once pulled far enough, the emblem spins on its own — so holding it there
-    // (standing still) keeps it spinning, not frozen. Ease back to drag-rotate
-    // if they pull below the line again.
+    // (standing still) keeps it spinning, not frozen. No inline transform is set,
+    // so nothing competes with the CSS spin animation.
     const past = pull > THRESH;
-    if (past && !armed) { armed = true; img.style.transform = ""; img.classList.add("ptr-spinning"); }
+    if (past && !armed) { armed = true; img.classList.add("ptr-spinning"); }
     else if (!past && armed) { armed = false; img.classList.remove("ptr-spinning"); }
-    if (!armed) img.style.transform = `rotate(${d * 3}deg)`; // track the drag before it arms
   };
   const onEnd = () => {
     if (!pulling) return;
