@@ -95,17 +95,18 @@ export function liftProgress(
     const s = getSession(templateAt ? templateAt(date) : template, logs, date);
     for (const ex of s.exercises) {
       if (ex.mainLift !== lift) continue;
-      // The comp lift (flagged, or recognised by name — comp squat = squat) feeds
-      // the rep-maxes; genuine variations (paused, tempo, box…) get their own row.
+      // Every set of this main lift feeds the rep-maxes — exactly what the
+      // dashboard PR counts, so the two always agree (a heavy set logged under a
+      // variation still shows as the heaviest-logged here). Genuine variations
+      // (paused, tempo, box…) ALSO get their own best-logged row for detail.
       const isCompLift = ex.competition || inferLift(ex.name) === lift;
       for (const st of ex.sets) {
         if (st.weightKg == null || st.failed || st.prefill) continue;
         // Min of a rep range (a "3-5" set proves at least a 3RM at that weight).
         const reps = parseInt(st.targetReps, 10);
         if (!Number.isFinite(reps) || reps < 1) continue;
-        if (isCompLift) {
-          points.push({ reps, weight: st.weightKg });
-        } else {
+        points.push({ reps, weight: st.weightKg });
+        if (!isCompLift) {
           const cur = variantBest[ex.name];
           if (!cur || st.weightKg > cur.weight) variantBest[ex.name] = { name: ex.name, weight: st.weightKg, reps };
         }
