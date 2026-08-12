@@ -11,6 +11,7 @@ import { getSharedData, setSharedData } from "../../lib/data/athleteData";
 import { inferLift } from "../../lib/program/deriveRecords";
 import type { ExerciseTemplate, MainLift, WeekTemplate } from "../../lib/program/program";
 import reneeProgram from "./reneeProgram.json";
+import liezeProgram from "./liezeProgram.json";
 
 export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure";
 export type ExRow = {
@@ -172,8 +173,9 @@ export function newMesocycle(name: string, startDate?: string): Mesocycle {
 }
 
 function seedProgram(athleteId: string): Program {
-  // Renée's real first block (Week 1 logged + Week 2 current) is a coded seed.
+  // Renée's / Lieze's real backfilled blocks are coded seeds.
   if (athleteId === "RS1203") return structuredClone(reneeProgram) as Program;
+  if (athleteId === "LV222") return structuredClone(liezeProgram) as Program;
   // Everyone else: a blank Week 1 dated to THIS week, so the moment the coach
   // adds sessions they land on the calendar / grid for that athlete. It only
   // counts as "planned" once it has real training days (no dummy content).
@@ -289,8 +291,9 @@ export function peekProgram(athleteId: string): Program | null {
   } catch {
     /* ignore */
   }
-  // Renée's real block shows on the board / grid before the builder is opened.
+  // Renée's / Lieze's real blocks show on the board / grid before the builder opens.
   if (athleteId === "RS1203") return structuredClone(reneeProgram) as Program;
+  if (athleteId === "LV222") return structuredClone(liezeProgram) as Program;
   return null;
 }
 // A save hook lets the cloud-sync layer mirror every real edit to Supabase

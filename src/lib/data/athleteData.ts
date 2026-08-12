@@ -99,6 +99,9 @@ export type DashboardData = {
   // for specific week-starts (weekLockBypass), so the coach can grant access.
   weekLockOff?: boolean;
   weekLockBypass?: string[];
+  // Streak only counts training days on/after this date — so backfilled history
+  // (weeks logged in retrospect) never inflates the streak.
+  streakStart?: string;
   // Coach-set time off + events for this athlete — shown on the coach calendar
   // and on the athlete's own calendar + dashboard. `endDate` (inclusive) makes a
   // multi-day span like a holiday; omit it for a single-day event.
@@ -278,7 +281,9 @@ function computeStreak(data: DashboardData, today: Date): number {
   const todayIso = iso(today);
   let streak = 0;
   let cursor = todayIso;
+  const floor = data.streakStart ?? "";
   for (let guard = 0; guard < 400; guard++) {
+    if (floor && cursor < floor) break; // don't count backfilled history before the floor
     const s = getSession(templateForDate(data, cursor), logs, cursor);
     if (s.rest || s.exercises.length === 0) {
       cursor = addDays(cursor, -1);
