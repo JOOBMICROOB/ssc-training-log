@@ -8,6 +8,7 @@
 import { DEFAULT_WEEK } from "../../lib/program/seedProgram";
 import { addDays } from "../../lib/program/program";
 import { getSharedData, setSharedData } from "../../lib/data/athleteData";
+import { inferLift } from "../../lib/program/deriveRecords";
 import type { ExerciseTemplate, MainLift, WeekTemplate } from "../../lib/program/program";
 import reneeProgram from "./reneeProgram.json";
 
@@ -112,7 +113,11 @@ function exToRow(ex: ExerciseTemplate): ExRow {
 }
 
 function rowToEx(row: ExRow): ExerciseTemplate {
-  const requiresRpe = row.intensity === "rpe" && row.mainLift != null;
+  // Safety net: if the coach didn't pick a main lift but the name is clearly a
+  // comp/main lift ("comp squat" / "squat"…), tag it so PRs, progress and volume
+  // all attribute it correctly. Variations (paused, RDL…) stay accessories.
+  const mainLift = row.mainLift ?? inferLift(row.name);
+  const requiresRpe = row.intensity === "rpe" && mainLift != null;
   // "load" (legacy) and "fixed" are the same now — a prescribed working weight.
   const fixed = row.intensity === "fixed" || row.intensity === "load";
   const failure = row.intensity === "failure";
@@ -128,8 +133,8 @@ function rowToEx(row: ExRow): ExerciseTemplate {
   }));
   return {
     name: row.name,
-    mainLift: row.mainLift,
-    kind: row.mainLift ? "compound" : "accessory",
+    mainLift,
+    kind: mainLift ? "compound" : "accessory",
     scheme: row.scheme,
     clip: !!row.video && row.video !== "https://",
     sets,
