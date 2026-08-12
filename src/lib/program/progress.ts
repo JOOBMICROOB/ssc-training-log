@@ -41,9 +41,10 @@ function weekE1rm(template: WeekTemplate, logs: ProgramLogs, lift: MainLift, wee
   for (let i = 0; i < 7; i++) {
     const s = getSession(template, logs, d);
     for (const ex of s.exercises) {
-      // The comp lift for this week: flagged competition, or recognised by name
-      // (comp squat / squat) — same rule as the dashboard PRs.
-      if (ex.mainLift !== lift || !(ex.competition || inferLift(ex.name) === lift)) continue;
+      // Match the lift the same way the dashboard does: the set's mainLift, or —
+      // when the coach left it unset — the exercise name (comp squat / squat).
+      const exLift = ex.mainLift ?? inferLift(ex.name);
+      if (exLift !== lift || !(ex.competition || inferLift(ex.name) === lift)) continue;
       for (const st of ex.sets) {
         if (st.weightKg == null || st.failed || st.prefill) continue; // real logs only
         const reps = parseInt(st.targetReps, 10); // min of a range ("3-5" → 3)
@@ -94,7 +95,9 @@ export function liftProgress(
   for (const date of Object.keys(logs)) {
     const s = getSession(templateAt ? templateAt(date) : template, logs, date);
     for (const ex of s.exercises) {
-      if (ex.mainLift !== lift) continue;
+      // Same lift-match as the dashboard: mainLift, or the name when it's unset.
+      const exLift = ex.mainLift ?? inferLift(ex.name);
+      if (exLift !== lift) continue;
       // Every set of this main lift feeds the rep-maxes — exactly what the
       // dashboard PR counts, so the two always agree (a heavy set logged under a
       // variation still shows as the heaviest-logged here). Genuine variations
