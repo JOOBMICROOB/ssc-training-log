@@ -129,7 +129,11 @@ export function setCoach(athleteId: string, coachId: string) {
 }
 /** Coach toggles an athlete's meet entry (the only way to withdraw one). */
 export function toggleOpt(athleteId: string, compId: string, opted: boolean) {
-  if (athleteId === LIVE_ATHLETE_ID) coachSetOptIn(athleteId, compId, opted);
+  // Every REAL (cloud-synced) athlete writes to their own data so the opt-in
+  // actually reaches their app — not just Renée. Only demo placeholders use the
+  // local overlay.
+  const isReal = athleteId === LIVE_ATHLETE_ID || realAthletes.some((a) => a.athleteId === athleteId);
+  if (isReal) coachSetOptIn(athleteId, compId, opted);
   else {
     // Demo athletes: keep the toggle in the overlay so the UI reflects the change.
     const o = readOverlay() as Record<string, Overlay & { opts?: Record<string, boolean> }>;
