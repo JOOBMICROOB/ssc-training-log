@@ -70,7 +70,7 @@ export function athleteLoginEmail(athleteId: string): string {
  * the 'notify-athlete' Edge Function. Best-effort — if the function isn't
  * deployed or the athlete never opted in, publishing still succeeds silently.
  */
-export async function notifyAthletePublished(athleteCode: string, blockName: string, weekName: string): Promise<void> {
+export async function notifyAthletePublished(athleteCode: string, blockName: string): Promise<void> {
   try {
     const fns = coachSupabase as unknown as {
       functions: { invoke: (name: string, opts: { body: unknown }) => Promise<unknown> };
@@ -78,8 +78,8 @@ export async function notifyAthletePublished(athleteCode: string, blockName: str
     await fns.functions.invoke("notify-athlete", {
       body: {
         code: athleteCode.trim().toUpperCase(),
-        title: "New program from your coach",
-        body: `${blockName} · ${weekName} is ready — tap to open.`,
+        title: "Your coach added a new program",
+        body: blockName,
         url: "/",
       },
     });

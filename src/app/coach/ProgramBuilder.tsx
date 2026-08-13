@@ -437,7 +437,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
       // "ON NOW" tracks the week containing today — not whichever we just published.
       return { ...marked, currentWeekId: weekForToday(marked, localIso(new Date())) };
     });
-    if (live) void notifyAthletePublished(athleteId, meso.name, week.name);
+    if (live) void notifyAthletePublished(athleteId, meso.name);
     alert(live ? `Published to ${athleteName} — it’s live in their app now, and only they can see it.` : `Marked published. ${athleteName} is a demo athlete, so nothing is sent.`);
   };
 
@@ -467,7 +467,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
       };
       return { ...marked, currentWeekId: weekForToday(marked, localIso(new Date())) };
     });
-    if (live) void notifyAthletePublished(athleteId, meso.name, `${weeks.length} weeks`);
+    if (live) void notifyAthletePublished(athleteId, meso.name);
     alert(live ? `Published ${weeks.length} week(s) of ${meso.name} to ${athleteName}.` : `Marked published. ${athleteName} is a demo athlete, so nothing is sent.`);
   };
 
