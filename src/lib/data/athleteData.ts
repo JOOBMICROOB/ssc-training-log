@@ -93,7 +93,9 @@ export type DashboardData = {
   // Notes the athlete sends the coach. `checkedAt` is set when the coach marks it
   // read — that starts the 4-week window before it drops off the athlete's screen
   // (the coach keeps it forever).
-  notes: { tags: string[]; sent: { id?: string; date: string; text: string; checkedAt?: string }[] };
+  // `deleted` holds tombstone keys for notes removed by the coach, so a delete
+  // survives the union-merge (otherwise a cached copy on any device resurrects it).
+  notes: { tags: string[]; sent: { id?: string; date: string; text: string; checkedAt?: string }[]; deleted?: string[] };
   // Week-lock: future weeks blur until the athlete keeps ≥50% logging in the
   // week before them. Coach-controlled — off for good (weekLockOff) or unlocked
   // for specific week-starts (weekLockBypass), so the coach can grant access.
@@ -784,12 +786,10 @@ const FOUR_WEEKS_MS = 28 * 86400000;
 
 /** Normalise stored notes (older items may lack an id). */
 export function sentNotes(data: DashboardData): SentNote[] {
-  return (data.notes?.sent ?? []).map((n, i) => ({
-    id: n.id ?? `n_${n.date}_${i}`,
-    date: n.date,
-    text: n.text,
-    checkedAt: n.checkedAt,
-  }));
+  const deleted = new Set(data.notes?.deleted ?? []);
+  return (data.notes?.sent ?? [])
+    .map((n) => ({ id: noteKey(n), date: n.date, text: n.text, checkedAt: n.checkedAt }))
+    .filter((n) => !deleted.has(n.id)); // tombstoned notes never resurface
 }
 
 /** Notes the ATHLETE still sees: unread, or read by the coach within 4 weeks. */
@@ -816,17 +816,21 @@ export function markNoteChecked(athleteId: string, noteId: string) {
   save(athleteId, { ...d, notes: { ...d.notes, sent } });
 }
 
-/** Coach deletes a single note for good (removes it from athlete + coach). */
+/** Coach deletes a single note for good — tombstoned so it can't come back. */
 export function removeNote(athleteId: string, noteId: string) {
   const d = getDashboard(athleteId);
-  const sent = sentNotes(d).filter((n) => n.id !== noteId);
-  save(athleteId, { ...d, notes: { ...d.notes, sent } });
+  const sent = (d.notes?.sent ?? []).filter((n) => noteKey(n) !== noteId);
+  const deleted = [...new Set([...(d.notes?.deleted ?? []), noteId])];
+  save(athleteId, { ...d, notes: { ...d.notes, sent, deleted } });
 }
 
-/** Coach clears an athlete's whole note history — a fresh start. */
+/** Coach clears an athlete's whole note history — tombstones every note so the
+ * clear survives the union-merge (no cached copy resurrects them). */
 export function clearNotes(athleteId: string) {
   const d = getDashboard(athleteId);
-  save(athleteId, { ...d, notes: { ...d.notes, sent: [] } });
+  const keys = (d.notes?.sent ?? []).map(noteKey);
+  const deleted = [...new Set([...(d.notes?.deleted ?? []), ...keys])];
+  save(athleteId, { ...d, notes: { ...d.notes, sent: [], deleted } });
 }
 
 /** Opt in to a meet. Athletes can opt in but only the coach can undo it. */
@@ -938,19 +942,25 @@ function mergeLogs(a: ProgramLogs = {}, b: ProgramLogs = {}): ProgramLogs {
 const byKey = <T,>(rows: T[] | undefined, k: keyof T): Record<string, T> =>
   Object.fromEntries((rows ?? []).map((r) => [String(r[k]), r]));
 
-/** Union sent notes by id so neither the athlete's new note nor the coach's
- * read-mark is lost when both write around the same time. */
+/** Stable key for a note (its id, or date|text for older id-less notes). */
+const noteKey = (n: { id?: string; date: string; text: string }) => n.id ?? `${n.date}|${n.text}`;
+
+/** Union sent notes by key so neither the athlete's new note nor the coach's
+ * read-mark is lost when both write around the same time — but honour tombstones
+ * so a coach's delete/clear can't be resurrected by a stale cached copy. */
 function mergeNotes(a: DashboardData["notes"] | undefined, b: DashboardData["notes"] | undefined): DashboardData["notes"] {
+  const deleted = new Set([...(a?.deleted ?? []), ...(b?.deleted ?? [])]);
   const map = new Map<string, DashboardData["notes"]["sent"][number]>();
   const add = (n: DashboardData["notes"]["sent"][number]) => {
-    const k = n.id ?? `${n.date}|${n.text}`;
+    const k = noteKey(n);
+    if (deleted.has(k)) return;
     const prev = map.get(k);
     map.set(k, prev ? { ...prev, ...n, checkedAt: n.checkedAt ?? prev.checkedAt } : n);
   };
   (a?.sent ?? []).forEach(add);
   (b?.sent ?? []).forEach(add);
   const sent = [...map.values()].sort((x, y) => y.date.localeCompare(x.date));
-  return { tags: b?.tags ?? a?.tags ?? [], sent };
+  return { tags: b?.tags ?? a?.tags ?? [], sent, deleted: [...deleted] };
 }
 
 /**
