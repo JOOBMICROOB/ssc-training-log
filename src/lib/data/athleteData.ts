@@ -93,9 +93,11 @@ export type DashboardData = {
   // Notes the athlete sends the coach. `checkedAt` is set when the coach marks it
   // read — that starts the 4-week window before it drops off the athlete's screen
   // (the coach keeps it forever).
-  // `deleted` holds tombstone keys for notes removed by the coach, so a delete
-  // survives the union-merge (otherwise a cached copy on any device resurrects it).
-  notes: { tags: string[]; sent: { id?: string; date: string; text: string; checkedAt?: string }[]; deleted?: string[] };
+  // `deleted` = tombstone keys for single removed notes; `wipe` = a timestamp
+  // that clears every note sent before it. Both survive the union-merge so a
+  // cached copy on any device can't resurrect a delete. `sentAt` (ms) lets a
+  // note outlive a wipe only if it was sent afterwards.
+  notes: { tags: string[]; sent: { id?: string; date: string; text: string; checkedAt?: string; sentAt?: number }[]; deleted?: string[]; wipe?: number };
   // Week-lock: future weeks blur until the athlete keeps ≥50% logging in the
   // week before them. Coach-controlled — off for good (weekLockOff) or unlocked
   // for specific week-starts (weekLockBypass), so the coach can grant access.
@@ -787,9 +789,12 @@ const FOUR_WEEKS_MS = 28 * 86400000;
 /** Normalise stored notes (older items may lack an id). */
 export function sentNotes(data: DashboardData): SentNote[] {
   const deleted = new Set(data.notes?.deleted ?? []);
+  const wipe = data.notes?.wipe ?? 0;
+  const seen = new Set<string>();
   return (data.notes?.sent ?? [])
-    .map((n) => ({ id: noteKey(n), date: n.date, text: n.text, checkedAt: n.checkedAt }))
-    .filter((n) => !deleted.has(n.id)); // tombstoned notes never resurface
+    .filter((n) => !deleted.has(noteKey(n)) && (n.sentAt ?? 0) >= wipe) // dropped or pre-wipe
+    .filter((n) => { const k = noteKey(n); if (seen.has(k)) return false; seen.add(k); return true; }) // de-dupe
+    .map((n) => ({ id: noteKey(n), date: n.date, text: n.text, checkedAt: n.checkedAt }));
 }
 
 /** Notes the ATHLETE still sees: unread, or read by the coach within 4 weeks. */
@@ -805,8 +810,8 @@ export function sendNoteToCoach(athleteId: string, text: string) {
   const clean = text.trim();
   if (!clean) return;
   const d = getDashboard(athleteId);
-  const note: SentNote = { id: `n_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e4).toString(36)}`, date: iso(new Date()), text: clean };
-  save(athleteId, { ...d, notes: { ...d.notes, sent: [note, ...sentNotes(d)] } });
+  const note = { id: `n_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e4).toString(36)}`, date: iso(new Date()), text: clean, sentAt: Date.now() };
+  save(athleteId, { ...d, notes: { ...d.notes, sent: [note, ...(d.notes?.sent ?? [])] } });
 }
 
 /** Coach marks a note read — starts its 4-week window on the athlete's screen. */
@@ -824,13 +829,11 @@ export function removeNote(athleteId: string, noteId: string) {
   save(athleteId, { ...d, notes: { ...d.notes, sent, deleted } });
 }
 
-/** Coach clears an athlete's whole note history — tombstones every note so the
- * clear survives the union-merge (no cached copy resurrects them). */
+/** Coach clears an athlete's whole note history — a wipe timestamp clears every
+ * note sent before now and survives the union-merge, so nothing resurrects. */
 export function clearNotes(athleteId: string) {
   const d = getDashboard(athleteId);
-  const keys = (d.notes?.sent ?? []).map(noteKey);
-  const deleted = [...new Set([...(d.notes?.deleted ?? []), ...keys])];
-  save(athleteId, { ...d, notes: { ...d.notes, sent: [], deleted } });
+  save(athleteId, { ...d, notes: { ...d.notes, sent: [], wipe: Date.now() } });
 }
 
 /** Opt in to a meet. Athletes can opt in but only the coach can undo it. */
@@ -942,25 +945,27 @@ function mergeLogs(a: ProgramLogs = {}, b: ProgramLogs = {}): ProgramLogs {
 const byKey = <T,>(rows: T[] | undefined, k: keyof T): Record<string, T> =>
   Object.fromEntries((rows ?? []).map((r) => [String(r[k]), r]));
 
-/** Stable key for a note (its id, or date|text for older id-less notes). */
-const noteKey = (n: { id?: string; date: string; text: string }) => n.id ?? `${n.date}|${n.text}`;
+/** Stable key for a note — date|text (ignores id, so exact duplicates collapse). */
+const noteKey = (n: { date: string; text: string }) => `${n.date}|${n.text}`;
 
 /** Union sent notes by key so neither the athlete's new note nor the coach's
  * read-mark is lost when both write around the same time — but honour tombstones
- * so a coach's delete/clear can't be resurrected by a stale cached copy. */
+ * and the wipe timestamp so a coach's delete/clear can't be resurrected by a
+ * stale cached copy. */
 function mergeNotes(a: DashboardData["notes"] | undefined, b: DashboardData["notes"] | undefined): DashboardData["notes"] {
   const deleted = new Set([...(a?.deleted ?? []), ...(b?.deleted ?? [])]);
+  const wipe = Math.max(a?.wipe ?? 0, b?.wipe ?? 0);
   const map = new Map<string, DashboardData["notes"]["sent"][number]>();
   const add = (n: DashboardData["notes"]["sent"][number]) => {
     const k = noteKey(n);
-    if (deleted.has(k)) return;
+    if (deleted.has(k) || (n.sentAt ?? 0) < wipe) return; // tombstoned or pre-wipe
     const prev = map.get(k);
     map.set(k, prev ? { ...prev, ...n, checkedAt: n.checkedAt ?? prev.checkedAt } : n);
   };
   (a?.sent ?? []).forEach(add);
   (b?.sent ?? []).forEach(add);
   const sent = [...map.values()].sort((x, y) => y.date.localeCompare(x.date));
-  return { tags: b?.tags ?? a?.tags ?? [], sent, deleted: [...deleted] };
+  return { tags: b?.tags ?? a?.tags ?? [], sent, deleted: [...deleted], wipe };
 }
 
 /**
