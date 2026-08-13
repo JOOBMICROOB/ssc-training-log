@@ -66,6 +66,29 @@ export function athleteLoginEmail(athleteId: string): string {
 }
 
 /**
+ * Fire a push notification to an athlete that their program was published, via
+ * the 'notify-athlete' Edge Function. Best-effort — if the function isn't
+ * deployed or the athlete never opted in, publishing still succeeds silently.
+ */
+export async function notifyAthletePublished(athleteCode: string, blockName: string, weekName: string): Promise<void> {
+  try {
+    const fns = coachSupabase as unknown as {
+      functions: { invoke: (name: string, opts: { body: unknown }) => Promise<unknown> };
+    };
+    await fns.functions.invoke("notify-athlete", {
+      body: {
+        code: athleteCode.trim().toUpperCase(),
+        title: "New program from your coach",
+        body: `${blockName} · ${weekName} is ready — tap to open.`,
+        url: "/",
+      },
+    });
+  } catch {
+    /* notifications are a bonus, never block a publish */
+  }
+}
+
+/**
  * Reset an athlete's password. Changing another user's Supabase password needs
  * the service_role admin key, which must NEVER live in the browser — so this
  * calls a server-side Edge Function ('reset-athlete-password') that holds the

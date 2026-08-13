@@ -102,6 +102,9 @@ export type DashboardData = {
   // Streak only counts training days on/after this date — so backfilled history
   // (weeks logged in retrospect) never inflates the streak.
   streakStart?: string;
+  // Web-push subscription (PushSubscription JSON) so the coach's publish can send
+  // this athlete a notification. Written by their device when they opt in.
+  pushSub?: unknown;
   // Coach-set time off + events for this athlete — shown on the coach calendar
   // and on the athlete's own calendar + dashboard. `endDate` (inclusive) makes a
   // multi-day span like a holiday; omit it for a single-day event.
@@ -654,6 +657,12 @@ export function publishProgramWeek(
 export function setProgramLabels(athleteId: string, patch: { blockName?: string; weekName?: string }) {
   const d = getDashboard(athleteId);
   save(athleteId, { ...d, program: { ...d.program, ...patch } });
+}
+
+/** Store this athlete's web-push subscription (from their device opt-in). */
+export function savePushSub(athleteId: string, sub: unknown) {
+  const d = getDashboard(athleteId);
+  save(athleteId, { ...d, pushSub: sub });
 }
 
 /** Coach turns the week-lock motivator off (or back on) for an athlete — all-time. */

@@ -12,6 +12,7 @@ import type { MainLift } from "../lib/program/program";
 import { getSession, signOut, subscribe, type AthleteSession } from "../lib/auth/authClient";
 import { finalizeWeeklyAdherence, hydrateFromServer } from "../lib/data/athleteData";
 import { wirePullToRefresh } from "./athlete/pullToRefresh";
+import { pushSupported, pushPermission, enablePush } from "../lib/push/push";
 
 // The REAL design frames (rendered markup captured from Claude Design), imported
 // verbatim. The app renders these directly so it IS the design, not a rebuild.
@@ -148,6 +149,19 @@ export function AthleteApp() {
       // Log-out control, injected INSIDE the scrolling dashboard content so it
       // sits within the phone frame (not off-screen below it).
       const scroll = host.querySelector<HTMLElement>('div[style*="overflow-y: auto"]');
+      if (scroll && session && pushSupported() && pushPermission() !== "granted") {
+        const nb = document.createElement("button");
+        nb.textContent = "🔔 Turn on notifications";
+        nb.style.cssText =
+          "align-self:center;margin:8px auto 0;border:1px solid rgba(89,128,166,.4);background:rgba(89,128,166,.1);color:rgb(29,45,61);font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase;padding:11px 22px;border-radius:999px;cursor:pointer;";
+        nb.addEventListener("click", async () => {
+          nb.disabled = true; nb.textContent = "Enabling…";
+          const r = await enablePush(session.athleteId);
+          if (r.ok) nb.textContent = "🔔 Notifications on ✓";
+          else { nb.textContent = "🔔 Turn on notifications"; nb.disabled = false; alert(r.error ?? "Could not enable notifications."); }
+        });
+        scroll.appendChild(nb);
+      }
       if (scroll && session) {
         const btn = document.createElement("button");
         btn.textContent = `Log out · ${session.athleteId}`;

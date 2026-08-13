@@ -8,7 +8,7 @@
 
    Navigations + the app's HTML are network-first (a new deploy always wins);
    content-hashed assets are cache-first (immutable). Supabase is never cached. */
-const CACHE = "ssc-shell-v3";
+const CACHE = "ssc-shell-v4";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -27,6 +27,29 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("message", (e) => {
   if (e.data === "SKIP_WAITING") self.skipWaiting();
+});
+
+// Web push: show the notification the coach sent (e.g. a new program).
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { /* plain text / empty */ }
+  e.waitUntil(self.registration.showNotification(d.title || "SSC Training", {
+    body: d.body || "",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    data: { url: d.url || "/" },
+    tag: d.tag || "ssc",
+  }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/";
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+      for (const c of cs) if ("focus" in c) return c.focus();
+      return self.clients.openWindow(url);
+    }),
+  );
 });
 
 self.addEventListener("fetch", (e) => {
