@@ -162,6 +162,8 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     ex.intensity === "fixed" ? `${ex.value || "?"} kg fixed`
     : ex.intensity === "load" ? `${ex.value || "?"} kg`
     : ex.intensity === "percent" ? `${ex.value || "?"}%`
+    : ex.intensity === "failure" ? "to failure"
+    : ex.intensity === "seconds" ? `${ex.value || "?"} s`
     : ex.value ? `RPE${ex.value}` : "—";
   const prevByWeekday = useMemo(() => {
     const out: Record<number, Record<string, string>> = {};
@@ -831,9 +833,12 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         <option value="percent">%1RM</option>
                         <option value="fixed">Load</option>
                         <option value="failure">Failure</option>
+                        <option value="seconds">Seconds</option>
                       </select>
                       {ex.intensity === "failure" ? (
                         <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)", font: "500 10px/1 var(--font-body)", letterSpacing: ".05em" }} title="No target — the athlete pushes to failure.">TO FAILURE</div>
+                      ) : ex.intensity === "seconds" ? (
+                        <input className="cc-in" value={ex.value} placeholder="secs" title="Hold time in seconds (e.g. 40-60) — the athlete just marks it done" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
                       ) : ex.intensity === "rpe" ? (
                         <input className="cc-in" list="rpe-opts" value={ex.value} placeholder="RPE" title="Target RPE (5–10, or a range)" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
                       ) : ex.intensity === "percent" ? (

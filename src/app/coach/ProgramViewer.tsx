@@ -36,6 +36,7 @@ function fmtRange(startDate?: string) {
   return `${s.getDate()} ${MON[s.getMonth()]} – ${e.getDate()} ${MON[e.getMonth()]}`;
 }
 function rowTarget(r: ExRow): string {
+  if (r.intensity === "seconds") return `${r.value || "?"} s`;
   if (r.intensity === "failure") return "to failure";
   if (r.intensity === "load" || r.intensity === "fixed") return `${r.value} kg`;
   if (r.intensity === "percent") return `${r.value}%`;

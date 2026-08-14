@@ -23,8 +23,8 @@ export function weekHasLogsIn(logs: ProgramLogs, week: Week): boolean {
   return weekDates(week).some((d) => {
     const sets = logs[d]?.sets ?? {};
     return Object.values(sets).some((s) => {
-      const set = s as { weightKg?: number | null; prefill?: boolean; failed?: boolean };
-      return (set.weightKg != null && !set.prefill) || set.failed === true;
+      const set = s as { weightKg?: number | null; prefill?: boolean; failed?: boolean; done?: boolean };
+      return (set.weightKg != null && !set.prefill) || set.failed === true || set.done === true;
     });
   });
 }

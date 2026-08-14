@@ -13,7 +13,7 @@ import type { ExerciseTemplate, MainLift, WeekTemplate } from "../../lib/program
 import reneeProgram from "./reneeProgram.json";
 import liezeProgram from "./liezeProgram.json";
 
-export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure";
+export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure" | "seconds";
 export type ExRow = {
   id: string;
   name: string;
@@ -90,20 +90,22 @@ export function weekForToday(p: Program, todayIso: string): string | undefined {
 // --- converters --------------------------------------------------------------
 function exToRow(ex: ExerciseTemplate): ExRow {
   const first = ex.sets[0];
-  const intensity: IntensityType = first?.toFailure
-    ? "failure"
-    : first?.fixedLoad || first?.targetLoad
-      ? "fixed"
-      : first?.targetPercent
-        ? "percent"
-        : "rpe";
+  const intensity: IntensityType = first?.timed
+    ? "seconds"
+    : first?.toFailure
+      ? "failure"
+      : first?.fixedLoad || first?.targetLoad
+        ? "fixed"
+        : first?.targetPercent
+          ? "percent"
+          : "rpe";
   const value =
-    intensity === "fixed" ? first?.targetLoad ?? "" : intensity === "percent" ? first?.targetPercent ?? "" : intensity === "failure" ? "" : first?.targetRpe ?? "";
+    intensity === "seconds" ? first?.holdSeconds ?? "" : intensity === "fixed" ? first?.targetLoad ?? "" : intensity === "percent" ? first?.targetPercent ?? "" : intensity === "failure" ? "" : first?.targetRpe ?? "";
   return {
     id: uid("ex"),
     name: ex.name,
     cue: "",
-    video: ex.clip ? "https://" : "",
+    video: ex.video ?? (ex.clip ? "https://" : ""),
     sets: ex.sets.length || 1,
     reps: first?.targetReps ?? "",
     intensity,
@@ -122,6 +124,7 @@ function rowToEx(row: ExRow): ExerciseTemplate {
   // "load" (legacy) and "fixed" are the same now — a prescribed working weight.
   const fixed = row.intensity === "fixed" || row.intensity === "load";
   const failure = row.intensity === "failure";
+  const timed = row.intensity === "seconds";
   const sets = Array.from({ length: Math.max(1, row.sets) }, () => ({
     targetReps: row.reps,
     targetRpe: row.intensity === "rpe" ? row.value : "",
@@ -131,6 +134,8 @@ function rowToEx(row: ExRow): ExerciseTemplate {
     targetPercent: row.intensity === "percent" ? row.value : undefined,
     fixedLoad: fixed || undefined,
     toFailure: failure || undefined,
+    timed: timed || undefined,
+    holdSeconds: timed ? row.value : undefined,
   }));
   return {
     name: row.name,

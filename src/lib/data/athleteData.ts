@@ -301,7 +301,7 @@ function computeStreak(data: DashboardData, today: Date): number {
     for (const ex of s.exercises) {
       for (const st of ex.sets) {
         total++;
-        if ((st.weightKg != null && !st.prefill) || st.failed) logged++;
+        if ((st.weightKg != null && !st.prefill) || st.failed || st.done) logged++;
       }
     }
     const frac = total ? logged / total : 0;
@@ -338,7 +338,7 @@ export function weekCompletionPct(data: DashboardData, weekStartISO: string, tod
     for (const ex of s.exercises) {
       for (const st of ex.sets) {
         total++;
-        if ((st.weightKg != null && !st.prefill) || st.failed) logged++;
+        if ((st.weightKg != null && !st.prefill) || st.failed || st.done) logged++;
       }
     }
     if (total === 0) continue;
@@ -717,7 +717,7 @@ export function logSet(athleteId: string, date: string, key: string, patch: SetL
   const merged: SetLog = { ...(day.sets?.[key] ?? {}), ...patch };
   // The athlete confirming/entering a weight (or a fail) turns a coach prefill
   // into a real log, so it now counts toward "done".
-  if (patch.weightKg !== undefined || patch.failed !== undefined) merged.prefill = false;
+  if (patch.weightKg !== undefined || patch.failed !== undefined || patch.done !== undefined) merged.prefill = false;
   day.sets = { ...(day.sets ?? {}), [key]: merged };
   logs[date] = day;
   save(athleteId, { ...data, programLogs: logs });

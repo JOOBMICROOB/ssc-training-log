@@ -21,6 +21,8 @@ export type SetTemplate = {
   targetPercent?: string; // coach-prescribed %1RM
   fixedLoad?: boolean; // load is fixed — the athlete may only go lighter, with a warning
   toFailure?: boolean; // no target — push to failure and log what you did
+  timed?: boolean; // a time-based hold — no weight, athlete just marks it done
+  holdSeconds?: string; // target duration for a timed set, e.g. "40-60"
 };
 export type ExerciseTemplate = {
   name: string;
@@ -40,6 +42,7 @@ export type SetLog = {
   rpe?: number | null;
   note?: string;
   failed?: boolean;
+  done?: boolean; // a timed set the athlete marked complete (no weight)
   // Coach-prescribed fixed load, pre-filled on publish. It shows the weight but
   // does NOT count as the athlete's logging until they confirm/edit it.
   prefill?: boolean;
@@ -60,6 +63,7 @@ export type LoggedSet = SetTemplate & {
   rpe: number | null;
   note: string;
   failed: boolean;
+  done: boolean; // timed set marked complete
   prefill: boolean; // shown but not yet confirmed by the athlete
   lastWeek: string; // "137,5 kg @ RPE8" or ""
 };
@@ -145,12 +149,13 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
           const weightKg = log.weightKg ?? null;
           const rpe = log.rpe ?? null;
           const failed = log.failed ?? false;
+          const done = log.done ?? false;
           const prefill = log.prefill ?? false;
           const prev = prevLog.sets?.[key];
           setCount++;
-          // Athlete-logged = a real weight they confirmed (not a coach prefill) or
-          // a failed attempt. Coach prefills show but don't count toward "done".
-          if ((weightKg != null && !prefill) || failed) loggedCount++;
+          // Athlete-logged = a real weight they confirmed (not a coach prefill), a
+          // failed attempt, or a timed set marked done. Coach prefills don't count.
+          if ((weightKg != null && !prefill) || failed || done) loggedCount++;
           if (st.requiresRpe) {
             rpeRequired++;
             if (rpe != null) rpeLogged++;
@@ -159,7 +164,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
             prev?.weightKg != null
               ? `${fmtKg(prev.weightKg)} kg${prev.rpe != null ? ` @ RPE${prev.rpe}` : ""}${prev.failed ? " · failed" : ""}`
               : "";
-          return { ...st, key, weightKg, rpe, note: log.note ?? "", failed, prefill, lastWeek: lw };
+          return { ...st, key, weightKg, rpe, note: log.note ?? "", failed, done, prefill, lastWeek: lw };
         });
         // Compact last-week summary for the collapsed header.
         const prevWeights = ex.sets
@@ -190,7 +195,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
           competition: ex.competition ?? isCompLift(ex.name, ex.mainLift),
           sets,
           setCount: sets.length,
-          loggedCount: sets.filter((s) => (s.weightKg != null && !s.prefill) || s.failed).length,
+          loggedCount: sets.filter((s) => (s.weightKg != null && !s.prefill) || s.failed || s.done).length,
           lastWeekLabel,
         };
       });

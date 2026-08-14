@@ -33,7 +33,8 @@ const parseKg = (s: string) => parseFloat(s.replace(",", ".").replace(/[^0-9.]/g
 
 // The coach's prescribed target for a set: a fixed load, a %1RM, an RPE, or
 // "to failure" (no number — push until you can't).
-function targetShort(st: { targetRpe: string; targetLoad?: string; targetPercent?: string; toFailure?: boolean }): string {
+function targetShort(st: { targetRpe: string; targetLoad?: string; targetPercent?: string; toFailure?: boolean; timed?: boolean; holdSeconds?: string }): string {
+  if (st.timed) return st.holdSeconds ? `${st.holdSeconds} s` : "for time";
   if (st.toFailure) return "to failure";
   if (st.targetLoad) return `${st.targetLoad} kg`;
   if (st.targetPercent) return `${st.targetPercent}%`;
@@ -78,6 +79,24 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   const val = st.weightKg != null ? fmtKg(st.weightKg) : "";
   const dis = locked ? "disabled" : "";
   const ro = locked ? "readonly" : "";
+
+  // Timed / hold set — no weight to log; the athlete just marks it done (they can
+  // add a kg if it was weighted).
+  if (st.timed) {
+    const hold = st.holdSeconds || st.targetReps || "";
+    const on = st.done;
+    return `<div style="margin-left:12px;padding:7px 10px 8px 12px;border-left:2px solid rgba(89,128,166,.45);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="flex:0 0 auto;width:44px;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">SET ${si + 1}</span>
+        <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">Hold ${hold ? `${hold} s` : "for time"}${on ? ' · <span style="color:#2e7d5a;font-weight:600;">DONE</span>' : ""}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+        <input data-wi="${key}" ${ro} inputmode="decimal" placeholder="+kg (optional)" value="${val}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 14px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;border:1px solid rgba(89,128,166,.35);background:rgba(89,128,166,.06);color:#1d2d3d;">
+        <button data-done="${key}" ${dis} style="flex:0 0 auto;padding:0 18px;height:36px;border-radius:9px;cursor:pointer;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;border:1px solid ${on ? "#4f9d69" : "rgba(89,128,166,.45)"};background:${on ? "rgba(79,157,105,.16)" : "transparent"};color:${on ? "#2e7d5a" : "#41617f"};">${on ? "✓ DONE" : "MARK DONE"}</button>
+      </div>
+      ${st.note ? `<input data-note="${key}" ${ro} placeholder="Notes" value="${st.note.replace(/"/g, "&quot;")}" style="width:100%;margin-top:6px;padding:7px 10px;background:rgb(242,242,243);border:1px solid rgba(29,31,32,.16);color:rgb(29,31,32);font-size:12.5px;border-radius:10px;">` : ""}
+    </div>`;
+  }
   const inStyle = st.failed
     ? "border:1px solid #d98a8a;background:rgba(217,138,138,.12);color:#b45454;"
     : "border:1px solid rgba(89,128,166,.45);background:rgba(89,128,166,.08);color:#1d2d3d;";
@@ -434,8 +453,15 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     }
 
     // edits are gated when the session is confirmed/locked
-    if (t.closest("[data-inc],[data-dec],[data-same],[data-fail],[data-wi],[data-note]") && !unlockGate()) return;
+    if (t.closest("[data-inc],[data-dec],[data-same],[data-fail],[data-done],[data-wi],[data-note]") && !unlockGate()) return;
 
+    const done = t.closest<HTMLElement>("[data-done]");
+    if (done) {
+      const k = done.dataset.done!;
+      let cur = false;
+      getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === k) cur = st.done; }));
+      return logSet(athleteId, selected, k, { done: !cur });
+    }
     const inc = t.closest<HTMLElement>("[data-inc]");
     if (inc) { const k = inc.dataset.inc!; return logSet(athleteId, selected, k, { weightKg: clampKg(capFixed(k, seedOf(k) + 2.5)), failed: false }); }
     const dec = t.closest<HTMLElement>("[data-dec]");
