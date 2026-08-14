@@ -56,8 +56,21 @@ export function savePlan(athleteId: string, compId: string, plan: AttemptPlan) {
   }
 }
 
-/** Auto warm-up ladder up to an opener (fractions of the opener, rounded). */
-export function autoWarmups(opener: number): string {
-  if (!opener) return "";
-  return [0.4, 0.6, 0.75, 0.85, 0.93].map((f) => r2(opener * f)).join(" · ") + " · " + opener;
+/**
+ * Warm-up ladder up to (but not including) an attempt. Empty bar, then +50 kg
+ * jumps while there's room, then one smaller final ~15 kg under the attempt —
+ * e.g. 235 → 20·70·120·170·220, 315 → 20·70·120·170·220·270·300.
+ */
+export function autoWarmups(target: number): string {
+  if (!target || target <= 25) return "";
+  const r5 = (n: number) => Math.round(n / 5) * 5;
+  const steps = [20];
+  let cur = 20;
+  while (cur + 50 < target - 20) {
+    cur += 50;
+    steps.push(cur);
+  }
+  const final = r5(target - 15);
+  if (final > cur + 5) steps.push(final);
+  return steps.join(" · ");
 }

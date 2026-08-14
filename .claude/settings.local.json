@@ -52,7 +52,9 @@
       "Bash(~/.claude/reminders-bridge-launchd.sh set-notes *)",
       "Bash(~/.claude/reminders-bridge-launchd.sh items *)",
       "Bash(date -j -f \"%Y-%m-%d\" \"2026-07-25\" \"+%A\")",
-      "Bash(echo \"---exit: $?\")"
+      "Bash(echo \"---exit: $?\")",
+      "Bash(date -j -f \"%Y-%m-%d\" \"2026-08-13\" \"+%A %Y-%m-%d\")",
+      "Bash(date -j -f \"%Y-%m-%d\" \"2026-08-14\" \"+%A %Y-%m-%d\")"
     ]
   }
 }

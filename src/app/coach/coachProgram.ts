@@ -138,6 +138,7 @@ function rowToEx(row: ExRow): ExerciseTemplate {
     kind: mainLift ? "compound" : "accessory",
     scheme: row.scheme,
     clip: !!row.video && row.video !== "https://",
+    video: row.video && row.video !== "https://" ? row.video : undefined,
     sets,
   };
 }

@@ -28,6 +28,7 @@ export type ExerciseTemplate = {
   kind: "compound" | "accessory";
   scheme: string; // "Compound · log every set" or a block scheme
   clip: boolean; // coach attached a video clip
+  video?: string; // the clip URL the athlete can open
   sets: SetTemplate[];
   competition?: boolean; // the actual comp lift (not a paused/tempo/etc. variation)
 };
@@ -68,6 +69,7 @@ export type SessionExercise = {
   kind: "compound" | "accessory";
   scheme: string;
   clip: boolean;
+  video?: string;
   competition: boolean;
   sets: LoggedSet[];
   setCount: number;
@@ -180,6 +182,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
           kind: ex.kind,
           scheme: ex.scheme,
           clip: ex.clip,
+          video: ex.video,
           // The comp lift: flagged by the coach, or auto-detected from "COMP <lift>".
           // The competition movement: a "COMP …" name or the bare lift name
           // (so "COMP SQUATS", "Competition Squat" and "Squat" all feed the

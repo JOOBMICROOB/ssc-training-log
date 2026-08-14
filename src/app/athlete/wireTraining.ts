@@ -118,9 +118,11 @@ function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locke
   const headStyle = expanded
     ? "border:1px solid rgb(89,128,166);background:rgba(89,128,166,.14);"
     : "border:1px solid rgba(29,31,32,.14);background:rgba(255,255,255,.62);";
-  const clip = ex.clip
-    ? `<span title="Coach attached a clip" style="flex:0 0 auto;display:grid;place-items:center;width:15px;height:15px;border-radius:5px;background:rgb(29,45,61);color:rgb(242,242,243);font-size:7px;">▶</span>`
-    : "";
+  const clip = ex.video
+    ? `<span data-video="${encodeURI(ex.video)}" title="Watch the coach's clip" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:6px;background:rgb(29,45,61);color:rgb(242,242,243);font:600 8px/1 Barlow,sans-serif;letter-spacing:.06em;cursor:pointer;">▶ WATCH</span>`
+    : ex.clip
+      ? `<span title="Coach attached a clip" style="flex:0 0 auto;display:grid;place-items:center;width:15px;height:15px;border-radius:5px;background:rgb(29,45,61);color:rgb(242,242,243);font-size:7px;">▶</span>`
+      : "";
   const header = `<button data-ex="${ei}" style="width:100%;display:flex;align-items:center;gap:10px;text-align:left;padding:11px 12px;cursor:pointer;border-radius:12px;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;${headStyle}">
     <div style="flex:1 1 0;">
       <div style="font:600 16px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(29,45,61);">${ex.name}</div>
@@ -422,6 +424,8 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     const dayBtn = t.closest<HTMLElement>("[data-day]");
     if (dayBtn) { selected = dayBtn.dataset.day!; manualOpen.clear(); return render(); }
     if (t.closest("#dayPickBtn")) return calendar.open();
+    const vid = t.closest<HTMLElement>("[data-video]");
+    if (vid?.dataset.video) { window.open(vid.dataset.video, "_blank", "noopener"); return; }
     const exBtn = t.closest<HTMLElement>("[data-ex]");
     if (exBtn) {
       const i = Number(exBtn.dataset.ex);
