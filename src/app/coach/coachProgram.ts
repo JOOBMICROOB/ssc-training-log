@@ -41,7 +41,7 @@ export function inferGroup(mainLift: MainLift | null): ExGroup {
 
 // Monday-first weekday order for display (0=Sun … 6=Sat).
 /** Set schemes the coach can tag a row with — shown on the athlete's app too. */
-export const SCHEMES = ["Warm-up", "Top set", "Working set", "Back-off", "M.Fatigue", "Fatigue", "Accessory", "Optional"] as const;
+export const SCHEMES = ["Warm-up", "Top set", "Working set", "Back-off", "M.Fatigue", "Fatigue", "Accessory", "Optional", "Timed"] as const;
 export type Scheme = (typeof SCHEMES)[number];
 
 export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];

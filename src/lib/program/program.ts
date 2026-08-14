@@ -43,6 +43,7 @@ export type SetLog = {
   note?: string;
   failed?: boolean;
   done?: boolean; // a timed set the athlete marked complete (no weight)
+  heldSeconds?: number | null; // for a timed set — how long the athlete actually held it
   // Coach-prescribed fixed load, pre-filled on publish. It shows the weight but
   // does NOT count as the athlete's logging until they confirm/edit it.
   prefill?: boolean;
@@ -64,6 +65,7 @@ export type LoggedSet = SetTemplate & {
   note: string;
   failed: boolean;
   done: boolean; // timed set marked complete
+  heldSeconds: number | null; // logged hold duration for a timed set
   prefill: boolean; // shown but not yet confirmed by the athlete
   lastWeek: string; // "137,5 kg @ RPE8" or ""
 };
@@ -150,6 +152,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
           const rpe = log.rpe ?? null;
           const failed = log.failed ?? false;
           const done = log.done ?? false;
+          const heldSeconds = log.heldSeconds ?? null;
           const prefill = log.prefill ?? false;
           const prev = prevLog.sets?.[key];
           setCount++;
@@ -164,7 +167,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
             prev?.weightKg != null
               ? `${fmtKg(prev.weightKg)} kg${prev.rpe != null ? ` @ RPE${prev.rpe}` : ""}${prev.failed ? " · failed" : ""}`
               : "";
-          return { ...st, key, weightKg, rpe, note: log.note ?? "", failed, done, prefill, lastWeek: lw };
+          return { ...st, key, weightKg, rpe, note: log.note ?? "", failed, done, heldSeconds, prefill, lastWeek: lw };
         });
         // Compact last-week summary for the collapsed header.
         const prevWeights = ex.sets

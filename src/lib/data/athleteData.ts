@@ -737,7 +737,7 @@ export function logSet(athleteId: string, date: string, key: string, patch: SetL
   const merged: SetLog = { ...(day.sets?.[key] ?? {}), ...patch };
   // The athlete confirming/entering a weight (or a fail) turns a coach prefill
   // into a real log, so it now counts toward "done".
-  if (patch.weightKg !== undefined || patch.failed !== undefined || patch.done !== undefined) merged.prefill = false;
+  if (patch.weightKg !== undefined || patch.failed !== undefined || patch.done !== undefined || patch.heldSeconds !== undefined) merged.prefill = false;
   day.sets = { ...(day.sets ?? {}), [key]: merged };
   logs[date] = day;
   save(athleteId, { ...data, programLogs: logs });

@@ -84,15 +84,17 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   // add a kg if it was weighted).
   if (st.timed) {
     const hold = st.holdSeconds || st.targetReps || "";
-    const on = st.done;
+    const on = st.done || st.heldSeconds != null;
+    const secVal = st.heldSeconds != null ? String(st.heldSeconds) : "";
     return `<div style="margin-left:12px;padding:7px 10px 8px 12px;border-left:2px solid rgba(89,128,166,.45);">
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="flex:0 0 auto;width:44px;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">SET ${si + 1}</span>
-        <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">Hold ${hold ? `${hold} s` : "for time"}${on ? ' · <span style="color:#2e7d5a;font-weight:600;">DONE</span>' : ""}</span>
+        <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">Target hold ${hold ? `${hold} s` : "for time"}${st.heldSeconds != null ? ` · <span style="color:#2e7d5a;font-weight:600;">held ${st.heldSeconds}s</span>` : on ? ' · <span style="color:#2e7d5a;font-weight:600;">DONE</span>' : ""}</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
-        <input data-wi="${key}" ${ro} inputmode="decimal" placeholder="+kg (optional)" value="${val}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 14px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;border:1px solid rgba(89,128,166,.35);background:rgba(89,128,166,.06);color:#1d2d3d;">
-        <button data-done="${key}" ${dis} style="flex:0 0 auto;padding:0 18px;height:36px;border-radius:9px;cursor:pointer;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;border:1px solid ${on ? "#4f9d69" : "rgba(89,128,166,.45)"};background:${on ? "rgba(79,157,105,.16)" : "transparent"};color:${on ? "#2e7d5a" : "#41617f"};">${on ? "✓ DONE" : "MARK DONE"}</button>
+        <input data-secs="${key}" ${ro} inputmode="numeric" placeholder="held (s)" value="${secVal}" style="flex:1.4 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 15px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;border:1px solid rgba(89,128,166,.45);background:rgba(89,128,166,.08);color:#1d2d3d;">
+        <input data-wi="${key}" ${ro} inputmode="decimal" placeholder="+kg" value="${val}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 14px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;border:1px solid rgba(89,128,166,.25);background:rgba(89,128,166,.05);color:#1d2d3d;">
+        <button data-done="${key}" ${dis} title="Mark done without a time" style="flex:0 0 auto;width:44px;height:36px;border-radius:9px;cursor:pointer;font:600 15px/1 'Barlow Condensed',sans-serif;border:1px solid ${on ? "#4f9d69" : "rgba(89,128,166,.45)"};background:${on ? "rgba(79,157,105,.16)" : "transparent"};color:${on ? "#2e7d5a" : "#41617f"};">✓</button>
       </div>
       ${st.note ? `<input data-note="${key}" ${ro} placeholder="Notes" value="${st.note.replace(/"/g, "&quot;")}" style="width:100%;margin-top:6px;padding:7px 10px;background:rgb(242,242,243);border:1px solid rgba(29,31,32,.16);color:rgb(29,31,32);font-size:12.5px;border-radius:10px;">` : ""}
     </div>`;
@@ -453,7 +455,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     }
 
     // edits are gated when the session is confirmed/locked
-    if (t.closest("[data-inc],[data-dec],[data-same],[data-fail],[data-done],[data-wi],[data-note]") && !unlockGate()) return;
+    if (t.closest("[data-inc],[data-dec],[data-same],[data-fail],[data-done],[data-secs],[data-wi],[data-note]") && !unlockGate()) return;
 
     const done = t.closest<HTMLElement>("[data-done]");
     if (done) {
@@ -493,6 +495,11 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     const t = e.target as HTMLInputElement;
     if (isFinished()) return;
     if (t.matches("[data-rpe]")) logSet(athleteId, selected, t.dataset.rpe!, { rpe: Number(t.value) });
+    else if (t.matches("[data-secs]")) {
+      const v = parseInt(t.value.replace(/[^0-9]/g, ""), 10);
+      if (t.value.trim() === "") logSet(athleteId, selected, t.dataset.secs!, { heldSeconds: null, done: false });
+      else if (Number.isFinite(v) && v > 0) logSet(athleteId, selected, t.dataset.secs!, { heldSeconds: v, done: true });
+    }
     else if (t.matches("[data-wi]")) {
       const v = t.value.trim();
       if (v === "") {
