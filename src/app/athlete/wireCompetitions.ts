@@ -241,7 +241,7 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
     overlay.dataset.comp = compId;
     const plan = getAttemptPlans(athleteId)[compId] as AttemptPlan | undefined;
     const dd = new Date(comp.date + "T00:00:00");
-    const head = `<div style="position:sticky;top:0;background:rgb(29,45,61);color:#f2f2f3;padding:16px 18px;display:flex;align-items:center;gap:12px;box-shadow:rgba(9,17,28,.25) 0 3px 12px;">
+    const head = `<div style="position:sticky;top:0;background:rgb(29,45,61);color:#f2f2f3;padding:calc(16px + env(safe-area-inset-top)) 18px 16px;display:flex;align-items:center;gap:12px;box-shadow:rgba(9,17,28,.25) 0 3px 12px;">
         <button data-close style="flex:0 0 auto;width:34px;height:34px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:rgba(255,255,255,.1);color:#f2f2f3;font-size:18px;cursor:pointer;">‹</button>
         <div style="flex:1 1 0;"><div style="font:600 19px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.02em;">${comp.name}</div>
           <div style="margin-top:2px;font:400 10px/1 Barlow,sans-serif;letter-spacing:.1em;color:rgba(242,242,243,.7);">${dd.getDate()}/${dd.getMonth() + 1}/${dd.getFullYear()} · ${comp.location}</div></div>
