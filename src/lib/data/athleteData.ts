@@ -109,6 +109,9 @@ export type DashboardData = {
   // Web-push subscription (PushSubscription JSON) so the coach's publish can send
   // this athlete a notification. Written by their device when they opt in.
   pushSub?: unknown;
+  // Attempt plans per meet (coach-authored). Stored on the athlete so the athlete
+  // sees their attempts + the coach's live meet-day ticks. Keyed by competition id.
+  attemptPlans?: Record<string, unknown>;
   // Coach-set time off + events for this athlete — shown on the coach calendar
   // and on the athlete's own calendar + dashboard. `endDate` (inclusive) makes a
   // multi-day span like a holiday; omit it for a single-day event.
@@ -667,6 +670,16 @@ export function setProgramLabels(athleteId: string, patch: { blockName?: string;
 export function savePushSub(athleteId: string, sub: unknown) {
   const d = getDashboard(athleteId);
   save(athleteId, { ...d, pushSub: sub });
+}
+
+/** Attempt plans (all meets) stored on the athlete — read by coach + athlete. */
+export function getAttemptPlans(athleteId: string): Record<string, unknown> {
+  return getDashboard(athleteId).attemptPlans ?? {};
+}
+/** Coach writes an attempt plan onto the athlete (syncs to their app). */
+export function saveAttemptPlan(athleteId: string, compId: string, plan: unknown) {
+  const d = getDashboard(athleteId);
+  save(athleteId, { ...d, attemptPlans: { ...(d.attemptPlans ?? {}), [compId]: plan } });
 }
 
 /** Coach turns the week-lock motivator off (or back on) for an athlete — all-time. */

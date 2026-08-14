@@ -18,17 +18,16 @@ export type AttemptPlan = {
   rivalId: string;
 };
 
-const key = (athleteId: string) => `ssc.coach.attempts.${athleteId}`;
+import { getAttemptPlans, saveAttemptPlan } from "../../lib/data/athleteData";
+
 const r2 = (n: number) => Math.round(n / 2.5) * 2.5;
 const zeroStatus = (): AttemptStatuses => ({ opener: "pending", second: "pending", third: "pending" });
 const slot = (v: number): Slot => ({ low: Math.max(0, r2(v - 5)), neutral: r2(v), high: r2(v + 5) });
 
+// Plans live on the athlete's cloud row (so the athlete sees them + the coach's
+// live meet-day ticks), not coach-local storage.
 function loadAll(athleteId: string): Record<string, Partial<AttemptPlan>> {
-  try {
-    return JSON.parse(localStorage.getItem(key(athleteId)) || "{}");
-  } catch {
-    return {};
-  }
+  return getAttemptPlans(athleteId) as Record<string, Partial<AttemptPlan>>;
 }
 
 function seededAttempts(rm: Record<LiftKey, number>): Record<LiftKey, Attempt> {
@@ -73,13 +72,7 @@ export function getPlan(athleteId: string, compId: string, rm: Record<LiftKey, n
 }
 
 export function savePlan(athleteId: string, compId: string, plan: AttemptPlan) {
-  const all = loadAll(athleteId);
-  all[compId] = plan;
-  try {
-    localStorage.setItem(key(athleteId), JSON.stringify(all));
-  } catch {
-    /* ignore */
-  }
+  saveAttemptPlan(athleteId, compId, plan);
 }
 
 /**

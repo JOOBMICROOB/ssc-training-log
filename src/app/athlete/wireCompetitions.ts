@@ -1,4 +1,5 @@
-import { getDashboard, subscribeDashboard, getMonthFor, optInComp, type DashboardData } from "../../lib/data/athleteData";
+import { getDashboard, subscribeDashboard, getMonthFor, optInComp, getAttemptPlans, type DashboardData } from "../../lib/data/athleteData";
+import { autoWarmups, type AttemptPlan, type LiftKey, type Which } from "../coach/coachAttempts";
 
 /**
  * Competitions (design 5a). Coach-managed meet calendar + the athlete's opt-ins.
@@ -141,7 +142,7 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
           <span style="flex:1 1 0%;text-align:left;font:600 12.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.09em;color:rgb(29,45,61);">ENTRY CONFIRMED · LOCKED</span>
           <span style="flex:0 0 auto;font:400 9.5px/1 Barlow,sans-serif;color:rgb(138,146,156);">🔒 ${going} going</span>
         </button>
-        <div style="margin-top:7px;font:400 10px/1.4 Barlow,sans-serif;color:rgb(138,146,156);">Locked in. Message your coach if anything changes.</div>`
+        <button data-attempts="${c.id}" style="width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:none;border-radius:12px;background:rgb(29,45,61);color:rgb(242,242,243);font:600 12.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;box-shadow:rgba(20,36,52,.18) 0px 5px 14px;">🏋️ MY ATTEMPTS ›</button>`
       : `<button data-optin="${c.id}" style="width:100%;margin-top:11px;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(29,31,32,.14);border-radius:12px;background:transparent;cursor:pointer;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;">
           <span style="flex:0 0 auto;width:34px;height:20px;border-radius:11px;background:rgba(29,31,32,.2);position:relative;display:block;">
             <span style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:rgb(242,242,243);box-shadow:rgba(29,31,32,.35) 0px 1px 3px;"></span>
@@ -201,6 +202,8 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
   });
 
   listEl?.addEventListener("click", (e) => {
+    const att = (e.target as HTMLElement).closest<HTMLElement>("[data-attempts]");
+    if (att?.dataset.attempts) { openSheet(att.dataset.attempts); return; }
     const b = (e.target as HTMLElement).closest<HTMLElement>("[data-optin]");
     if (!b?.dataset.optin) return;
     const c = getDashboard(athleteId).competitions.find((x) => x.id === b.dataset.optin);
@@ -213,7 +216,78 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
       optInComp(athleteId, c.id);
   });
 
-  const unsub = subscribeDashboard(render);
+  // ---- athlete attempt sheet (read view of the coach's plan + live ticks) ----
+  const LIFTS: LiftKey[] = ["squat", "bench", "deadlift"];
+  const WHICHES: Which[] = ["opener", "second", "third"];
+  const LIFT_LABEL: Record<LiftKey, string> = { squat: "SQUAT", bench: "BENCH", deadlift: "DEADLIFT" };
+  const WHICH_LABEL: Record<Which, string> = { opener: "Opener", second: "Second", third: "Third" };
+  const kg = (n: number) => (n ? `${String(n).replace(".", ",")}` : "—");
+
+  const overlay = document.createElement("div");
+  overlay.style.cssText =
+    "position:fixed;inset:0;display:none;flex-direction:column;background:#f4f8fc;z-index:1200;overflow-y:auto;padding:0 0 40px;";
+  host.appendChild(overlay);
+  const closeSheet = () => (overlay.style.display = "none");
+
+  function statusChip(s: "pending" | "hit" | "miss"): string {
+    const m = s === "hit" ? ["#2e7d5a", "rgba(79,157,105,.16)", "✓ HIT"] : s === "miss" ? ["#b45454", "rgba(217,138,138,.16)", "✗ MISS"] : ["#8a929c", "transparent", "—"];
+    return `<span style="flex:0 0 auto;padding:3px 8px;border-radius:6px;background:${m[1]};color:${m[0]};font:600 8.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.08em;">${m[2]}</span>`;
+  }
+
+  function openSheet(compId: string) {
+    const d = getDashboard(athleteId);
+    const comp = d.competitions.find((c) => c.id === compId);
+    if (!comp) return;
+    overlay.dataset.comp = compId;
+    const plan = getAttemptPlans(athleteId)[compId] as AttemptPlan | undefined;
+    const dd = new Date(comp.date + "T00:00:00");
+    const head = `<div style="position:sticky;top:0;background:rgb(29,45,61);color:#f2f2f3;padding:16px 18px;display:flex;align-items:center;gap:12px;box-shadow:rgba(9,17,28,.25) 0 3px 12px;">
+        <button data-close style="flex:0 0 auto;width:34px;height:34px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:rgba(255,255,255,.1);color:#f2f2f3;font-size:18px;cursor:pointer;">‹</button>
+        <div style="flex:1 1 0;"><div style="font:600 19px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.02em;">${comp.name}</div>
+          <div style="margin-top:2px;font:400 10px/1 Barlow,sans-serif;letter-spacing:.1em;color:rgba(242,242,243,.7);">${dd.getDate()}/${dd.getMonth() + 1}/${dd.getFullYear()} · ${comp.location}</div></div>
+      </div>`;
+
+    if (!plan) {
+      overlay.innerHTML = head + `<div style="padding:40px 22px;text-align:center;font:400 13px/1.6 Barlow,sans-serif;color:rgb(107,116,128);">Your coach hasn't set your attempts for this meet yet.<br>They'll show here once they do.</div>`;
+      overlay.style.display = "flex";
+      return;
+    }
+
+    const bestHit = (l: LiftKey) => { let b = 0; for (const w of WHICHES) if (plan.status[l][w] === "hit") b = Math.max(b, plan.attempts[l][w].neutral); return b; };
+    const liveTotal = LIFTS.reduce((s, l) => s + bestHit(l), 0);
+    const planned = LIFTS.reduce((s, l) => s + plan.attempts[l].third.neutral, 0);
+
+    const liftBlocks = LIFTS.map((l) => {
+      const warm = plan.warmups[l]?.trim() || autoWarmups(plan.attempts[l].opener.neutral);
+      const rows = WHICHES.map((w) => {
+        const a = plan.attempts[l][w];
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(29,31,32,.08);">
+          <span style="flex:0 0 auto;width:60px;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:rgb(107,116,128);">${WHICH_LABEL[w]}</span>
+          <span style="flex:1 1 0;font:700 22px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${kg(a.neutral)}<span style="font-size:12px;color:rgb(138,146,156);"> kg</span></span>
+          <span style="flex:0 0 auto;font:400 9.5px/1.4 Barlow,sans-serif;color:rgb(138,146,156);text-align:right;">low ${kg(a.low)}<br>high ${kg(a.high)}</span>
+          ${statusChip(plan.status[l][w])}
+        </div>`;
+      }).join("");
+      return `<div style="margin:14px 18px 0;padding:14px;border-radius:16px;background:rgba(255,255,255,.72);border:1px solid rgba(29,31,32,.08);box-shadow:rgba(20,36,52,.06) 0 4px 14px;">
+        <div style="font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(29,45,61);">${LIFT_LABEL[l]}</div>
+        ${rows}
+        ${warm ? `<div style="margin-top:10px;padding-top:9px;border-top:1px solid rgba(29,31,32,.08);font:400 10.5px/1.4 Barlow,sans-serif;color:rgb(65,97,128);"><strong style="letter-spacing:.06em;">WARM-UP</strong> · ${warm}</div>` : ""}
+      </div>`;
+    }).join("");
+
+    const summary = `<div style="margin:16px 18px 0;padding:14px;border-radius:16px;background:rgb(29,45,61);color:#f2f2f3;display:flex;gap:20px;flex-wrap:wrap;">
+        <div><div style="font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.12em;color:rgba(242,242,243,.6);">CONFIRMED TOTAL</div><div style="margin-top:4px;font:700 24px/1 'Barlow Condensed',sans-serif;">${liveTotal ? kg(liveTotal) + " kg" : "—"}</div></div>
+        <div><div style="font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.12em;color:rgba(242,242,243,.6);">PLANNED TOTAL</div><div style="margin-top:4px;font:700 24px/1 'Barlow Condensed',sans-serif;">${kg(planned)} kg</div></div>
+        ${plan.goals.placement ? `<div><div style="font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.12em;color:rgba(242,242,243,.6);">GOAL</div><div style="margin-top:4px;font:600 15px/1.1 'Barlow Condensed',sans-serif;">${plan.goals.placement}</div></div>` : ""}
+      </div>`;
+
+    overlay.innerHTML = head + summary + liftBlocks + `<div style="margin:16px 18px 0;font:400 10px/1.5 Barlow,sans-serif;color:rgb(138,146,156);text-align:center;">Your coach updates this live during the meet — hit/miss shows here as attempts are called.</div>`;
+    overlay.style.display = "flex";
+  }
+
+  overlay.addEventListener("click", (e) => { if ((e.target as HTMLElement).closest("[data-close]")) closeSheet(); });
+
+  const unsub = subscribeDashboard(() => { render(); if (overlay.style.display === "flex") { const id = overlay.dataset.comp; if (id) openSheet(id); } });
   render();
-  return unsub;
+  return () => { unsub(); overlay.remove(); };
 }
