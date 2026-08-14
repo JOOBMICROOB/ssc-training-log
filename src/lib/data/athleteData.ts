@@ -681,6 +681,13 @@ export function saveAttemptPlan(athleteId: string, compId: string, plan: unknown
   const d = getDashboard(athleteId);
   save(athleteId, { ...d, attemptPlans: { ...(d.attemptPlans ?? {}), [compId]: plan } });
 }
+/** Coach removes an athlete's attempt plan for a meet entirely. */
+export function removeAttemptPlan(athleteId: string, compId: string) {
+  const d = getDashboard(athleteId);
+  const plans = { ...(d.attemptPlans ?? {}) };
+  delete plans[compId];
+  save(athleteId, { ...d, attemptPlans: plans });
+}
 
 /** Coach turns the week-lock motivator off (or back on) for an athlete — all-time. */
 export function setWeekLockOff(athleteId: string, off: boolean) {

@@ -70,23 +70,18 @@ export function athleteLoginEmail(athleteId: string): string {
  * the 'notify-athlete' Edge Function. Best-effort — if the function isn't
  * deployed or the athlete never opted in, publishing still succeeds silently.
  */
-export async function notifyAthletePublished(athleteCode: string, blockName: string): Promise<void> {
+export async function notifyAthlete(athleteCode: string, title: string, body: string): Promise<void> {
   try {
     const fns = coachSupabase as unknown as {
       functions: { invoke: (name: string, opts: { body: unknown }) => Promise<unknown> };
     };
-    await fns.functions.invoke("notify-athlete", {
-      body: {
-        code: athleteCode.trim().toUpperCase(),
-        title: "Your coach added a new program",
-        body: blockName,
-        url: "/",
-      },
-    });
+    await fns.functions.invoke("notify-athlete", { body: { code: athleteCode.trim().toUpperCase(), title, body, url: "/" } });
   } catch {
     /* notifications are a bonus, never block a publish */
   }
 }
+export const notifyAthletePublished = (athleteCode: string, blockName: string) =>
+  notifyAthlete(athleteCode, "Your coach added a new program", blockName);
 
 /**
  * Reset an athlete's password. Changing another user's Supabase password needs

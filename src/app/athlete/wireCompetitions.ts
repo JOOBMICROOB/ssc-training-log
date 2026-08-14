@@ -142,7 +142,9 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
           <span style="flex:1 1 0%;text-align:left;font:600 12.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.09em;color:rgb(29,45,61);">ENTRY CONFIRMED · LOCKED</span>
           <span style="flex:0 0 auto;font:400 9.5px/1 Barlow,sans-serif;color:rgb(138,146,156);">🔒 ${going} going</span>
         </button>
-        <button data-attempts="${c.id}" style="width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:none;border-radius:12px;background:rgb(29,45,61);color:rgb(242,242,243);font:600 12.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;box-shadow:rgba(20,36,52,.18) 0px 5px 14px;">🏋️ MY ATTEMPTS ›</button>`
+        ${(getAttemptPlans(athleteId)[c.id] as AttemptPlan | undefined)?.published
+          ? `<button data-attempts="${c.id}" style="width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:none;border-radius:12px;background:rgb(29,45,61);color:rgb(242,242,243);font:600 12.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;box-shadow:rgba(20,36,52,.18) 0px 5px 14px;">🏋️ MY ATTEMPTS ›</button>`
+          : ""}`
       : `<button data-optin="${c.id}" style="width:100%;margin-top:11px;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(29,31,32,.14);border-radius:12px;background:transparent;cursor:pointer;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;">
           <span style="flex:0 0 auto;width:34px;height:20px;border-radius:11px;background:rgba(29,31,32,.2);position:relative;display:block;">
             <span style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:rgb(242,242,243);box-shadow:rgba(29,31,32,.35) 0px 1px 3px;"></span>
@@ -239,7 +241,8 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
     const comp = d.competitions.find((c) => c.id === compId);
     if (!comp) return;
     overlay.dataset.comp = compId;
-    const plan = getAttemptPlans(athleteId)[compId] as AttemptPlan | undefined;
+    const raw = getAttemptPlans(athleteId)[compId] as AttemptPlan | undefined;
+    const plan = raw?.published ? raw : undefined; // only a published plan is visible
     const dd = new Date(comp.date + "T00:00:00");
     const head = `<div style="position:sticky;top:0;background:rgb(29,45,61);color:#f2f2f3;padding:calc(16px + env(safe-area-inset-top)) 18px 16px;display:flex;align-items:center;gap:12px;box-shadow:rgba(9,17,28,.25) 0 3px 12px;">
         <button data-close style="flex:0 0 auto;width:34px;height:34px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:rgba(255,255,255,.1);color:#f2f2f3;font-size:18px;cursor:pointer;">‹</button>

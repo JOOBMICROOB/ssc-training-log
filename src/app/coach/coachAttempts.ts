@@ -16,6 +16,7 @@ export type AttemptPlan = {
   warmups: Record<LiftKey, string>; // custom override; "" = auto
   status: Record<LiftKey, AttemptStatuses>; // meet-day hit / miss per attempt
   rivalId: string;
+  published?: boolean; // shared with the athlete (their "My attempts" page shows it)
 };
 
 import { getAttemptPlans, saveAttemptPlan } from "../../lib/data/athleteData";
@@ -68,6 +69,7 @@ export function getPlan(athleteId: string, compId: string, rm: Record<LiftKey, n
     warmups: s.warmups ?? { squat: "", bench: "", deadlift: "" },
     status: s.status ?? { squat: zeroStatus(), bench: zeroStatus(), deadlift: zeroStatus() },
     rivalId: s.rivalId ?? "",
+    published: s.published ?? false,
   };
 }
 

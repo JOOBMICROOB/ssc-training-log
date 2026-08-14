@@ -3,6 +3,8 @@ import { getDashboardModel } from "../../lib/data/athleteData";
 import { ipfGlPoints, type Sex } from "../../lib/calc/scores";
 import { fmtKg } from "../../lib/calc/records";
 import { getClients } from "./coachData";
+import { removeAttemptPlan } from "../../lib/data/athleteData";
+import { notifyAthlete } from "../../lib/auth/coachAuth";
 import { getPlan, savePlan, autoWarmups, type AttemptPlan, type LiftKey, type Which, type AttemptStatus } from "./coachAttempts";
 import { Avatar } from "./Avatar";
 
@@ -60,6 +62,18 @@ function AttemptCard({ athleteId, athleteName, compId, title, date, level, rm, b
   const set = (next: AttemptPlan) => { setPlan(next); savePlan(athleteId, compId, next); };
   const category = cat(level);
 
+  const publish = () => {
+    set({ ...plan, published: true });
+    void notifyAthlete(athleteId, "Your attempts are ready", title);
+    alert(`Published ${athleteName.split(" ")[0]}'s attempts for ${title} — visible in their app under My attempts.`);
+  };
+  const unpublish = () => set({ ...plan, published: false });
+  const remove = () => {
+    if (!confirm(`Remove all attempts for ${title}? This clears the card and removes it from the athlete's app.`)) return;
+    removeAttemptPlan(athleteId, compId);
+    setPlan(getPlan(athleteId, compId, rm));
+  };
+
   const setVal = (l: LiftKey, w: Which, r: (typeof ROWS)[number], v: number) =>
     set({ ...plan, attempts: { ...plan.attempts, [l]: { ...plan.attempts[l], [w]: { ...plan.attempts[l][w], [r]: v } } } });
   const setRm = (l: LiftKey, v: number) => set({ ...plan, rm: { ...plan.rm, [l]: v } });
@@ -101,6 +115,13 @@ function AttemptCard({ athleteId, athleteName, compId, title, date, level, rm, b
           <span className={`cc-level ${level === "international" ? "cc-level-int" : "cc-level-nat"}`} style={{ marginLeft: 10 }}>{level === "international" ? "INTERNATIONAL" : "NATIONAL"}</span>
         </div>
         <div className="cc-cell-s">{d.getDate()}/{d.getMonth() + 1}/{d.getFullYear()}</div>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+        {plan.published && <span style={{ font: "600 10px/1 var(--font-heading)", letterSpacing: ".06em", textTransform: "uppercase", color: "var(--good)", padding: "5px 10px", borderRadius: 999, background: "color-mix(in srgb, var(--good) 14%, transparent)" }}>✓ Shared with {athleteName.split(" ")[0]}</span>}
+        <button className="cc-mini cc-mini-solid" style={{ padding: "9px 15px", fontSize: 11 }} onClick={publish}>{plan.published ? "Re-publish · notify" : "Publish to athlete →"}</button>
+        {plan.published && <button className="cc-mini" style={{ padding: "9px 13px", fontSize: 11 }} onClick={unpublish}>Unshare</button>}
+        <button className="cc-mini" style={{ padding: "9px 13px", fontSize: 11, marginLeft: "auto", color: "var(--bad)", borderColor: "color-mix(in srgb, var(--bad) 40%, transparent)" }} onClick={remove}>Remove all</button>
       </div>
 
       <div style={{ marginTop: 14, overflowX: "auto" }}>
