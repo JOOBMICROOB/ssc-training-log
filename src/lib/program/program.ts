@@ -34,7 +34,12 @@ export type ExerciseTemplate = {
   sets: SetTemplate[];
   competition?: boolean; // the actual comp lift (not a paused/tempo/etc. variation)
 };
-export type DayTemplate = { rest: boolean; exercises: ExerciseTemplate[] };
+export type DayTemplate = {
+  rest: boolean;
+  exercises: ExerciseTemplate[];
+  alt?: ExerciseTemplate[]; // optional Option B session (e.g. an injury alternative)
+  note?: string; // coach's word of info shown above the A/B picker
+};
 export type WeekTemplate = DayTemplate[]; // length 7, index by weekday 0=Sun … 6=Sat
 
 export type SetLog = {
@@ -95,6 +100,9 @@ export type Session = {
   sessionRpe: number | null;
   pain: number | null;
   finished: boolean;
+  hasAlt: boolean; // an Option B exists for this day
+  note: string; // coach's info for the day (shown above the A/B picker)
+  option: "A" | "B"; // which session this is
 };
 
 const ORDER: MainLift[] = ["squat", "bench", "deadlift"];
@@ -131,9 +139,15 @@ function isCompLift(name: string, mainLift: MainLift | null): boolean {
   return /^comp\b|^competition\b/.test(n) || BARE_LIFT[mainLift].includes(n);
 }
 
-export function getSession(template: WeekTemplate, logs: ProgramLogs, date: string): Session {
+export function getSession(template: WeekTemplate, logs: ProgramLogs, date: string, option: "A" | "B" = "A"): Session {
   const weekday = fromISO(date).getDay();
   const day = template[weekday] ?? { rest: true, exercises: [] };
+  const hasAlt = !!day.alt && day.alt.length > 0;
+  // Option B (the injury alternative) uses its own exercises + a "B"-prefixed log
+  // key namespace, so A's logs and B's logs never collide when the athlete switches.
+  const useB = option === "B" && hasAlt;
+  const exSource = useB ? day.alt! : day.exercises;
+  const kp = useB ? "B" : "";
   const dayLog = logs[date] ?? {};
   const prevLog = logs[addDays(date, -7)] ?? {};
 
@@ -144,9 +158,9 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
 
   const exercises: SessionExercise[] = day.rest
     ? []
-    : day.exercises.map((ex, ei) => {
+    : exSource.map((ex, ei) => {
         const sets: LoggedSet[] = ex.sets.map((st, si) => {
-          const key = `${ei}_${si}`;
+          const key = `${kp}${ei}_${si}`;
           const log = dayLog.sets?.[key] ?? {};
           const weightKg = log.weightKg ?? null;
           const rpe = log.rpe ?? null;
@@ -171,13 +185,13 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
         });
         // Compact last-week summary for the collapsed header.
         const prevWeights = ex.sets
-          .map((_, si) => prevLog.sets?.[`${ei}_${si}`]?.weightKg)
+          .map((_, si) => prevLog.sets?.[`${kp}${ei}_${si}`]?.weightKg)
           .filter((w): w is number => w != null);
         let lastWeekLabel = "";
         if (prevWeights.length) {
           const same = prevWeights.every((w) => w === prevWeights[0]);
           const prevRpes = ex.sets
-            .map((_, si) => prevLog.sets?.[`${ei}_${si}`]?.rpe)
+            .map((_, si) => prevLog.sets?.[`${kp}${ei}_${si}`]?.rpe)
             .filter((r): r is number => r != null);
           const rpeStr = prevRpes.length && prevRpes.every((r) => r === prevRpes[0]) ? ` @${prevRpes[0]}` : "";
           lastWeekLabel = same
@@ -207,7 +221,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
     date,
     weekday,
     rest: day.rest,
-    name: day.rest ? "REST DAY" : sessionName(day.exercises),
+    name: day.rest ? "REST DAY" : sessionName(exSource),
     exercises,
     setCount,
     loggedCount,
@@ -218,6 +232,9 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
     // Auto-done once the athlete has logged ≥70% of the session (coach prefills
     // don't count); an explicit "finish" always wins.
     finished: dayLog.finished ?? (setCount > 0 && loggedCount >= Math.ceil(setCount * 0.7)),
+    hasAlt,
+    note: day.note ?? "",
+    option: useB ? "B" : "A",
   };
 }
 

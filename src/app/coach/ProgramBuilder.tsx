@@ -232,6 +232,25 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
       return { ...d, exercises: list };
     });
 
+  // ---- option B (alternate session) ops ----
+  const setDayNote = (dayId: string, note: string) => mutDay(dayId, (d) => ({ ...d, note }));
+  const addAlt = (dayId: string) => mutDay(dayId, (d) => ({ ...d, alt: [blankRow()] }));
+  const removeAlt = (dayId: string) => mutDay(dayId, (d) => ({ ...d, alt: undefined }));
+  const altMutRow = (dayId: string, exId: string, patch: Partial<ExRow>) =>
+    mutDay(dayId, (d) => ({ ...d, alt: (d.alt ?? []).map((e) => (e.id === exId ? { ...e, ...patch } : e)) }));
+  const altAddRow = (dayId: string) => mutDay(dayId, (d) => ({ ...d, alt: [...(d.alt ?? []), blankRow()] }));
+  const altRemoveRow = (dayId: string, exId: string) =>
+    mutDay(dayId, (d) => ({ ...d, alt: (d.alt ?? []).filter((e) => e.id !== exId) }));
+  const altNudge = (dayId: string, exId: string, dir: -1 | 1) =>
+    mutDay(dayId, (d) => {
+      const list = [...(d.alt ?? [])];
+      const i = list.findIndex((e) => e.id === exId);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= list.length) return d;
+      [list[i], list[j]] = [list[j], list[i]];
+      return { ...d, alt: list };
+    });
+
   // ---- day ops ----
   const clearDay = (dayId: string) => mutDay(dayId, (d) => ({ ...d, rest: true, exercises: [] }));
   // Turning a day into a training day also DATES the week (to this week) if it
@@ -863,6 +882,82 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                 <button className={`cc-add-ex${isDropEnd(d.id) ? " cc-drop-before" : ""}`} onClick={() => addRow(d.id, blankRow())}>
                   + Add exercise · or drag one from the database
                 </button>
+
+                {/* ---- per-day note + Option B (alternate session) ---- */}
+                <div className="cc-altwrap">
+                  <textarea
+                    className="cc-day-note"
+                    placeholder="Note for the athlete (shown above the A / B choice) — e.g. “Pick B if your shoulder is still cranky.”"
+                    value={d.note ?? ""}
+                    onChange={(e) => setDayNote(d.id, e.target.value)}
+                  />
+                  {d.alt === undefined ? (
+                    <button className="cc-xbtn cc-add-alt" onClick={() => addAlt(d.id)}>+ Add Option B session</button>
+                  ) : (
+                    <div className="cc-alt">
+                      <div className="cc-alt-head">
+                        <span className="cc-alt-badge">OPTION B</span>
+                        <span className="cc-day-sub">the athlete can pick this instead of A · {d.alt.length} exercises</span>
+                        <button className="cc-xbtn" onClick={() => removeAlt(d.id)}>Remove Option B</button>
+                      </div>
+                      <div className="cc-ex-cols cc-ex-colhead">
+                        <span>Exercise · cue</span><span>Video</span><span>Sets</span><span>Reps</span><span>Intensity</span><span>Value</span><span>Scheme</span><span style={{ textAlign: "right" }}>Move · ×</span>
+                      </div>
+                      {d.alt.map((ex) => (
+                        <div key={ex.id} className="cc-ex-row">
+                          <div className="cc-ex-cols">
+                            <div className="cc-ex-grip">
+                              <input className="cc-ex-name" list="ex-db" value={ex.name} onChange={(e) => altMutRow(d.id, ex.id, { name: e.target.value })} onBlur={(e) => ensureInDb(e.target.value, ex.mainLift)} />
+                              <input className="cc-ex-cue" placeholder="coach cue" value={ex.cue} onChange={(e) => altMutRow(d.id, ex.id, { cue: e.target.value })} />
+                            </div>
+                            <input className="cc-in" placeholder="url" value={ex.video} onChange={(e) => altMutRow(d.id, ex.id, { video: e.target.value })} />
+                            <input className="cc-in" type="number" min={1} value={ex.sets} onChange={(e) => altMutRow(d.id, ex.id, { sets: Math.max(1, Number(e.target.value)) })} />
+                            {repRange || ex.scheme === "Accessory" ? (
+                              <select className="cc-in" value={ex.reps} onChange={(e) => altMutRow(d.id, ex.id, { reps: e.target.value })}>
+                                {!REP_RANGES.includes(ex.reps) && <option value={ex.reps}>{ex.reps || "—"}</option>}
+                                {REP_RANGES.map((r) => <option key={r} value={r}>{r}</option>)}
+                              </select>
+                            ) : (
+                              <input className="cc-in" value={ex.reps} onChange={(e) => altMutRow(d.id, ex.id, { reps: e.target.value })} />
+                            )}
+                            <select
+                              className="cc-in"
+                              value={ex.intensity === "load" ? "fixed" : ex.intensity}
+                              onChange={(e) => altMutRow(d.id, ex.id, { intensity: e.target.value as IntensityType, ...(e.target.value === "failure" ? { value: "" } : {}) })}
+                            >
+                              <option value="rpe">RPE</option>
+                              <option value="percent">%1RM</option>
+                              <option value="fixed">Load</option>
+                              <option value="failure">Failure</option>
+                              <option value="seconds">Seconds</option>
+                            </select>
+                            {ex.intensity === "failure" ? (
+                              <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)", font: "500 10px/1 var(--font-body)", letterSpacing: ".05em" }}>TO FAILURE</div>
+                            ) : ex.intensity === "seconds" ? (
+                              <input className="cc-in" value={ex.value} placeholder="secs" onChange={(e) => altMutRow(d.id, ex.id, { value: e.target.value })} />
+                            ) : ex.intensity === "rpe" ? (
+                              <input className="cc-in" list="rpe-opts" value={ex.value} placeholder="RPE" onChange={(e) => altMutRow(d.id, ex.id, { value: e.target.value })} />
+                            ) : ex.intensity === "percent" ? (
+                              <input className="cc-in" value={ex.value} placeholder="%" onChange={(e) => altMutRow(d.id, ex.id, { value: e.target.value })} />
+                            ) : (
+                              <input className="cc-in" value={ex.value} placeholder="kg" onChange={(e) => altMutRow(d.id, ex.id, { value: e.target.value })} />
+                            )}
+                            <select className="cc-in cc-in-scheme" value={ex.scheme} onChange={(e) => altMutRow(d.id, ex.id, { scheme: e.target.value, ...(e.target.value === "Timed" ? { intensity: "seconds" as IntensityType, value: ex.intensity === "seconds" ? ex.value : "" } : {}) })}>
+                              {!SCHEMES.includes(ex.scheme as (typeof SCHEMES)[number]) && <option value={ex.scheme}>{ex.scheme || "—"}</option>}
+                              {SCHEMES.map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            <div className="cc-row-ctl">
+                              <button title="Up" onClick={() => altNudge(d.id, ex.id, -1)}>↑</button>
+                              <button title="Down" onClick={() => altNudge(d.id, ex.id, 1)}>↓</button>
+                              <button title="Remove" onClick={() => altRemoveRow(d.id, ex.id)}>×</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <button className="cc-add-ex" onClick={() => altAddRow(d.id)}>+ Add exercise to Option B</button>
+                    </div>
+                  )}
+                </div>
               </div>
             ),
           )}

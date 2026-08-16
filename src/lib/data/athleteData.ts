@@ -112,6 +112,8 @@ export type DashboardData = {
   // Attempt plans per meet (coach-authored). Stored on the athlete so the athlete
   // sees their attempts + the coach's live meet-day ticks. Keyed by competition id.
   attemptPlans?: Record<string, unknown>;
+  // The athlete's A/B session pick per date, when a day has an Option B.
+  sessionChoice?: Record<string, "A" | "B">;
   // Coach-set time off + events for this athlete — shown on the coach calendar
   // and on the athlete's own calendar + dashboard. `endDate` (inclusive) makes a
   // multi-day span like a holiday; omit it for a single-day event.
@@ -577,7 +579,13 @@ export function weekMetaForDate(d: DashboardData, date: string): { blockName?: s
 
 export function getSessionFor(athleteId: string, date: string): Session {
   const d = getDashboard(athleteId);
-  return getSession(templateForDate(d, date), d.programLogs ?? {}, date);
+  return getSession(templateForDate(d, date), d.programLogs ?? {}, date, d.sessionChoice?.[date] ?? "A");
+}
+
+/** The athlete's A/B pick for a given day (Option B = the injury alternative). */
+export function setSessionChoice(athleteId: string, date: string, option: "A" | "B") {
+  const d = getDashboard(athleteId);
+  save(athleteId, { ...d, sessionChoice: { ...(d.sessionChoice ?? {}), [date]: option } });
 }
 
 export function getWeekFor(athleteId: string, ref: string, today = todayISO()): WeekDay[] {

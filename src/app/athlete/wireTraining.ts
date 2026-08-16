@@ -11,6 +11,7 @@ import {
   getDashboard,
   getAthleteEvents,
   eventsByDate,
+  setSessionChoice,
 } from "../../lib/data/athleteData";
 import { addDays, type Session, type SessionExercise, type LoggedSet } from "../../lib/program/program";
 import { fmtKg } from "../../lib/calc/records";
@@ -23,6 +24,7 @@ import { showShareSheet } from "./shareSession";
  * A calendar popup navigates months and the week's sessions.
  */
 
+const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
 const MAX_SET_KG = 600; // anything heavier is a mistype
 const DAY2 = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 const clampKg = (n: number) => Math.max(0, Math.min(MAX_SET_KG, Math.round(n * 2) / 2));
@@ -173,8 +175,24 @@ function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selec
     </div>
     <div style="margin-top:6px;font:400 11px/1 Barlow,sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">${session.exercises.length} EXERCISES · ${session.loggedCount} / ${session.setCount} SETS LOGGED</div>
   </div>`;
+  const altBlock = session.hasAlt ? altSelector(session) : "";
   const exercises = session.exercises.map((ex, ei) => exerciseBlock(ex, ei, isOpen(ei), session.finished)).join("");
-  return dayRow + title + exercises;
+  return dayRow + title + altBlock + exercises;
+}
+
+/** Option A / Option B toggle + the coach's note, shown when the day has an alternate session. */
+function altSelector(session: Session): string {
+  const btn = (opt: "A" | "B") => {
+    const on = session.option === opt;
+    return `<button data-opt="${opt}" style="flex:1 1 0;padding:9px 0;border:1px solid ${on ? "rgb(89,128,166)" : "rgba(89,128,166,.28)"};border-radius:10px;background:${on ? "rgba(89,128,166,.14)" : "transparent"};color:${on ? "rgb(29,45,61)" : "rgb(107,116,128)"};font:600 15px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;cursor:pointer;">OPTION ${opt}</button>`;
+  };
+  const note = session.note
+    ? `<div style="margin-top:9px;padding:10px 12px;border-radius:10px;background:rgba(89,128,166,.08);border:1px solid rgba(89,128,166,.18);font:400 13px/1.45 Barlow,sans-serif;color:rgb(65,97,128);"><span style="display:block;font:600 10px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(107,116,128);margin-bottom:4px;">FROM YOUR COACH</span>${escapeHtml(session.note)}</div>`
+    : "";
+  return `<div style="flex:0 0 auto;padding-bottom:12px;">
+    <div style="display:flex;gap:6px;">${btn("A")}${btn("B")}</div>
+    ${note}
+  </div>`;
 }
 
 /** Blurred lock screen for a future week the athlete hasn't earned yet. */
@@ -444,6 +462,12 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     const t = e.target as HTMLElement;
     const dayBtn = t.closest<HTMLElement>("[data-day]");
     if (dayBtn) { selected = dayBtn.dataset.day!; manualOpen.clear(); return render(); }
+    const optBtn = t.closest<HTMLElement>("[data-opt]");
+    if (optBtn) {
+      setSessionChoice(athleteId, selected, optBtn.dataset.opt as "A" | "B");
+      manualOpen.clear();
+      return render();
+    }
     if (t.closest("#dayPickBtn")) return calendar.open();
     const vid = t.closest<HTMLElement>("[data-video]");
     if (vid?.dataset.video) { window.open(vid.dataset.video, "_blank", "noopener"); return; }
