@@ -74,10 +74,12 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   const key = `${ei}_${si}`;
   const lwNum = parseFloat(st.lastWeek.replace(",", "."));
   const loadNum = st.targetLoad ? parseFloat(st.targetLoad.replace(",", ".")) : NaN;
+  // Advisory suggested load (RPE / % rows) — a starting hint, never a cap.
+  const sugNum = st.targetSuggest ? parseFloat(st.targetSuggest.replace(",", ".")) : NaN;
   // A fixed load: the athlete may only go lighter (capped, with a warning).
   const fixedKg = st.fixedLoad && isFinite(loadNum) ? loadNum : NaN;
-  // Seed steppers/↺ from the logged weight, else the coach's prescribed load, else last week.
-  const seed = st.weightKg ?? ex.sets[si - 1]?.weightKg ?? (isFinite(loadNum) ? loadNum : isFinite(lwNum) ? lwNum : "");
+  // Seed steppers/↺ from the logged weight, else the coach's fixed load or suggestion, else last week.
+  const seed = st.weightKg ?? ex.sets[si - 1]?.weightKg ?? (isFinite(loadNum) ? loadNum : isFinite(sugNum) ? sugNum : isFinite(lwNum) ? lwNum : "");
   const val = st.weightKg != null ? fmtKg(st.weightKg) : "";
   const dis = locked ? "disabled" : "";
   const ro = locked ? "readonly" : "";
@@ -122,11 +124,11 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   return `<div style="margin-left:12px;padding:7px 10px 8px 12px;border-left:2px solid rgba(89,128,166,.45);">
     <div style="display:flex;align-items:center;gap:8px;">
       <span style="flex:0 0 auto;width:44px;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">SET ${si + 1}</span>
-      <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">${st.targetReps} reps${targetShort(st) ? ` @ ${targetShort(st)}` : ""}${st.fixedLoad ? ' · <span style="color:#41617f;font-weight:600;">FIXED</span>' : ""}${st.failed ? ' · <span style="color:#b45454;font-weight:600;">FAILED</span>' : ""}</span>
+      <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">${st.targetReps} reps${targetShort(st) ? ` @ ${targetShort(st)}` : ""}${st.targetSuggest && !st.targetLoad ? ` · <span style="color:#41617f;font-weight:600;">try ${st.targetSuggest} kg</span>` : ""}${st.fixedLoad ? ' · <span style="color:#41617f;font-weight:600;">FIXED</span>' : ""}${st.failed ? ' · <span style="color:#b45454;font-weight:600;">FAILED</span>' : ""}</span>
     </div>
     <div style="display:flex;align-items:center;gap:5px;margin-top:5px;">
       ${step("−", `data-dec="${key}"`)}
-      <input data-wi="${key}" ${isFinite(fixedKg) ? `data-fixed="${fixedKg}"` : ""} ${ro} inputmode="decimal" placeholder="${st.targetLoad ? `${st.targetLoad} kg` : "kg"}" value="${val}" data-seed="${seed}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 15px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;${inStyle}">
+      <input data-wi="${key}" ${isFinite(fixedKg) ? `data-fixed="${fixedKg}"` : ""} ${ro} inputmode="decimal" placeholder="${st.targetLoad ? `${st.targetLoad} kg` : st.targetSuggest ? `${st.targetSuggest} kg` : "kg"}" value="${val}" data-seed="${seed}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 15px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;${inStyle}">
       ${step("+", `data-inc="${key}"`)}
       <button data-same="${key}" ${dis} title="Same load as the set before" style="flex:0 0 auto;width:36px;height:36px;border:1px solid rgba(29,31,32,.14);border-radius:9px;background:transparent;color:rgb(65,97,128);font-size:13px;cursor:pointer;">↺</button>
       ${failBtn}

@@ -1283,7 +1283,7 @@
 
 .cc-ex-cols {
   display: grid;
-  grid-template-columns: minmax(0, 2.1fr) 58px 46px 58px 74px 58px 96px 118px;
+  grid-template-columns: minmax(0, 2.1fr) 58px 46px 58px 74px 58px 62px 96px 118px;
   gap: 8px;
   align-items: center;
   padding: 6px 14px;

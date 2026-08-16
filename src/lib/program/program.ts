@@ -19,6 +19,7 @@ export type SetTemplate = {
   requiresRpe: boolean;
   targetLoad?: string; // coach-prescribed working weight (kg)
   targetPercent?: string; // coach-prescribed %1RM
+  targetSuggest?: string; // advisory working weight (kg) shown as a hint — NOT a cap
   fixedLoad?: boolean; // load is fixed — the athlete may only go lighter, with a warning
   toFailure?: boolean; // no target — push to failure and log what you did
   timed?: boolean; // a time-based hold — no weight, athlete just marks it done

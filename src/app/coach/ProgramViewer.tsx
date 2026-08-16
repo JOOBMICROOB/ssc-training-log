@@ -37,10 +37,12 @@ function fmtRange(startDate?: string) {
 }
 function rowTarget(r: ExRow): string {
   if (r.intensity === "seconds") return `${r.value || "?"} s`;
-  if (r.intensity === "failure") return "to failure";
   if (r.intensity === "load" || r.intensity === "fixed") return `${r.value} kg`;
-  if (r.intensity === "percent") return `${r.value}%`;
-  return r.value ? `RPE${r.value}` : "";
+  // Advisory suggested kg (RPE / % / to-failure rows) shown alongside the target.
+  const sug = r.suggest?.trim() ? ` · ~${r.suggest.trim()} kg` : "";
+  if (r.intensity === "failure") return `to failure${sug}`;
+  if (r.intensity === "percent") return `${r.value}%${sug}`;
+  return (r.value ? `RPE${r.value}` : "") + sug;
 }
 
 function buildDays(week: Week, live: boolean, athleteId: string): ViewDay[] {

@@ -809,7 +809,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                 </div>
 
                 <div className="cc-ex-cols cc-ex-colhead">
-                  <span>Exercise · cue</span><span>Video</span><span>Sets</span><span>Reps</span><span>Intensity</span><span>Value</span><span>Scheme</span><span style={{ textAlign: "right" }}>Move · copy · ×</span>
+                  <span>Exercise · cue</span><span>Video</span><span>Sets</span><span>Reps</span><span>Intensity</span><span>Value</span><span>Suggest kg</span><span>Scheme</span><span style={{ textAlign: "right" }}>Move · copy · ×</span>
                 </div>
 
                 {d.exercises.map((ex) => (
@@ -865,6 +865,11 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                       ) : (
                         <input className="cc-in" value={ex.value} placeholder="kg" title="Working load (kg) — the athlete can only go lighter" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
                       )}
+                      {ex.intensity === "fixed" || ex.intensity === "load" || ex.intensity === "seconds" ? (
+                        <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)" }} title="This row already shows a concrete number — no separate suggestion needed.">—</div>
+                      ) : (
+                        <input className="cc-in" value={ex.suggest ?? ""} placeholder={ex.intensity === "percent" && pctToKg(ex) ? pctToKg(ex) : "kg"} title="Suggested working weight (kg) — shown to the athlete as a hint. It does NOT cap what they enter." onChange={(e) => mutRow(d.id, ex.id, { suggest: e.target.value })} />
+                      )}
                       <select className="cc-in cc-in-scheme" value={ex.scheme} onChange={(e) => mutRow(d.id, ex.id, { scheme: e.target.value, ...(e.target.value === "Timed" ? { intensity: "seconds" as IntensityType, value: ex.intensity === "seconds" ? ex.value : "" } : {}) })}>
                         {!SCHEMES.includes(ex.scheme as (typeof SCHEMES)[number]) && <option value={ex.scheme}>{ex.scheme || "—"}</option>}
                         {SCHEMES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -901,7 +906,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         <button className="cc-xbtn" onClick={() => removeAlt(d.id)}>Remove Option B</button>
                       </div>
                       <div className="cc-ex-cols cc-ex-colhead">
-                        <span>Exercise · cue</span><span>Video</span><span>Sets</span><span>Reps</span><span>Intensity</span><span>Value</span><span>Scheme</span><span style={{ textAlign: "right" }}>Move · ×</span>
+                        <span>Exercise · cue</span><span>Video</span><span>Sets</span><span>Reps</span><span>Intensity</span><span>Value</span><span>Suggest kg</span><span>Scheme</span><span style={{ textAlign: "right" }}>Move · ×</span>
                       </div>
                       {d.alt.map((ex) => (
                         <div key={ex.id} className="cc-ex-row">
@@ -941,6 +946,11 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                               <input className="cc-in" value={ex.value} placeholder="%" onChange={(e) => altMutRow(d.id, ex.id, { value: e.target.value })} />
                             ) : (
                               <input className="cc-in" value={ex.value} placeholder="kg" onChange={(e) => altMutRow(d.id, ex.id, { value: e.target.value })} />
+                            )}
+                            {ex.intensity === "fixed" || ex.intensity === "load" || ex.intensity === "seconds" ? (
+                              <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)" }}>—</div>
+                            ) : (
+                              <input className="cc-in" value={ex.suggest ?? ""} placeholder="kg" title="Suggested working weight (kg) shown to the athlete as a hint (not a cap)." onChange={(e) => altMutRow(d.id, ex.id, { suggest: e.target.value })} />
                             )}
                             <select className="cc-in cc-in-scheme" value={ex.scheme} onChange={(e) => altMutRow(d.id, ex.id, { scheme: e.target.value, ...(e.target.value === "Timed" ? { intensity: "seconds" as IntensityType, value: ex.intensity === "seconds" ? ex.value : "" } : {}) })}>
                               {!SCHEMES.includes(ex.scheme as (typeof SCHEMES)[number]) && <option value={ex.scheme}>{ex.scheme || "—"}</option>}

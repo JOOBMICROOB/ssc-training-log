@@ -23,6 +23,7 @@ export type ExRow = {
   reps: string;
   intensity: IntensityType;
   value: string;
+  suggest?: string; // advisory working weight (kg) shown to the athlete as a hint
   scheme: string;
   mainLift: MainLift | null;
 };
@@ -110,6 +111,7 @@ function exToRow(ex: ExerciseTemplate): ExRow {
     reps: first?.targetReps ?? "",
     intensity,
     value,
+    suggest: first?.targetSuggest ?? "",
     scheme: "Top set",
     mainLift: ex.mainLift,
   };
@@ -132,6 +134,9 @@ function rowToEx(row: ExRow): ExerciseTemplate {
     // Carry the coach's prescription through to the athlete's set.
     targetLoad: fixed ? row.value : undefined,
     targetPercent: row.intensity === "percent" ? row.value : undefined,
+    // Advisory suggested load — only meaningful when there isn't already a fixed
+    // load (RPE / %1RM / to-failure rows). Shown to the athlete as a hint, not a cap.
+    targetSuggest: !fixed && row.suggest?.trim() ? row.suggest.trim() : undefined,
     fixedLoad: fixed || undefined,
     toFailure: failure || undefined,
     timed: timed || undefined,
