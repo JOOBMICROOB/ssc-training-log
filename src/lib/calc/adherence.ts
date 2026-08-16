@@ -3,7 +3,7 @@
 // Rule (from the coach):
 //  • Training load = how complete the week's logging is. When every prescribed
 //    set has a weight AND every required RPE is entered, training = 90%.
-//  • The final 10% is two "extras": logging bodyweight more than 4× in the week,
+//  • The final 10% is two "extras": logging bodyweight at least 3× in the week,
 //    and entering the weekly check-in scores. Each extra is worth 5%.
 //  • So a fully-logged week with both extras = 100%.
 //
@@ -38,14 +38,14 @@ export type AdherenceView = {
 const CIRC = { sets: 2 * Math.PI * 40, rpe: 2 * Math.PI * 28, extras: 2 * Math.PI * 16 };
 const TRAINING_WEIGHT = 90; // % that full set+RPE logging is worth
 const EXTRAS_WEIGHT = 10; // % the two extras carry
-const BW_TARGET = 4; // "more than 4 times a week"
+const BW_TARGET = 3; // "3 bodyweight logs a week clears the extra"
 
 const frac = (done: number, total: number) => (total > 0 ? done / total : 0);
 const dash = (done: number, total: number, circ: number) =>
   `${(frac(done, total) * circ).toFixed(1)} ${circ.toFixed(1)}`;
 
 export function computeAdherence(i: AdherenceInput): AdherenceView {
-  const extrasDone = (i.bwLogsThisWeek > BW_TARGET ? 1 : 0) + (i.weeklyScoresEntered ? 1 : 0);
+  const extrasDone = (i.bwLogsThisWeek >= BW_TARGET ? 1 : 0) + (i.weeklyScoresEntered ? 1 : 0);
 
   // Pool sets and RPE so full logging lands exactly on the training weight.
   const logged = i.setsDone + i.rpeDone;
