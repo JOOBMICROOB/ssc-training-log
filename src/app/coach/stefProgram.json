@@ -73,7 +73,7 @@
                   "video": "",
                   "sets": 2,
                   "reps": "10-12",
-                  "intensity": "rpe",
+                  "intensity": "failure",
                   "value": "",
                   "scheme": "Accessory",
                   "mainLift": null
@@ -85,7 +85,7 @@
                   "video": "",
                   "sets": 2,
                   "reps": "8-10",
-                  "intensity": "rpe",
+                  "intensity": "failure",
                   "value": "",
                   "scheme": "Accessory",
                   "mainLift": null
@@ -128,7 +128,7 @@
                   "video": "",
                   "sets": 3,
                   "reps": "8-10",
-                  "intensity": "rpe",
+                  "intensity": "failure",
                   "value": "",
                   "scheme": "Working set",
                   "mainLift": "bench"
@@ -176,7 +176,7 @@
                   "video": "",
                   "sets": 2,
                   "reps": "10-15",
-                  "intensity": "rpe",
+                  "intensity": "failure",
                   "value": "",
                   "scheme": "Accessory",
                   "mainLift": null
@@ -237,7 +237,7 @@
                   "video": "",
                   "sets": 3,
                   "reps": "12-15",
-                  "intensity": "rpe",
+                  "intensity": "failure",
                   "value": "",
                   "scheme": "Accessory",
                   "mainLift": null
@@ -249,7 +249,7 @@
                   "video": "",
                   "sets": 2,
                   "reps": "10-12",
-                  "intensity": "rpe",
+                  "intensity": "failure",
                   "value": "",
                   "scheme": "Accessory",
                   "mainLift": null
@@ -261,7 +261,7 @@
                   "video": "",
                   "sets": 2,
                   "reps": "12-15",
-                  "intensity": "rpe",
+                  "intensity": "failure",
                   "value": "",
                   "scheme": "Accessory",
                   "mainLift": null
@@ -316,7 +316,7 @@
                   "video": "",
                   "sets": 3,
                   "reps": "10-12",
-                  "intensity": "rpe",
+                  "intensity": "failure",
                   "value": "",
                   "scheme": "Accessory",
                   "mainLift": null
@@ -328,7 +328,7 @@
                   "video": "",
                   "sets": 2,
                   "reps": "12-15",
-                  "intensity": "rpe",
+                  "intensity": "failure",
                   "value": "",
                   "scheme": "Accessory",
                   "mainLift": null
@@ -340,7 +340,7 @@
                   "video": "",
                   "sets": 2,
                   "reps": "10-12",
-                  "intensity": "rpe",
+                  "intensity": "failure",
                   "value": "",
                   "scheme": "Accessory",
                   "mainLift": null
@@ -407,7 +407,7 @@
                   "video": "",
                   "sets": 2,
                   "reps": "10-12",
-                  "intensity": "rpe",
+                  "intensity": "failure",
                   "value": "",
                   "scheme": "Accessory",
                   "mainLift": null
@@ -419,7 +419,7 @@
                   "video": "",
                   "sets": 2,
                   "reps": "10-12",
-                  "intensity": "rpe",
+                  "intensity": "failure",
                   "value": "",
                   "scheme": "Accessory",
                   "mainLift": null
