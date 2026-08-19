@@ -1,0 +1,440 @@
+{
+  "athleteId": "SB428",
+  "currentWeekId": "wk_stef_1",
+  "mesocycles": [
+    {
+      "id": "meso_stef",
+      "name": "BLOCK 1",
+      "color": "#5980a6",
+      "weeks": [
+        {
+          "id": "wk_stef_1",
+          "name": "WEEK 1",
+          "status": "draft",
+          "startDate": "2026-08-17",
+          "days": [
+            {
+              "id": "day_stef_1",
+              "weekday": 1,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_s4_0",
+                  "name": "RDL",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "7",
+                  "intensity": "rpe",
+                  "value": "5",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_s4_1",
+                  "name": "RDL",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "7",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_s4_2",
+                  "name": "2CT paused benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_s4_3",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "3",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_s4_4",
+                  "name": "Pullups",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s4_5",
+                  "name": "Unilateral row",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s4_6",
+                  "name": "Bicep curls of choice",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_stef_2",
+              "weekday": 2,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_s5_0",
+                  "name": "Comp squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "5",
+                  "intensity": "fixed",
+                  "value": "150",
+                  "scheme": "Working set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_s5_1",
+                  "name": "Close grip smith machine benchpress",
+                  "cue": "slight incline",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Working set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_s5_2",
+                  "name": "Single leg leg extension",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "6-7",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s5_3",
+                  "name": "Hamstring curls",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s5_4",
+                  "name": "Chest flies",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "12-15",
+                  "intensity": "rpe",
+                  "value": "7-8",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s5_5",
+                  "name": "Single arm tricep extension",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-15",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_stef_3",
+              "weekday": 3,
+              "rest": true,
+              "exercises": []
+            },
+            {
+              "id": "day_stef_4",
+              "weekday": 4,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_s1_0",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_s1_1",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_s1_2",
+                  "name": "Incline dumbell press",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s1_3",
+                  "name": "Lateral raises",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "12-15",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s1_4",
+                  "name": "Bicep curls",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s1_5",
+                  "name": "Cable/Machine ab curls",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "12-15",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_stef_5",
+              "weekday": 5,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_s2_0",
+                  "name": "2CT paused squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_s2_1",
+                  "name": "2CT paused squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "3",
+                  "intensity": "fixed",
+                  "value": "150",
+                  "scheme": "Working set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_s2_2",
+                  "name": "Hacksquats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Working set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_s2_3",
+                  "name": "Leg extension",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s2_4",
+                  "name": "Copenhagen pulses on knees",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "12-15",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s2_5",
+                  "name": "Calve raises",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_stef_6",
+              "weekday": 6,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_s3_0",
+                  "name": "2CT paused deadlift",
+                  "cue": "RPE6",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "1",
+                  "intensity": "fixed",
+                  "value": "185",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_s3_1",
+                  "name": "TNG Benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_s3_2",
+                  "name": "Single leg legpress",
+                  "cue": "high placement",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s3_3",
+                  "name": "Shoulder press",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s3_4",
+                  "name": "Row of choice",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_s3_5",
+                  "name": "Tricep of choice",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_stef_0",
+              "weekday": 0,
+              "rest": true,
+              "exercises": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
