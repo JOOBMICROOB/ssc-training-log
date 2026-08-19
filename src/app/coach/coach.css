@@ -2259,3 +2259,65 @@
   border-top: 1px solid var(--divider);
   padding: 18px;
 }
+
+/* ---- week-over-week diff (builder + viewer) ---- */
+.cc-diff-count {
+  font: 600 10px/1 var(--font-heading);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+  padding: 4px 9px;
+  border-radius: 999px;
+}
+.cc-diff-count-zero { color: var(--muted); background: color-mix(in srgb, var(--muted) 12%, transparent); }
+
+/* colored left-edge on any row that differs from last week */
+.cc-ex-row.cc-diff-changed, .cc-view-ex.cc-diff-changed { box-shadow: inset 3px 0 0 var(--warn); }
+.cc-ex-row.cc-diff-new, .cc-view-ex.cc-diff-new { box-shadow: inset 3px 0 0 var(--good); }
+.cc-view-ex.cc-diff-changed, .cc-view-ex.cc-diff-new { padding-left: 8px; border-radius: 4px; }
+
+.cc-diffline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 3px;
+  font: 500 10px/1.3 var(--font-body);
+}
+.cc-diff-newchip {
+  font: 700 9px/1 var(--font-heading);
+  letter-spacing: 0.1em;
+  color: var(--good);
+  background: color-mix(in srgb, var(--good) 15%, transparent);
+  padding: 3px 7px;
+  border-radius: 5px;
+}
+.cc-diff-seg { display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.cc-diff-lbl { color: var(--muted); text-transform: uppercase; font-size: 8.5px; letter-spacing: 0.08em; }
+.cc-diff-from { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; opacity: 0.85; }
+.cc-diff-arrow { color: var(--muted); }
+.cc-diff-to { font-weight: 700; }
+.cc-diff-up .cc-diff-to, .cc-diff-up .cc-diff-arrow { color: var(--good); }
+.cc-diff-down .cc-diff-to, .cc-diff-down .cc-diff-arrow { color: var(--warn); }
+.cc-diff-flat .cc-diff-to { color: var(--accent-700); }
+
+/* ghost row for an exercise dropped since last week */
+.cc-ex-removed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--divider) 60%, transparent);
+  opacity: 0.72;
+}
+.cc-removed-chip {
+  font: 700 8.5px/1 var(--font-heading);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 13%, transparent);
+  padding: 3px 7px;
+  border-radius: 5px;
+}
+.cc-removed-name { font: 500 12px/1 var(--font-body); color: var(--muted); text-decoration: line-through; }
+.cc-removed-meta { font: 400 10px/1 var(--font-body); color: var(--muted); }

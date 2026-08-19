@@ -463,3 +463,62 @@ export function progressWeek(src: Week, name: string, opts: ProgressOpts = {}): 
     })),
   };
 }
+
+// --- week-over-week diff -----------------------------------------------------
+// Compares a week's rows to the same day in the previous week (same block) so
+// the builder / viewer can flag exactly what a coach changed: prescription,
+// suggested load, reps, sets, plus added (NEW) and removed exercises.
+
+export type DiffChange = { from: string; to: string; dir: "up" | "down" | "flat" };
+export type RowDiff = { isNew: boolean; changed: boolean; presc?: DiffChange; suggest?: DiffChange; reps?: DiffChange; sets?: DiffChange };
+export type DayDiff = { diffs: RowDiff[]; removed: ExRow[]; count: number };
+
+/** Human label of a row's intensity prescription (RPE7 / 120 kg / 80% / to failure / 40 s). */
+export function rowPresc(ex: ExRow): string {
+  switch (ex.intensity) {
+    case "fixed":
+    case "load": return `${ex.value || "?"} kg`;
+    case "percent": return `${ex.value || "?"}%`;
+    case "failure": return "to failure";
+    case "seconds": return `${ex.value || "?"} s`;
+    default: return ex.value ? `RPE${ex.value}` : "—";
+  }
+}
+const diffNum = (s: string): number | null => {
+  const n = parseFloat(String(s).replace(",", "."));
+  return isFinite(n) ? n : null;
+};
+function mkChange(from: string, to: string, fromN: number | null, toN: number | null): DiffChange {
+  const dir = fromN != null && toN != null ? (toN > fromN ? "up" : toN < fromN ? "down" : "flat") : "flat";
+  return { from, to, dir };
+}
+/** Diff one row against its previous-week match. prev === undefined ⇒ a new row. */
+export function diffRow(cur: ExRow, prev: ExRow | undefined): RowDiff {
+  if (!prev) return { isNew: true, changed: true };
+  const presc = rowPresc(cur) !== rowPresc(prev) ? mkChange(rowPresc(prev), rowPresc(cur), diffNum(prev.value), diffNum(cur.value)) : undefined;
+  const cs = (cur.suggest ?? "").trim(), ps = (prev.suggest ?? "").trim();
+  const suggest = cs !== ps && (cs || ps) ? mkChange(ps ? `${ps} kg` : "—", cs ? `${cs} kg` : "—", diffNum(ps), diffNum(cs)) : undefined;
+  const reps = cur.reps !== prev.reps ? { from: prev.reps || "—", to: cur.reps || "—", dir: "flat" as const } : undefined;
+  const sets = cur.sets !== prev.sets ? mkChange(String(prev.sets), String(cur.sets), prev.sets, cur.sets) : undefined;
+  return { isNew: false, changed: !!(presc || suggest || reps || sets), presc, suggest, reps, sets };
+}
+/**
+ * Diff a day's current rows against the same day last week. Matched by exercise
+ * name, honoring duplicates by order of appearance.
+ *  - prevRows === null ⇒ no previous week (block's week 1): nothing is flagged.
+ *  - prevRows === []   ⇒ the day existed last week but was empty/rest: rows are NEW.
+ */
+export function diffDay(cur: ExRow[], prevRows: ExRow[] | null): DayDiff {
+  if (prevRows === null) return { diffs: cur.map(() => ({ isNew: false, changed: false })), removed: [], count: 0 };
+  const used = new Set<number>();
+  const take = (name: string): ExRow | undefined => {
+    const key = name.trim().toLowerCase();
+    for (let i = 0; i < prevRows.length; i++) {
+      if (!used.has(i) && prevRows[i].name.trim().toLowerCase() === key) { used.add(i); return prevRows[i]; }
+    }
+    return undefined;
+  };
+  const diffs = cur.map((c) => diffRow(c, take(c.name)));
+  const removed = prevRows.filter((_, i) => !used.has(i));
+  return { diffs, removed, count: diffs.filter((d) => d.changed).length + removed.length };
+}

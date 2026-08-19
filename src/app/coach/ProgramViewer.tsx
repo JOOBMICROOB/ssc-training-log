@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { loadProgram, weekOrder, dayDate, weekForToday, WEEKDAY_NAME, type Week, type ExRow } from "./coachProgram";
+import { loadProgram, weekOrder, dayDate, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, type Week, type ExRow, type DayDiff } from "./coachProgram";
+import { DiffLine } from "./DiffLine";
 import { weekState, WEEK_STATE_LABEL } from "./coachStats";
 import { getSessionFor } from "../../lib/data/athleteData";
 import { epleyE1rm } from "../../lib/calc/epley";
@@ -20,7 +21,7 @@ const LAYOUT_KEY = "ssc.coach.viewLayout";
 
 type ViewSet = { reps: string; target: string; loggedKg: number | null; rpe: number | null; note: string };
 type ViewEx = { name: string; mainLift: MainLift | null; scheme: string; sets: ViewSet[] };
-type ViewDay = { weekday: number; date: string | null; rest: boolean; exercises: ViewEx[]; sessionRpe: number | null; pain: number | null };
+type ViewDay = { weekday: number; date: string | null; rest: boolean; exercises: ViewEx[]; sessionRpe: number | null; pain: number | null; diff: DayDiff };
 
 const LIFTS: MainLift[] = ["squat", "bench", "deadlift"];
 const LIFT_LABEL: Record<MainLift, string> = { squat: "SQUAT", bench: "BENCH", deadlift: "DEADLIFT" };
@@ -45,7 +46,7 @@ function rowTarget(r: ExRow): string {
   return (r.value ? `RPE${r.value}` : "") + sug;
 }
 
-function buildDays(week: Week, live: boolean, athleteId: string): ViewDay[] {
+function buildDays(week: Week, live: boolean, athleteId: string, prevWeek: Week | null): ViewDay[] {
   return weekOrder(week).map((wd) => {
     const d = week.days.find((x) => x.weekday === wd)!;
     const date = dayDate(week, wd);
@@ -53,10 +54,13 @@ function buildDays(week: Week, live: boolean, athleteId: string): ViewDay[] {
     // The prescription always comes from what the coach BUILT (so drafts show);
     // the athlete's logged loads (if any) are overlaid on top, by position.
     const session = live && date && !rest ? getSessionFor(athleteId, date) : null;
+    // Diff vs the same weekday last week (null prevWeek ⇒ block's first week).
+    const prevRows = prevWeek ? (() => { const pd = prevWeek.days.find((p) => p.weekday === wd); return pd && !pd.rest ? pd.exercises : []; })() : null;
     return {
       weekday: wd,
       date,
       rest,
+      diff: diffDay(d.exercises, prevRows),
       sessionRpe: session?.sessionRpe ?? null,
       pain: session?.pain ?? null,
       exercises: d.exercises.map((r, ei) => {
@@ -151,19 +155,20 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
       </div>
 
       <div className={layout === "cols" ? "cc-wk-cols" : "cc-wk-stack"}>
-        {meso.weeks.map((w) => (
-          <WeekBlock key={w.id} week={w} live={live} athleteId={athleteId} current={w.id === currentId} athleteName={athleteName} layout={layout} open={layout === "cols" || openWeeks.has(w.id)} onToggle={() => toggleWeek(w.id)} />
+        {meso.weeks.map((w, wi) => (
+          <WeekBlock key={w.id} week={w} prevWeek={wi > 0 ? meso.weeks[wi - 1] : null} live={live} athleteId={athleteId} current={w.id === currentId} athleteName={athleteName} layout={layout} open={layout === "cols" || openWeeks.has(w.id)} onToggle={() => toggleWeek(w.id)} />
         ))}
       </div>
     </div>
   );
 }
 
-function WeekBlock({ week, live, athleteId, current, athleteName, layout, open, onToggle }: { week: Week; live: boolean; athleteId: string; current: boolean; athleteName: string; layout: Layout; open: boolean; onToggle: () => void }) {
+function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layout, open, onToggle }: { week: Week; prevWeek: Week | null; live: boolean; athleteId: string; current: boolean; athleteName: string; layout: Layout; open: boolean; onToggle: () => void }) {
   const cols = layout === "cols";
-  const days = useMemo(() => buildDays(week, live, athleteId), [week, live, athleteId]);
+  const days = useMemo(() => buildDays(week, live, athleteId, prevWeek), [week, live, athleteId, prevWeek]);
   const { base, totalVol, anyLogged } = useMemo(() => computeStats(days), [days]);
   const state = weekState(athleteId, week, live);
+  const totalChanges = days.reduce((s, dv) => s + dv.diff.count, 0);
 
   return (
     <div className={`cc-wk-block${current ? " cc-wk-current" : ""}${cols ? " cc-wk-block-col" : ""}`}>
@@ -172,7 +177,9 @@ function WeekBlock({ week, live, athleteId, current, athleteName, layout, open, 
           <div className="cc-wk-title">{week.name}
             {current && <span className="cc-now-badge" style={{ marginLeft: 8 }}><span className="cc-now-dot" style={{ boxShadow: "none" }} />ON NOW</span>}
           </div>
-          <div className="cc-wk-dates">{fmtRange(week.startDate)} · <span className={`cc-wk-status cc-st-${state}`}>{WEEK_STATE_LABEL[state]}</span></div>
+          <div className="cc-wk-dates">{fmtRange(week.startDate)} · <span className={`cc-wk-status cc-st-${state}`}>{WEEK_STATE_LABEL[state]}</span>
+            {prevWeek && <span className={`cc-diff-count${totalChanges ? "" : " cc-diff-count-zero"}`} style={{ marginLeft: 8 }}>{totalChanges ? `${totalChanges} change${totalChanges === 1 ? "" : "s"} vs ${prevWeek.name}` : `no changes vs ${prevWeek.name}`}</span>}
+          </div>
         </div>
 
         <div className="cc-wk-metrics">
@@ -214,12 +221,15 @@ function WeekBlock({ week, live, athleteId, current, athleteName, layout, open, 
                     </span>
                   )}
                 </div>
-                {dv.exercises.map((ex, i) => (
-                  <div key={i} className="cc-view-ex">
+                {dv.exercises.map((ex, i) => {
+                  const rdiff = prevWeek ? dv.diff.diffs[i] : undefined;
+                  return (
+                  <div key={i} className={`cc-view-ex${rdiff?.isNew ? " cc-diff-new" : rdiff?.changed ? " cc-diff-changed" : ""}`}>
                     <div className="cc-view-ex-head">
                       <span className="cc-view-ex-name">{ex.name}</span>
                       <span className="cc-view-ex-scheme">{ex.scheme}</span>
                     </div>
+                    {rdiff && <DiffLine d={rdiff} prevName={prevWeek?.name} />}
                     <div className="cc-view-sets">
                       {ex.sets.map((s, si) => (
                         <div key={si}>
@@ -232,6 +242,14 @@ function WeekBlock({ week, live, athleteId, current, athleteName, layout, open, 
                         </div>
                       ))}
                     </div>
+                  </div>
+                  );
+                })}
+                {prevWeek && dv.diff.removed.map((r) => (
+                  <div key={`rm_${r.id}`} className="cc-view-ex cc-ex-removed">
+                    <span className="cc-removed-chip">removed</span>
+                    <span className="cc-removed-name">{r.name}</span>
+                    <span className="cc-removed-meta">was {r.sets}×{r.reps} · {rowPresc(r)}</span>
                   </div>
                 ))}
               </div>

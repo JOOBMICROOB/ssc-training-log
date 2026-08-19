@@ -21,6 +21,9 @@ import {
   WEEK_ORDER,
   WEEKDAY_NAME,
   SCHEMES,
+  diffDay,
+  rowPresc,
+  type DayDiff,
   type Program,
   type Week,
   type Day,
@@ -31,6 +34,7 @@ import {
 } from "./coachProgram";
 import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel } from "../../lib/data/athleteData";
 import { notifyAthletePublished } from "../../lib/auth/coachAuth";
+import { DiffLine } from "./DiffLine";
 import { fmtKg } from "../../lib/calc/records";
 import { weekState, WEEK_STATE_LABEL, weekLiftStats } from "./coachStats";
 import { Avatar } from "./Avatar";
@@ -81,6 +85,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   const [newExVideo, setNewExVideo] = useState("");
   const [renaming, setRenaming] = useState<{ kind: "meso" | "week"; id: string } | null>(null);
   const [repRange, setRepRange] = useState(false);
+  const [showDiff, setShowDiff] = useState(true);
 
   const meso = program.mesocycles.find((m) => m.id === mesoId) ?? program.mesocycles[0];
   const week = meso.weeks.find((w) => w.id === weekId) ?? meso.weeks[meso.weeks.length - 1];
@@ -181,6 +186,18 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prevWeek, live, athleteId]);
+
+  // Week-over-week diff, keyed by day id. null prevRows on a day ⇒ no comparison
+  // (this is the block's first week). Total change count feeds the week header.
+  const diffByDay = useMemo(() => {
+    const out: Record<string, DayDiff> = {};
+    for (const d of week.days) {
+      const prevRows = prevWeek ? (() => { const pd = prevWeek.days.find((p) => p.weekday === d.weekday); return pd && !pd.rest ? pd.exercises : []; })() : null;
+      out[d.id] = diffDay(d.exercises, prevRows);
+    }
+    return out;
+  }, [week, prevWeek]);
+  const totalChanges = useMemo(() => Object.values(diffByDay).reduce((s, dd) => s + dd.count, 0), [diffByDay]);
 
   // ---- shared exercise DB (single store, every coach reads & writes it) ----
   // Add any of these {name, mainLift} to the DB that aren't already there, in a
@@ -754,8 +771,16 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                   </div>
                 </div>
               )}
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <button className="cc-chip" aria-current={repRange} onClick={() => setRepRange((v) => !v)}>Rep ranges · {repRange ? "on" : "off"}</button>
+                {prevWeek && (
+                  <button className="cc-chip" aria-current={showDiff} onClick={() => setShowDiff((v) => !v)}>Changes vs {prevWeek.name} · {showDiff ? "on" : "off"}</button>
+                )}
+                {prevWeek && showDiff && (
+                  <span className={`cc-diff-count${totalChanges ? "" : " cc-diff-count-zero"}`}>
+                    {totalChanges ? `${totalChanges} change${totalChanges === 1 ? "" : "s"} vs ${prevWeek.name}` : `no changes vs ${prevWeek.name}`}
+                  </span>
+                )}
               </div>
               <label className="cc-week-date">
                 Week of
@@ -812,10 +837,12 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                   <span>Exercise · cue</span><span>Video</span><span>Sets</span><span>Reps</span><span>Intensity</span><span>Value</span><span>Suggest kg</span><span>Scheme</span><span style={{ textAlign: "right" }}>Move · copy · ×</span>
                 </div>
 
-                {d.exercises.map((ex) => (
+                {d.exercises.map((ex, exIdx) => {
+                  const rdiff = showDiff && prevWeek ? diffByDay[d.id]?.diffs[exIdx] : undefined;
+                  return (
                   <div
                     key={ex.id}
-                    className={`cc-ex-row${dragEx === ex.id ? " cc-dragging" : ""}${isDropBefore(d.id, ex.id) ? " cc-drop-before cc-drop-before-dot" : ""}`}
+                    className={`cc-ex-row${dragEx === ex.id ? " cc-dragging" : ""}${isDropBefore(d.id, ex.id) ? " cc-drop-before cc-drop-before-dot" : ""}${rdiff?.isNew ? " cc-diff-new" : rdiff?.changed ? " cc-diff-changed" : ""}`}
                     draggable
                     onDragStart={(e) => { e.dataTransfer.setData(DRAG, JSON.stringify({ kind: "row", dayId: d.id, exId: ex.id })); setDragEx(ex.id); }}
                     onDragEnd={() => { setDragEx(null); setDrop(null); }}
@@ -832,6 +859,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         {prevByWeekday[d.weekday]?.[ex.name.toLowerCase()] && (
                           <div className="cc-ex-prev">last wk · {prevByWeekday[d.weekday][ex.name.toLowerCase()]}</div>
                         )}
+                        {rdiff && <DiffLine d={rdiff} prevName={prevWeek?.name} />}
                       </div>
                       <input className="cc-in" placeholder="url" value={ex.video} onChange={(e) => mutRow(d.id, ex.id, { video: e.target.value })} />
                       <input className="cc-in" type="number" min={1} value={ex.sets} onChange={(e) => mutRow(d.id, ex.id, { sets: Math.max(1, Number(e.target.value)) })} />
@@ -881,6 +909,15 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         <button title="Remove" onClick={() => removeRow(d.id, ex.id)}>×</button>
                       </div>
                     </div>
+                  </div>
+                  );
+                })}
+
+                {showDiff && prevWeek && diffByDay[d.id]?.removed.map((r) => (
+                  <div key={`rm_${r.id}`} className="cc-ex-removed">
+                    <span className="cc-removed-chip">removed</span>
+                    <span className="cc-removed-name">{r.name}</span>
+                    <span className="cc-removed-meta">was {r.sets}×{r.reps} · {rowPresc(r)}</span>
                   </div>
                 ))}
 
