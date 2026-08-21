@@ -88,6 +88,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   const [renaming, setRenaming] = useState<{ kind: "meso" | "week"; id: string } | null>(null);
   const [repRange, setRepRange] = useState(false);
   const [showDiff, setShowDiff] = useState(true);
+  const [progress, setProgress] = useState<{ dayId: string; exId: string } | null>(null);
 
   const meso = program.mesocycles.find((m) => m.id === mesoId) ?? program.mesocycles[0];
   const week = meso.weeks.find((w) => w.id === weekId) ?? meso.weeks[meso.weeks.length - 1];
@@ -116,6 +117,42 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     mutWeek((w) => ({ ...w, days: w.days.map((d) => (d.id === dayId ? fn(d) : d)) }));
   const mutRow = (dayId: string, exId: string, patch: Partial<ExRow>) =>
     mutDay(dayId, (d) => ({ ...d, exercises: d.exercises.map((e) => (e.id === exId ? { ...e, ...patch } : e)) }));
+
+  // Intensity progression: spread a start→end value evenly across every week of
+  // the block for one exercise slot (matched by weekday + name + position), so
+  // "RPE7 in wk1 → RPE9 in wk5" auto-fills the logical jumps in between.
+  const applyProgression = (dayId: string, exId: string, kind: "rpe" | "percent", from: number, to: number) => {
+    const day = week.days.find((d) => d.id === dayId);
+    const ex = day?.exercises.find((e) => e.id === exId);
+    if (!day || !ex) return;
+    const weekday = day.weekday;
+    const nameKey = ex.name.trim().toLowerCase();
+    const pos = day.exercises.filter((e) => e.name.trim().toLowerCase() === nameKey).indexOf(ex);
+    const weeks = meso.weeks;
+    const n = weeks.length;
+    const round = kind === "rpe" ? (x: number) => Math.round(x * 2) / 2 : (x: number) => Math.round(x);
+    const valAt = (i: number) => (n <= 1 ? from : round(from + ((to - from) * i) / (n - 1)));
+    mutMeso((m) => ({
+      ...m,
+      weeks: m.weeks.map((w, i) => ({
+        ...w,
+        days: w.days.map((d) => {
+          if (d.weekday !== weekday) return d;
+          let seen = -1;
+          return {
+            ...d,
+            exercises: d.exercises.map((e) => {
+              if (e.name.trim().toLowerCase() !== nameKey) return e;
+              seen++;
+              if (seen !== pos) return e;
+              return { ...e, intensity: kind as IntensityType, value: String(valAt(i)) };
+            }),
+          };
+        }),
+      })),
+    }));
+    setProgress(null);
+  };
 
   // On finishing an exercise name, auto-pick the scheme the coach almost always
   // wants (comp lift / variation → Top/Working set on RPE; else Accessory to
@@ -931,6 +968,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         {SCHEMES.map((s) => <option key={s} value={s}>{s}</option>)}
                       </select>
                       <div className="cc-row-ctl">
+                        <button title="Intensity progression across the block" onClick={() => setProgress({ dayId: d.id, exId: ex.id })}>⋯</button>
                         <button title="Up" onClick={() => nudge(d.id, ex.id, -1)}>↑</button>
                         <button title="Down" onClick={() => nudge(d.id, ex.id, 1)}>↓</button>
                         <button title="Duplicate" onClick={() => dupRow(d.id, ex.id)}>⧉</button>
@@ -1072,6 +1110,61 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
             <button className="cc-fullbtn" style={{ background: "var(--navy)", color: "#fff", borderColor: "var(--navy)" }} onClick={addDbExercise}>Save exercise</button>
           </div>
         </aside>
+      </div>
+
+      {progress && (() => {
+        const day = week.days.find((d) => d.id === progress.dayId);
+        const ex = day?.exercises.find((e) => e.id === progress.exId);
+        if (!ex) return null;
+        return (
+          <ProgressionModal
+            ex={ex}
+            weekNames={meso.weeks.map((w) => w.name)}
+            onApply={(kind, from, to) => applyProgression(progress.dayId, progress.exId, kind, from, to)}
+            onClose={() => setProgress(null)}
+          />
+        );
+      })()}
+    </div>
+  );
+}
+
+/* ---------------------------------------------- intensity progression modal --- */
+function ProgressionModal({ ex, weekNames, onApply, onClose }: { ex: ExRow; weekNames: string[]; onApply: (kind: "rpe" | "percent", from: number, to: number) => void; onClose: () => void }) {
+  const kind: "rpe" | "percent" = ex.intensity === "percent" ? "percent" : "rpe";
+  const cur = parseFloat(String(ex.value).replace(",", "."));
+  const [from, setFrom] = useState(isFinite(cur) ? cur : kind === "rpe" ? 7 : 70);
+  const [to, setTo] = useState(isFinite(cur) ? Math.min(kind === "rpe" ? 10 : 100, (isFinite(cur) ? cur : 7) + (kind === "rpe" ? 2 : 10)) : kind === "rpe" ? 9 : 80);
+  const n = weekNames.length;
+  const round = kind === "rpe" ? (x: number) => Math.round(x * 2) / 2 : (x: number) => Math.round(x);
+  const valAt = (i: number) => (n <= 1 ? from : round(from + ((to - from) * i) / (n - 1)));
+  const unit = kind === "rpe" ? "RPE" : "%";
+  return (
+    <div className="cc-modal-scrim" onClick={onClose}>
+      <div className="cc-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="cc-modal-title">Intensity progression</div>
+        <div className="cc-modal-sub">{ex.name || "this exercise"} · across {n} week{n === 1 ? "" : "s"} of the block · in {kind === "rpe" ? "RPE" : "%1RM"}</div>
+        <div style={{ display: "flex", gap: 14, margin: "16px 0 6px" }}>
+          <label className="cc-prog-field">Start ({unit})
+            <input type="number" step={kind === "rpe" ? 0.5 : 1} value={from} onChange={(e) => setFrom(Number(e.target.value))} />
+          </label>
+          <span style={{ alignSelf: "flex-end", paddingBottom: 8, color: "var(--muted)" }}>→</span>
+          <label className="cc-prog-field">End ({unit})
+            <input type="number" step={kind === "rpe" ? 0.5 : 1} value={to} onChange={(e) => setTo(Number(e.target.value))} />
+          </label>
+        </div>
+        <div className="cc-prog-preview">
+          {weekNames.map((wn, i) => (
+            <div key={i} className="cc-prog-chip"><span>{wn}</span><strong>{unit === "RPE" ? `RPE${valAt(i)}` : `${valAt(i)}%`}</strong></div>
+          ))}
+        </div>
+        <p style={{ font: "400 11px/1.4 var(--font-body)", color: "var(--muted)", margin: "10px 0 0" }}>
+          Applies to this exercise on {ex.name ? "its day" : "this day"} in every week of the block. Even jumps, rounded to {kind === "rpe" ? "0.5" : "1"}.
+        </p>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+          <button className="cc-mini" onClick={onClose}>Cancel</button>
+          <button className="cc-mini cc-mini-solid" onClick={() => onApply(kind, from, to)}>Apply to {n} week{n === 1 ? "" : "s"}</button>
+        </div>
       </div>
     </div>
   );

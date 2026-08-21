@@ -2324,3 +2324,34 @@
 }
 .cc-removed-name { font: 500 12px/1 var(--font-body); color: var(--muted); text-decoration: line-through; }
 .cc-removed-meta { font: 400 10px/1 var(--font-body); color: var(--muted); }
+
+/* ---- intensity progression modal ---- */
+.cc-modal-scrim {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(20, 36, 52, 0.42);
+  display: grid; place-items: center; padding: 20px;
+  backdrop-filter: blur(2px);
+}
+.cc-modal {
+  width: min(94vw, 460px);
+  background: var(--paper, #fff);
+  border: 1px solid var(--divider);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: 0 24px 70px rgba(20, 36, 52, 0.32);
+}
+.cc-modal-title { font: 700 17px/1 var(--font-heading); color: var(--navy); letter-spacing: 0.01em; }
+.cc-modal-sub { margin-top: 5px; font: 400 12px/1.4 var(--font-body); color: var(--muted); }
+.cc-prog-field { display: flex; flex-direction: column; gap: 5px; flex: 1 1 0; font: 600 10px/1 var(--font-heading); letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-700); }
+.cc-prog-field input {
+  padding: 9px 10px; border: 1px solid var(--divider); border-radius: 9px;
+  background: var(--paper, #fff); color: var(--navy); font: 700 18px/1 var(--font-heading); text-align: center;
+}
+.cc-prog-preview { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.cc-prog-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 10px; border: 1px solid var(--divider); border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.cc-prog-chip span { font: 400 8.5px/1 var(--font-body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.cc-prog-chip strong { font: 700 13px/1 var(--font-heading); color: var(--navy); }
