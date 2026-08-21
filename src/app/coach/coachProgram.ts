@@ -6,7 +6,8 @@
  * — so "Publish week to athlete" flows straight to the phone app.
  */
 import { DEFAULT_WEEK } from "../../lib/program/seedProgram";
-import { addDays } from "../../lib/program/program";
+import { addDays, looseLift } from "../../lib/program/program";
+export { looseLift };
 import { getSharedData, setSharedData } from "../../lib/data/athleteData";
 import { inferLift } from "../../lib/program/deriveRecords";
 import type { ExerciseTemplate, MainLift, WeekTemplate } from "../../lib/program/program";
@@ -524,4 +525,16 @@ export function diffDay(cur: ExRow[], prevRows: ExRow[] | null): DayDiff {
   const diffs = cur.map((c) => diffRow(c, take(c.name)));
   const removed = prevRows.filter((_, i) => !used.has(i));
   return { diffs, removed, count: diffs.filter((d) => d.changed).length + removed.length };
+}
+
+// --- smart scheme defaults ---------------------------------------------------
+// When a coach types an exercise name, pick the scheme + intensity they'd almost
+// always want, so they stop setting it by hand: a comp lift or its variation is a
+// working set on RPE (a Top set if it's the first of that lift in the day); anything
+// else is an accessory taken to failure. `priorSameLift` = an earlier row that day
+// already trains this lift.
+export function smartDefaults(name: string, priorSameLift: boolean): { scheme: Scheme; intensity: IntensityType } {
+  const lift = looseLift(name);
+  if (!lift) return { scheme: "Accessory", intensity: "failure" };
+  return { scheme: priorSameLift ? "Working set" : "Top set", intensity: "rpe" };
 }

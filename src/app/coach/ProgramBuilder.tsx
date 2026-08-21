@@ -23,6 +23,8 @@ import {
   SCHEMES,
   diffDay,
   rowPresc,
+  smartDefaults,
+  looseLift,
   type DayDiff,
   type Program,
   type Week,
@@ -114,6 +116,28 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     mutWeek((w) => ({ ...w, days: w.days.map((d) => (d.id === dayId ? fn(d) : d)) }));
   const mutRow = (dayId: string, exId: string, patch: Partial<ExRow>) =>
     mutDay(dayId, (d) => ({ ...d, exercises: d.exercises.map((e) => (e.id === exId ? { ...e, ...patch } : e)) }));
+
+  // On finishing an exercise name, auto-pick the scheme the coach almost always
+  // wants (comp lift / variation → Top/Working set on RPE; else Accessory to
+  // failure). Intensity is only nudged when the row is still on the untouched RPE
+  // default, so a fixed load / % / seconds the coach set on purpose is never lost.
+  const applySmartScheme = (dayId: string, exId: string, name: string) => {
+    if (!name.trim()) return;
+    const day = week.days.find((d) => d.id === dayId);
+    if (!day) return;
+    const idx = day.exercises.findIndex((e) => e.id === exId);
+    const cur = day.exercises[idx];
+    if (!cur) return;
+    const lift = looseLift(name);
+    const prior = !!lift && day.exercises.slice(0, idx).some((e) => looseLift(e.name) === lift);
+    const def = smartDefaults(name, prior);
+    const patch: Partial<ExRow> = { scheme: def.scheme };
+    if (cur.intensity === "rpe" && def.intensity !== "rpe") {
+      patch.intensity = def.intensity;
+      if (def.intensity === "failure") patch.value = "";
+    }
+    mutRow(dayId, exId, patch);
+  };
 
   // Days display starting on the week's chosen start day (Wed-start → Wed…Tue).
   const orderedDays = useMemo(
@@ -851,7 +875,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                   >
                     <div className="cc-ex-cols">
                       <div className="cc-ex-grip">
-                        <input className="cc-ex-name" list="ex-db" value={ex.name} onChange={(e) => mutRow(d.id, ex.id, { name: e.target.value })} onBlur={(e) => ensureInDb(e.target.value, ex.mainLift)} />
+                        <input className="cc-ex-name" list="ex-db" value={ex.name} onChange={(e) => mutRow(d.id, ex.id, { name: e.target.value })} onBlur={(e) => { ensureInDb(e.target.value, ex.mainLift); applySmartScheme(d.id, ex.id, e.target.value); }} />
                         <input className="cc-ex-cue" placeholder="coach cue" value={ex.cue} onChange={(e) => mutRow(d.id, ex.id, { cue: e.target.value })} />
                         {loggedByWeekday[d.weekday]?.[ex.name.toLowerCase()] && (
                           <div className="cc-ex-logged">{loggedByWeekday[d.weekday][ex.name.toLowerCase()]}</div>

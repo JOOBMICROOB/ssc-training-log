@@ -126,7 +126,7 @@ const LIFT_PATTERN: [MainLift, RegExp][] = [
   ["bench", /bench|larsen/],
   ["deadlift", /deadlift|dead ?lift|\brdl\b|romanian|stiff.?leg/],
 ];
-function looseLift(name: string): MainLift | null {
+export function looseLift(name: string): MainLift | null {
   const n = name.trim().toLowerCase();
   for (const [lift, re] of LIFT_PATTERN) if (re.test(n)) return lift;
   return null;

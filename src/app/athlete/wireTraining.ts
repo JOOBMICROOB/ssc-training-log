@@ -16,6 +16,16 @@ import {
 import { addDays, type Session, type SessionExercise, type LoggedSet } from "../../lib/program/program";
 import { fmtKg } from "../../lib/calc/records";
 import { showShareSheet } from "./shareSession";
+import { showToast } from "./toast";
+
+/** Parse a coach load field: "105" → {lo:105,hi:105}; "80-90" → {lo:80,hi:90}. */
+function parseLoadRange(s?: string): { lo: number; hi: number } | null {
+  if (!s) return null;
+  const m = s.replace(",", ".").match(/(\d+(?:\.\d+)?)\s*[-–]\s*(\d+(?:\.\d+)?)/);
+  if (m) { const lo = parseFloat(m[1]), hi = parseFloat(m[2]); return { lo: Math.min(lo, hi), hi: Math.max(lo, hi) }; }
+  const n = parseFloat(s.replace(",", "."));
+  return isFinite(n) ? { lo: n, hi: n } : null;
+}
 
 /**
  * Wires the session-log screen (design 1a): day buttons (2-letter day + S#),
@@ -76,8 +86,13 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   const loadNum = st.targetLoad ? parseFloat(st.targetLoad.replace(",", ".")) : NaN;
   // Advisory suggested load (RPE / % rows) — a starting hint, never a cap.
   const sugNum = st.targetSuggest ? parseFloat(st.targetSuggest.replace(",", ".")) : NaN;
-  // A fixed load: the athlete may only go lighter (capped, with a warning).
-  const fixedKg = st.fixedLoad && isFinite(loadNum) ? loadNum : NaN;
+  // A fixed load: the athlete may only go lighter (capped). The coach may write a
+  // single value ("105") or a range ("80-90") — cap at the top, floor at the low end.
+  const range = st.fixedLoad ? parseLoadRange(st.targetLoad) : null;
+  const capKg = range ? range.hi : NaN; // hard cap (they can match it or go lighter)
+  const minKg = range ? range.lo : NaN; // low end of the range (or the single value)
+  const isSingleFixed = !!range && range.lo === range.hi;
+  const fixedDone = isSingleFixed && st.weightKg != null && !st.prefill; // confirmed at the prescribed load
   // Seed steppers/↺ from the logged weight, else the coach's fixed load or suggestion, else last week.
   const seed = st.weightKg ?? ex.sets[si - 1]?.weightKg ?? (isFinite(loadNum) ? loadNum : isFinite(sugNum) ? sugNum : isFinite(lwNum) ? lwNum : "");
   const val = st.weightKg != null ? fmtKg(st.weightKg) : "";
@@ -128,9 +143,10 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
     </div>
     <div style="display:flex;align-items:center;gap:5px;margin-top:5px;">
       ${step("−", `data-dec="${key}"`)}
-      <input data-wi="${key}" ${isFinite(fixedKg) ? `data-fixed="${fixedKg}"` : ""} ${ro} inputmode="decimal" placeholder="${st.targetLoad ? `${st.targetLoad} kg` : st.targetSuggest ? `${st.targetSuggest} kg` : "kg"}" value="${val}" data-seed="${seed}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 15px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;${inStyle}">
+      <input data-wi="${key}" ${isFinite(capKg) ? `data-fixed="${capKg}"` : ""} ${isFinite(minKg) ? `data-fixmin="${minKg}"` : ""} ${ro} inputmode="decimal" placeholder="${st.targetLoad ? `${st.targetLoad} kg` : st.targetSuggest ? `${st.targetSuggest} kg` : "kg"}" value="${val}" data-seed="${seed}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 15px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;${inStyle}">
       ${step("+", `data-inc="${key}"`)}
       <button data-same="${key}" ${dis} title="Same load as the set before" style="flex:0 0 auto;width:36px;height:36px;border:1px solid rgba(29,31,32,.14);border-radius:9px;background:transparent;color:rgb(65,97,128);font-size:13px;cursor:pointer;">↺</button>
+      ${isSingleFixed ? `<button data-fixdone="${key}" data-fx="${capKg}" ${dis} title="Log the prescribed load — no need to retype it" style="flex:0 0 auto;padding:0 11px;height:36px;border-radius:9px;cursor:pointer;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.05em;border:1px solid ${fixedDone ? "#4f9d69" : "rgba(89,128,166,.45)"};background:${fixedDone ? "rgba(79,157,105,.16)" : "transparent"};color:${fixedDone ? "#2e7d5a" : "#41617f"};">${fixedDone ? "✓ DONE" : "DONE"}</button>` : ""}
       ${failBtn}
     </div>
     ${rpeRow}
@@ -486,7 +502,20 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     }
 
     // edits are gated when the session is confirmed/locked
-    if (t.closest("[data-inc],[data-dec],[data-same],[data-fail],[data-done],[data-secs],[data-wi],[data-note]") && !unlockGate()) return;
+    if (t.closest("[data-inc],[data-dec],[data-same],[data-fail],[data-done],[data-fixdone],[data-secs],[data-wi],[data-note]") && !unlockGate()) return;
+
+    // Fixed-load "DONE": confirm the prescribed load without retyping it (a plain
+    // pre-fill never counts as logged until the athlete confirms). Toggles off.
+    const fixdone = t.closest<HTMLElement>("[data-fixdone]");
+    if (fixdone) {
+      const k = fixdone.dataset.fixdone!;
+      const fx = parseFloat(fixdone.dataset.fx ?? "");
+      let already = false;
+      getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === k) already = st.weightKg != null && !st.prefill; }));
+      if (already) return logSet(athleteId, selected, k, { weightKg: null });
+      if (isFinite(fx)) { logSet(athleteId, selected, k, { weightKg: fx, failed: false }); showToast(`Logged at ${fmtKg(fx)} kg 👍 Going lighter is always fine.`); }
+      return;
+    }
 
     const done = t.closest<HTMLElement>("[data-done]");
     if (done) {
@@ -537,15 +566,20 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
         logSet(athleteId, selected, t.dataset.wi!, { weightKg: null });
       } else {
         let kg = parseKg(v);
-        const fixed = parseFloat(t.dataset.fixed ?? "");
-        if (isFinite(fixed) && isFinite(kg) && kg > fixed) {
-          alert(`This is a fixed load of ${fmtKg(fixed)} kg — you can only match it or go lighter.`);
-          kg = fixed;
+        const cap = parseFloat(t.dataset.fixed ?? ""); // top of the range / the single fixed value
+        const lo = parseFloat(t.dataset.fixmin ?? ""); // low end of the range (== cap when single)
+        const rangeLabel = isFinite(lo) && isFinite(cap) && lo !== cap ? `${fmtKg(lo)}–${fmtKg(cap)} kg range` : `${fmtKg(cap)} kg`;
+        if (isFinite(cap) && isFinite(kg) && kg > cap) {
+          // above the cap → clamp, and reassure (lighter is always the safe direction)
+          showToast(`That's above your ${rangeLabel} — set to ${fmtKg(cap)} kg. Going lighter is completely fine 👍`);
+          kg = cap;
+        } else if (isFinite(lo) && isFinite(kg) && kg < lo) {
+          showToast(`Below your ${rangeLabel} — that's completely fine, lighter is OK 👍`);
         }
         if (isFinite(kg) && kg > 0 && kg <= MAX_SET_KG) {
           logSet(athleteId, selected, t.dataset.wi!, { weightKg: kg, failed: false });
         } else {
-          alert(`Enter a weight in kg between 0 and ${MAX_SET_KG}.`);
+          showToast(`Enter a weight between 0 and ${MAX_SET_KG} kg.`);
           render(); // revert the field to the stored value
         }
       }
