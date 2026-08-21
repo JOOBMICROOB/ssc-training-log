@@ -399,11 +399,17 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     // Week-lock: a future week stays blurred until this week hits ≥50% logging.
     if (isDateWeekLocked(athleteId, selected, today)) {
       const data = getDashboard(athleteId);
-      const curWeekStart = getWeekFor(athleteId, today, today)[0]?.date ?? today;
+      const curWeek = getWeekFor(athleteId, today, today);
+      const curWeekStart = curWeek[0]?.date ?? today;
       const pct = weekCompletionPct(data, curWeekStart, today);
-      // Where "back" takes them: the next day that still needs logging (an unlocked
-      // week), so they're never stranded in a blocked future week.
-      const backTo = firstOpenDate(athleteId, today);
+      // Where "back" takes them: a day in the CURRENT week — the one the lock is
+      // gating on ("you've logged X% of this week"). It's never locked (dw === cw),
+      // unlike scanning forward, which could land on another blocked future week.
+      // Prefer the first session that still needs logging, else the first training day.
+      const backTo =
+        curWeek.find((d) => { const s = getSessionFor(athleteId, d.date); return !s.rest && !s.finished; })?.date ??
+        curWeek.find((d) => !d.rest)?.date ??
+        curWeekStart;
       if (body) body.innerHTML = lockMarkup(week, selected, pct, backTo);
       const finishTxt = host.querySelector<HTMLElement>("#finishTxt");
       const finishNote = host.querySelector<HTMLElement>("#finishNote");
