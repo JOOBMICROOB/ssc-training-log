@@ -14,6 +14,7 @@ import {
   weekOrder,
   startWeekday,
   weekForToday,
+  peekProgram,
   mondayOf,
   shareProgram,
   getSharedPrograms,
@@ -34,6 +35,7 @@ import {
   type ExGroup,
   type IntensityType,
 } from "./coachProgram";
+import { getClients } from "./coachData";
 import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel } from "../../lib/data/athleteData";
 import { notifyAthletePublished } from "../../lib/auth/coachAuth";
 import { DiffLine } from "./DiffLine";
@@ -89,6 +91,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   const [repRange, setRepRange] = useState(false);
   const [showDiff, setShowDiff] = useState(true);
   const [progress, setProgress] = useState<{ dayId: string; exId: string } | null>(null);
+  const [copyFrom, setCopyFrom] = useState(false);
 
   const meso = program.mesocycles.find((m) => m.id === mesoId) ?? program.mesocycles[0];
   const week = meso.weeks.find((w) => w.id === weekId) ?? meso.weeks[meso.weeks.length - 1];
@@ -152,6 +155,20 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
       })),
     }));
     setProgress(null);
+  };
+
+  // Copy another athlete's week structure into the one that's open — a fast start
+  // when a proven layout beats building from zero. Days/rows are deep-cloned with
+  // fresh ids; this week keeps its own name / date / published status.
+  const copyWeekInto = (srcDays: Day[]) => {
+    const days = srcDays.map((d) => ({
+      ...d,
+      id: uid("day"),
+      exercises: d.exercises.map((e) => ({ ...e, id: uid("ex") })),
+      alt: d.alt?.map((e) => ({ ...e, id: uid("ex") })),
+    }));
+    mutWeek((w) => ({ ...w, days }));
+    setCopyFrom(false);
   };
 
   // On finishing an exercise name, auto-pick the scheme the coach almost always
@@ -858,6 +875,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                 <button className="cc-mini cc-mini-solid" style={{ padding: "11px 16px", fontSize: 11 }} onClick={publish}>Publish week to athlete</button>
                 <button className="cc-mini" style={{ padding: "9px 16px", fontSize: 11 }} onClick={publishBlock}>Publish full block →</button>
                 <button className="cc-mini" style={{ padding: "9px 16px", fontSize: 11 }} onClick={() => copyForwardMany(copyN)}>Copy week forward (×{copyN})</button>
+                <button className="cc-mini" style={{ padding: "9px 16px", fontSize: 11 }} onClick={() => setCopyFrom(true)}>Copy from another athlete →</button>
               </div>
             </div>
           </div>
@@ -1125,6 +1143,74 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
           />
         );
       })()}
+
+      {copyFrom && (
+        <CopyWeekModal currentAthleteId={athleteId} onCopy={copyWeekInto} onClose={() => setCopyFrom(false)} />
+      )}
+    </div>
+  );
+}
+
+/* --------------------------------------------- copy a week from another athlete --- */
+function CopyWeekModal({ currentAthleteId, onCopy, onClose }: { currentAthleteId: string; onCopy: (days: Day[]) => void; onClose: () => void }) {
+  // Athletes (other than this one) who actually have a written block to copy from.
+  const sources = useMemo(() => {
+    return getClients()
+      .filter((c) => c.athleteId !== currentAthleteId && !c.disabled)
+      .map((c) => ({ id: c.athleteId, name: c.name, program: peekProgram(c.athleteId) }))
+      .filter((s) => s.program && s.program.mesocycles.some((m) => m.weeks.some((w) => w.days.some((d) => !d.rest && d.exercises.length))));
+  }, [currentAthleteId]);
+
+  const [athlete, setAthlete] = useState(() => sources[0]?.id ?? "");
+  const src = sources.find((s) => s.id === athlete);
+  // Flatten the chosen athlete's weeks into pickable options.
+  const weeks = useMemo(() => {
+    if (!src?.program) return [] as { key: string; label: string; days: Day[]; ex: number }[];
+    return src.program.mesocycles.flatMap((m) =>
+      m.weeks
+        .filter((w) => w.days.some((d) => !d.rest && d.exercises.length))
+        .map((w) => ({
+          key: w.id,
+          label: `${m.name} · ${w.name}`,
+          days: w.days,
+          ex: w.days.reduce((a, d) => a + (d.rest ? 0 : d.exercises.length), 0),
+        })),
+    );
+  }, [src]);
+  const [weekKey, setWeekKey] = useState(() => weeks[0]?.key ?? "");
+  const chosen = weeks.find((w) => w.key === weekKey) ?? weeks[0];
+
+  return (
+    <div className="cc-modal-scrim" onClick={onClose}>
+      <div className="cc-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="cc-modal-title">Copy a week from another athlete</div>
+        <div className="cc-modal-sub">Fills the week you have open with the chosen structure. Names, dates and RPEs come along — the open week keeps its own date and published status.</div>
+        {sources.length === 0 ? (
+          <p style={{ font: "400 12px/1.5 var(--font-body)", color: "var(--muted)", margin: "16px 0" }}>No other athletes have a written block to copy from yet.</p>
+        ) : (
+          <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, margin: "16px 0 6px" }}>
+              <label className="cc-prog-field" style={{ textTransform: "none" }}>Athlete
+                <select className="cc-day-select" value={athlete} onChange={(e) => { setAthlete(e.target.value); setWeekKey(""); }}>
+                  {sources.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </label>
+              <label className="cc-prog-field" style={{ textTransform: "none" }}>Week
+                <select className="cc-day-select" value={chosen?.key ?? ""} onChange={(e) => setWeekKey(e.target.value)}>
+                  {weeks.map((w) => <option key={w.key} value={w.key}>{w.label} · {w.ex} exercises</option>)}
+                </select>
+              </label>
+            </div>
+            <p style={{ font: "400 11px/1.4 var(--font-body)", color: "var(--warn)", margin: "8px 0 0" }}>
+              This replaces every day currently in the open week.
+            </p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+              <button className="cc-mini" onClick={onClose}>Cancel</button>
+              <button className="cc-mini cc-mini-solid" disabled={!chosen} onClick={() => chosen && onCopy(chosen.days)}>Copy into this week</button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
