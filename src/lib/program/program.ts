@@ -20,6 +20,7 @@ export type SetTemplate = {
   targetLoad?: string; // coach-prescribed working weight (kg)
   targetPercent?: string; // coach-prescribed %1RM
   targetSuggest?: string; // advisory working weight (kg) shown as a hint — NOT a cap
+  backoffPct?: number; // auto-backdown: sets after the first are this % below the top set's logged load
   fixedLoad?: boolean; // load is fixed — the athlete may only go lighter, with a warning
   toFailure?: boolean; // no target — push to failure and log what you did
   timed?: boolean; // a time-based hold — no weight, athlete just marks it done
@@ -196,7 +197,21 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
             prev?.weightKg != null
               ? `${fmtKg(prev.weightKg)} kg${prev.rpe != null ? ` @ RPE${prev.rpe}` : ""}${prev.failed ? " · failed" : ""}`
               : "";
-          return { ...st, key, weightKg, rpe, note: log.note ?? "", failed, done, heldSeconds, prefill, lastWeek: lw };
+          // Auto-backdown: every set after the first is a fixed load computed live
+          // from the top set's LOGGED weight, e.g. 10% ⇒ 100 kg top → 90 kg backoffs.
+          let targetLoad = st.targetLoad;
+          let fixedLoad = st.fixedLoad;
+          if (st.backoffPct != null && si >= 1) {
+            const topKg = dayLog.sets?.[`${kp}${ei}_0`]?.weightKg;
+            if (topKg != null && topKg > 0) {
+              targetLoad = String(Math.round((topKg * (1 - st.backoffPct / 100)) / 2.5) * 2.5);
+              fixedLoad = true;
+            } else {
+              targetLoad = undefined; // top set not logged yet — show the % hint instead
+              fixedLoad = false;
+            }
+          }
+          return { ...st, targetLoad, fixedLoad, key, weightKg, rpe, note: log.note ?? "", failed, done, heldSeconds, prefill, lastWeek: lw };
         });
         // Compact last-week summary for the collapsed header.
         const prevWeights = ex.sets

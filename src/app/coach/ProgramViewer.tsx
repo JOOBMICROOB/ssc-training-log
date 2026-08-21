@@ -38,6 +38,7 @@ function fmtRange(startDate?: string) {
 }
 function rowTarget(r: ExRow): string {
   if (r.intensity === "seconds") return `${r.value || "?"} s`;
+  if (r.intensity === "backoff") return `−${r.value || "?"}% off top set`;
   if (r.intensity === "load" || r.intensity === "fixed") return `${r.value} kg`;
   // Advisory suggested kg (RPE / % / to-failure rows) shown alongside the target.
   const sug = r.suggest?.trim() ? ` · ~${r.suggest.trim()} kg` : "";

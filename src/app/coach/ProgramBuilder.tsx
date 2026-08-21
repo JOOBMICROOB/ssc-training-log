@@ -193,6 +193,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     : ex.intensity === "percent" ? `${ex.value || "?"}%`
     : ex.intensity === "failure" ? "to failure"
     : ex.intensity === "seconds" ? `${ex.value || "?"} s`
+    : ex.intensity === "backoff" ? `−${ex.value || "?"}% off top`
     : ex.value ? `RPE${ex.value}` : "—";
   const prevByWeekday = useMemo(() => {
     const out: Record<number, Record<string, string>> = {};
@@ -905,11 +906,14 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         <option value="fixed">Load</option>
                         <option value="failure">Failure</option>
                         <option value="seconds">Seconds</option>
+                        <option value="backoff">Backoff %</option>
                       </select>
                       {ex.intensity === "failure" ? (
                         <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)", font: "500 10px/1 var(--font-body)", letterSpacing: ".05em" }} title="No target — the athlete pushes to failure.">TO FAILURE</div>
                       ) : ex.intensity === "seconds" ? (
                         <input className="cc-in" value={ex.value} placeholder="secs" title="Hold time in seconds (e.g. 40-60) — the athlete just marks it done" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
+                      ) : ex.intensity === "backoff" ? (
+                        <input className="cc-in" value={ex.value} placeholder="% off top" title="Auto-backdown: every set after set 1 is this % below the TOP set's logged weight (e.g. 10 → a 100 kg top set gives 90 kg backoffs)." onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
                       ) : ex.intensity === "rpe" ? (
                         <input className="cc-in" list="rpe-opts" value={ex.value} placeholder="RPE" title="Target RPE (5–10, or a range)" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
                       ) : ex.intensity === "percent" ? (
@@ -917,12 +921,12 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                       ) : (
                         <input className="cc-in" value={ex.value} placeholder="kg" title="Working load (kg) — the athlete can only go lighter" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
                       )}
-                      {ex.intensity === "fixed" || ex.intensity === "load" || ex.intensity === "seconds" ? (
+                      {ex.intensity === "fixed" || ex.intensity === "load" || ex.intensity === "seconds" || ex.intensity === "backoff" ? (
                         <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)" }} title="This row already shows a concrete number — no separate suggestion needed.">—</div>
                       ) : (
                         <input className="cc-in" value={ex.suggest ?? ""} placeholder={ex.intensity === "percent" && pctToKg(ex) ? pctToKg(ex) : "kg"} title="Suggested working weight (kg) — shown to the athlete as a hint. It does NOT cap what they enter." onChange={(e) => mutRow(d.id, ex.id, { suggest: e.target.value })} />
                       )}
-                      <select className="cc-in cc-in-scheme" value={ex.scheme} onChange={(e) => mutRow(d.id, ex.id, { scheme: e.target.value, ...(e.target.value === "Timed" ? { intensity: "seconds" as IntensityType, value: ex.intensity === "seconds" ? ex.value : "" } : {}) })}>
+                      <select className="cc-in cc-in-scheme" value={ex.scheme} onChange={(e) => mutRow(d.id, ex.id, { scheme: e.target.value, ...(e.target.value === "Timed" ? { intensity: "seconds" as IntensityType, value: ex.intensity === "seconds" ? ex.value : "" } : e.target.value === "Auto backdown" ? { intensity: "backoff" as IntensityType, value: ex.intensity === "backoff" ? ex.value : "10" } : {}) })}>
                         {!SCHEMES.includes(ex.scheme as (typeof SCHEMES)[number]) && <option value={ex.scheme}>{ex.scheme || "—"}</option>}
                         {SCHEMES.map((s) => <option key={s} value={s}>{s}</option>)}
                       </select>

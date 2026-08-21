@@ -16,7 +16,7 @@ import liezeProgram from "./liezeProgram.json";
 import stefProgram from "./stefProgram.json";
 import zitaProgram from "./zitaProgram.json";
 
-export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure" | "seconds";
+export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure" | "seconds" | "backoff";
 export type ExRow = {
   id: string;
   name: string;
@@ -45,7 +45,7 @@ export function inferGroup(mainLift: MainLift | null): ExGroup {
 
 // Monday-first weekday order for display (0=Sun … 6=Sat).
 /** Set schemes the coach can tag a row with — shown on the athlete's app too. */
-export const SCHEMES = ["Warm-up", "Top set", "Working set", "Back-off", "M.Fatigue", "Fatigue", "Accessory", "Optional", "Timed"] as const;
+export const SCHEMES = ["Warm-up", "Top set", "Working set", "Back-off", "Auto backdown", "M.Fatigue", "Fatigue", "Accessory", "Optional", "Timed"] as const;
 export type Scheme = (typeof SCHEMES)[number];
 
 export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -94,7 +94,9 @@ export function weekForToday(p: Program, todayIso: string): string | undefined {
 // --- converters --------------------------------------------------------------
 function exToRow(ex: ExerciseTemplate): ExRow {
   const first = ex.sets[0];
-  const intensity: IntensityType = first?.timed
+  const intensity: IntensityType = first?.backoffPct != null
+    ? "backoff"
+    : first?.timed
     ? "seconds"
     : first?.toFailure
       ? "failure"
@@ -104,7 +106,7 @@ function exToRow(ex: ExerciseTemplate): ExRow {
           ? "percent"
           : "rpe";
   const value =
-    intensity === "seconds" ? first?.holdSeconds ?? "" : intensity === "fixed" ? first?.targetLoad ?? "" : intensity === "percent" ? first?.targetPercent ?? "" : intensity === "failure" ? "" : first?.targetRpe ?? "";
+    intensity === "backoff" ? String(first?.backoffPct ?? "") : intensity === "seconds" ? first?.holdSeconds ?? "" : intensity === "fixed" ? first?.targetLoad ?? "" : intensity === "percent" ? first?.targetPercent ?? "" : intensity === "failure" ? "" : first?.targetRpe ?? "";
   return {
     id: uid("ex"),
     name: ex.name,
@@ -130,6 +132,8 @@ function rowToEx(row: ExRow): ExerciseTemplate {
   const fixed = row.intensity === "fixed" || row.intensity === "load";
   const failure = row.intensity === "failure";
   const timed = row.intensity === "seconds";
+  const backoff = row.intensity === "backoff";
+  const backoffPct = backoff ? parseFloat(String(row.value).replace(",", ".")) : NaN;
   const sets = Array.from({ length: Math.max(1, row.sets) }, () => ({
     targetReps: row.reps,
     targetRpe: row.intensity === "rpe" ? row.value : "",
@@ -139,7 +143,9 @@ function rowToEx(row: ExRow): ExerciseTemplate {
     targetPercent: row.intensity === "percent" ? row.value : undefined,
     // Advisory suggested load — only meaningful when there isn't already a fixed
     // load (RPE / %1RM / to-failure rows). Shown to the athlete as a hint, not a cap.
-    targetSuggest: !fixed && row.suggest?.trim() ? row.suggest.trim() : undefined,
+    targetSuggest: !fixed && !backoff && row.suggest?.trim() ? row.suggest.trim() : undefined,
+    // Auto-backdown: sets after set 1 are this % below the top set's logged load.
+    backoffPct: backoff && isFinite(backoffPct) ? backoffPct : undefined,
     fixedLoad: fixed || undefined,
     toFailure: failure || undefined,
     timed: timed || undefined,
@@ -485,6 +491,7 @@ export function rowPresc(ex: ExRow): string {
     case "percent": return `${ex.value || "?"}%`;
     case "failure": return "to failure";
     case "seconds": return `${ex.value || "?"} s`;
+    case "backoff": return `−${ex.value || "?"}% off top`;
     default: return ex.value ? `RPE${ex.value}` : "—";
   }
 }
