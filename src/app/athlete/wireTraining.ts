@@ -214,17 +214,18 @@ function altSelector(session: Session): string {
 }
 
 /** Blurred lock screen for a future week the athlete hasn't earned yet. */
-function lockMarkup(week: ReturnType<typeof getWeekFor>, selected: string, currentPct: number): string {
+function lockMarkup(week: ReturnType<typeof getWeekFor>, selected: string, currentPct: number, backTo: string): string {
   const dayRow = `<div style="flex:0 0 auto;display:flex;gap:5px;padding:14px 0 12px;">${dayButtons(week, selected)}</div>`;
   return `${dayRow}
-    <div style="flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:34px 22px;gap:14px;">
+    <div style="flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 22px;gap:14px;">
       <div style="width:64px;height:64px;border-radius:20px;display:grid;place-items:center;background:rgba(89,128,166,.12);border:1px solid rgba(89,128,166,.3);font-size:30px;">🔒</div>
       <div style="font:600 22px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(29,45,61);">NEXT WEEK IS LOCKED</div>
       <div style="max-width:280px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(89,101,115);">
         You've logged <strong>${currentPct}%</strong> of this week so far. Get to <strong>50%</strong> and next week unlocks automatically — it keeps your training honest and your coach's data clean.
       </div>
+      <button data-goto="${backTo}" style="display:inline-flex;align-items:center;gap:8px;margin-top:4px;padding:11px 18px;border-radius:12px;border:1px solid rgb(89,128,166);background:rgb(29,45,61);color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;cursor:pointer;">← BACK TO THE WEEK YOU'RE LOGGING</button>
       <div style="max-width:280px;font:400 11px/1.5 Barlow,sans-serif;color:rgb(138,146,156);">
-        Tap a day from this week above to keep logging. Need it opened early? Message your coach — they can unlock it for you.
+        Need this week opened early? Message your coach — they can unlock it for you.
       </div>
     </div>`;
 }
@@ -400,7 +401,10 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       const data = getDashboard(athleteId);
       const curWeekStart = getWeekFor(athleteId, today, today)[0]?.date ?? today;
       const pct = weekCompletionPct(data, curWeekStart, today);
-      if (body) body.innerHTML = lockMarkup(week, selected, pct);
+      // Where "back" takes them: the next day that still needs logging (an unlocked
+      // week), so they're never stranded in a blocked future week.
+      const backTo = firstOpenDate(athleteId, today);
+      if (body) body.innerHTML = lockMarkup(week, selected, pct, backTo);
       const finishTxt = host.querySelector<HTMLElement>("#finishTxt");
       const finishNote = host.querySelector<HTMLElement>("#finishNote");
       if (finishTxt) finishTxt.textContent = "LOCKED";
@@ -480,6 +484,8 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     const t = e.target as HTMLElement;
     const dayBtn = t.closest<HTMLElement>("[data-day]");
     if (dayBtn) { selected = dayBtn.dataset.day!; manualOpen.clear(); return render(); }
+    const gotoBtn = t.closest<HTMLElement>("[data-goto]");
+    if (gotoBtn) { selected = gotoBtn.dataset.goto!; manualOpen.clear(); return render(); }
     const optBtn = t.closest<HTMLElement>("[data-opt]");
     if (optBtn) {
       setSessionChoice(athleteId, selected, optBtn.dataset.opt as "A" | "B");
