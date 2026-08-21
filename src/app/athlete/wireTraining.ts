@@ -476,7 +476,12 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     const exBtn = t.closest<HTMLElement>("[data-ex]");
     if (exBtn) {
       const i = Number(exBtn.dataset.ex);
-      manualOpen.set(i, !isExOpen(getSessionFor(athleteId, selected), i)); // manual toggle wins
+      const session = getSessionFor(athleteId, selected);
+      const willOpen = !isExOpen(session, i);
+      // Accordion: opening one collapses the rest so the page stays clean. Manual
+      // toggle still wins over the in-progress auto-open, and closing just closes i.
+      if (willOpen) session.exercises.forEach((_, j) => manualOpen.set(j, j === i));
+      else manualOpen.set(i, false);
       return render();
     }
 
@@ -551,16 +556,17 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     if (!isFinished() && t.matches("[data-note]")) logSet(athleteId, selected, t.dataset.note!, { note: t.value });
   }, true);
 
+  // Sliders: repaint the number live on every tick (cheap), but only PERSIST on
+  // release. Saving on each input tick fired a full save + dashboard re-render per
+  // pixel, which is what made the drag stutter.
   painSlider?.addEventListener("input", () => {
-    const v = Number(painSlider.value);
-    host.querySelector<HTMLElement>("#painVal") && (host.querySelector<HTMLElement>("#painVal")!.textContent = String(v));
-    setSessionMeta(athleteId, selected, { pain: v });
+    host.querySelector<HTMLElement>("#painVal") && (host.querySelector<HTMLElement>("#painVal")!.textContent = String(Number(painSlider.value)));
   });
+  painSlider?.addEventListener("change", () => setSessionMeta(athleteId, selected, { pain: Number(painSlider.value) }));
   sessRpeSlider?.addEventListener("input", () => {
-    const v = Number(sessRpeSlider.value);
-    host.querySelector<HTMLElement>("#sessRpeVal") && (host.querySelector<HTMLElement>("#sessRpeVal")!.textContent = String(v));
-    setSessionMeta(athleteId, selected, { sessionRpe: v });
+    host.querySelector<HTMLElement>("#sessRpeVal") && (host.querySelector<HTMLElement>("#sessRpeVal")!.textContent = String(Number(sessRpeSlider.value)));
   });
+  sessRpeSlider?.addEventListener("change", () => setSessionMeta(athleteId, selected, { sessionRpe: Number(sessRpeSlider.value) }));
   finishBtn?.addEventListener("click", () => {
     const s = getSessionFor(athleteId, selected);
     if (s.rest) return;

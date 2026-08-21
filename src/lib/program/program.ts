@@ -117,8 +117,22 @@ export const addDays = (s: string, n: number) => {
   return iso(d);
 };
 
+// Loose lift detection for NAMING ONLY — matches comp lifts AND their variations
+// (2CT paused squat, larsen bench, stiff-legged deadlift, RDL…) by substring, so a
+// session full of squat variants still reads "SQUAT SESSION" instead of "ACCESSORY".
+// PR / volume attribution stays strict (see inferLift) — this never feeds those.
+const LIFT_PATTERN: [MainLift, RegExp][] = [
+  ["squat", /squat/],
+  ["bench", /bench|larsen/],
+  ["deadlift", /deadlift|dead ?lift|\brdl\b|romanian|stiff.?leg/],
+];
+function looseLift(name: string): MainLift | null {
+  const n = name.trim().toLowerCase();
+  for (const [lift, re] of LIFT_PATTERN) if (re.test(n)) return lift;
+  return null;
+}
 export function sessionLifts(ex: ExerciseTemplate[]): MainLift[] {
-  return ORDER.filter((l) => ex.some((e) => e.mainLift === l));
+  return ORDER.filter((l) => ex.some((e) => (e.mainLift ?? looseLift(e.name)) === l));
 }
 
 /** Session title in SBD order, e.g. "BENCH & DEADLIFT SESSION". */
