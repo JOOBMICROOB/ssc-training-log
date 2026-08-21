@@ -13,6 +13,7 @@ import type { ExerciseTemplate, MainLift, WeekTemplate } from "../../lib/program
 import reneeProgram from "./reneeProgram.json";
 import liezeProgram from "./liezeProgram.json";
 import stefProgram from "./stefProgram.json";
+import zitaProgram from "./zitaProgram.json";
 
 export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure" | "seconds";
 export type ExRow = {
@@ -190,6 +191,7 @@ function seedProgram(athleteId: string): Program {
   if (athleteId === "RS1203") return structuredClone(reneeProgram) as Program;
   if (athleteId === "LV222") return structuredClone(liezeProgram) as Program;
   if (athleteId === "SB428") return structuredClone(stefProgram) as Program;
+  if (athleteId === "ZITA") return structuredClone(zitaProgram) as Program;
   // Everyone else: a blank Week 1 dated to THIS week, so the moment the coach
   // adds sessions they land on the calendar / grid for that athlete. It only
   // counts as "planned" once it has real training days (no dummy content).
@@ -291,7 +293,7 @@ export function loadProgram(athleteId: string): Program {
       const parsed = JSON.parse(raw) as Program;
       // A blank cached program (e.g. from opening a seeded athlete on an older
       // build) must not shadow their real backfilled block — fall back to the seed.
-      if (!programHasTraining(parsed) && (athleteId === "RS1203" || athleteId === "LV222" || athleteId === "SB428")) {
+      if (!programHasTraining(parsed) && (athleteId === "RS1203" || athleteId === "LV222" || athleteId === "SB428" || athleteId === "ZITA")) {
         const seed = seedProgram(athleteId);
         saveProgramLocalOnly(seed);
         return seed;
@@ -321,6 +323,7 @@ export function peekProgram(athleteId: string): Program | null {
   if (athleteId === "RS1203") return structuredClone(reneeProgram) as Program;
   if (athleteId === "LV222") return structuredClone(liezeProgram) as Program;
   if (athleteId === "SB428") return structuredClone(stefProgram) as Program;
+  if (athleteId === "ZITA") return structuredClone(zitaProgram) as Program;
   return null;
 }
 // A save hook lets the cloud-sync layer mirror every real edit to Supabase

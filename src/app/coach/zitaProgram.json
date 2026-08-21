@@ -1,0 +1,452 @@
+{
+  "athleteId": "ZITA",
+  "currentWeekId": "wk_zita_1",
+  "mesocycles": [
+    {
+      "id": "meso_zita",
+      "name": "BLOCK 1",
+      "color": "#5980a6",
+      "weeks": [
+        {
+          "id": "wk_zita_1",
+          "name": "WEEK 1",
+          "status": "draft",
+          "startDate": "2026-08-24",
+          "days": [
+            {
+              "id": "day_zita_1",
+              "weekday": 1,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_z1_0",
+                  "name": "Comp squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_z1_1",
+                  "name": "2CT paused squat",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_z1_2",
+                  "name": "Comp squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "4",
+                  "intensity": "fixed",
+                  "value": "105",
+                  "scheme": "Working set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_z1_3",
+                  "name": "2CT paused larsen benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "3",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_z1_4",
+                  "name": "FFE split squats slow eccentric",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z1_5",
+                  "name": "Seated row unilateral",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z1_6",
+                  "name": "Bicep curls of choice",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "failure",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_zita_2",
+              "weekday": 2,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_z2_0",
+                  "name": "2CT paused benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_z2_1",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_z2_2",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "4",
+                  "intensity": "fixed",
+                  "value": "60",
+                  "scheme": "Working set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_z2_3",
+                  "name": "Pulldown of choice",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z2_4",
+                  "name": "Feet up db benchpress paused",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z2_5",
+                  "name": "Adductors machine",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "12-15",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z2_6",
+                  "name": "Cable ab curls",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_zita_3",
+              "weekday": 3,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_z3_0",
+                  "name": "Paused dips",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "5",
+                  "intensity": "rpe",
+                  "value": "6-7",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z3_1",
+                  "name": "Stiff legged block deadlifts",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "5",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_z3_2",
+                  "name": "Lateral raises cable",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "failure",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z3_3",
+                  "name": "Hamstring curls",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "failure",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z3_4",
+                  "name": "Rear delt flies/rows",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "failure",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z3_5",
+                  "name": "Tricep pushdowns of choice",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "8-10",
+                  "intensity": "failure",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_zita_4",
+              "weekday": 4,
+              "rest": true,
+              "exercises": []
+            },
+            {
+              "id": "day_zita_5",
+              "weekday": 5,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_z4_0",
+                  "name": "Comp deadlifts",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "4",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_z4_1",
+                  "name": "Comp deadlifts",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "5",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_z4_2",
+                  "name": "Comp deadlifts",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_z4_3",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "2",
+                  "intensity": "rpe",
+                  "value": "6-7",
+                  "scheme": "Working set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_z4_4",
+                  "name": "Glute hyper extension",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z4_5",
+                  "name": "ABductor machine",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "failure",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_zita_6",
+              "weekday": 6,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_z5_0",
+                  "name": "Comp squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "5",
+                  "intensity": "rpe",
+                  "value": "5",
+                  "scheme": "Working set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_z5_1",
+                  "name": "Close grip benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6",
+                  "intensity": "rpe",
+                  "value": "6.5",
+                  "scheme": "Working set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_z5_2",
+                  "name": "Legpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z5_3",
+                  "name": "Chest press paused",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z5_4",
+                  "name": "Hip flexor faced away",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "12-15",
+                  "intensity": "failure",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_z5_5",
+                  "name": "Lying tricep pushdown",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "failure",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_zita_0",
+              "weekday": 0,
+              "rest": true,
+              "exercises": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
