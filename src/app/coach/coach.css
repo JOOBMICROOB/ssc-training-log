@@ -2365,9 +2365,15 @@
 /* ---- today + done markers (builder + viewer) ---- */
 .cc-today-tag {
   display: inline-block; margin-left: 8px; vertical-align: middle;
-  font: 700 8px/1 var(--font-heading); letter-spacing: 0.12em;
-  color: #fff; background: var(--accent-700);
-  padding: 3px 6px; border-radius: 5px;
+  font: 800 9px/1 var(--font-heading); letter-spacing: 0.14em;
+  color: #fff; background: var(--accent);
+  padding: 4px 8px; border-radius: 6px;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 45%, transparent);
+  animation: cc-today-pulse 2.4s ease-in-out infinite;
+}
+@keyframes cc-today-pulse {
+  0%, 100% { box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 40%, transparent); }
+  50% { box-shadow: 0 2px 14px color-mix(in srgb, var(--accent) 75%, transparent); }
 }
 .cc-done-tag {
   display: inline-block; margin-left: 8px; vertical-align: middle;
@@ -2375,7 +2381,18 @@
   color: var(--good); background: color-mix(in srgb, var(--good) 15%, transparent);
   padding: 3px 6px; border-radius: 5px;
 }
-/* today's day card gets a soft ring; a fully-logged day a green tint */
-.cc-day.cc-day-today { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; }
+/* today's day card really stands out: a bold accent left-bar, an accent-tinted
+   ground and a clear ring — so the day being trained today is impossible to miss. */
+.cc-day.cc-day-today {
+  box-shadow: inset 5px 0 0 var(--accent), 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: 10px;
+}
+.cc-day.cc-day-today .cc-day-name { color: var(--accent-700); }
 .cc-day.cc-day-done { background: color-mix(in srgb, var(--good) 5%, transparent); }
-.cc-view-day.cc-view-today { outline: 2px solid color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 1px; border-radius: 8px; }
+.cc-view-day.cc-view-today {
+  box-shadow: inset 5px 0 0 var(--accent), 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: 10px;
+}
+.cc-view-day.cc-view-today .cc-day-name { color: var(--accent-700); }
