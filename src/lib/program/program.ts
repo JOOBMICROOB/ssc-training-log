@@ -155,7 +155,7 @@ function isCompLift(name: string, mainLift: MainLift | null): boolean {
   return /^comp\b|^competition\b/.test(n) || BARE_LIFT[mainLift].includes(n);
 }
 
-export function getSession(template: WeekTemplate, logs: ProgramLogs, date: string, option: "A" | "B" = "A"): Session {
+export function getSession(template: WeekTemplate, logs: ProgramLogs, date: string, option: "A" | "B" = "A", prevTemplate?: WeekTemplate): Session {
   const weekday = fromISO(date).getDay();
   const day = template[weekday] ?? { rest: true, exercises: [] };
   const hasAlt = !!day.alt && day.alt.length > 0;
@@ -166,6 +166,15 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
   const kp = useB ? "B" : "";
   const dayLog = logs[date] ?? {};
   const prevLog = logs[addDays(date, -7)] ?? {};
+  // "Last week" is only trustworthy when the SAME exercise sat in this slot a week
+  // ago. On a fresh block a slot's neighbour was a different movement, which is
+  // what showed up as random last-week numbers — so match by exercise name.
+  const prevDay = prevTemplate?.[weekday];
+  const prevExSource = prevDay && !prevDay.rest ? (useB ? prevDay.alt : prevDay.exercises) : undefined;
+  const samePrevEx = (ei: number, name: string) => {
+    const p = prevExSource?.[ei];
+    return !!p && p.name.trim().toLowerCase() === name.trim().toLowerCase();
+  };
 
   let setCount = 0;
   let loggedCount = 0;
@@ -184,7 +193,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
           const done = log.done ?? false;
           const heldSeconds = log.heldSeconds ?? null;
           const prefill = log.prefill ?? false;
-          const prev = prevLog.sets?.[key];
+          const prev = samePrevEx(ei, ex.name) ? prevLog.sets?.[key] : undefined;
           setCount++;
           // Athlete-logged = a real weight they confirmed (not a coach prefill), a
           // failed attempt, or a timed set marked done. Coach prefills don't count.
@@ -213,8 +222,8 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
           }
           return { ...st, targetLoad, fixedLoad, key, weightKg, rpe, note: log.note ?? "", failed, done, heldSeconds, prefill, lastWeek: lw };
         });
-        // Compact last-week summary for the collapsed header.
-        const prevWeights = ex.sets
+        // Compact last-week summary for the collapsed header — same-exercise only.
+        const prevWeights = (samePrevEx(ei, ex.name) ? ex.sets : [])
           .map((_, si) => prevLog.sets?.[`${kp}${ei}_${si}`]?.weightKg)
           .filter((w): w is number => w != null);
         let lastWeekLabel = "";

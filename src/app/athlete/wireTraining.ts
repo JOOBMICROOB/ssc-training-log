@@ -12,6 +12,9 @@ import {
   getAthleteEvents,
   eventsByDate,
   setSessionChoice,
+  exerciseBests,
+  bestLabel,
+  type ExBest,
 } from "../../lib/data/athleteData";
 import { addDays, type Session, type SessionExercise, type LoggedSet } from "../../lib/program/program";
 import { fmtKg } from "../../lib/calc/records";
@@ -80,7 +83,7 @@ function dayButtons(week: ReturnType<typeof getWeekFor>, selected: string): stri
     .join("");
 }
 
-function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, locked: boolean): string {
+function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, locked: boolean, hideLastWeek = false): string {
   const key = `${ei}_${si}`;
   const lwNum = parseFloat(st.lastWeek.replace(",", "."));
   const loadNum = st.targetLoad ? parseFloat(st.targetLoad.replace(",", ".")) : NaN;
@@ -91,8 +94,12 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   const range = st.fixedLoad ? parseLoadRange(st.targetLoad) : null;
   const capKg = range ? range.hi : NaN; // hard cap (they can match it or go lighter)
   const minKg = range ? range.lo : NaN; // low end of the range (or the single value)
-  const isSingleFixed = !!range && range.lo === range.hi;
-  const fixedDone = isSingleFixed && st.weightKg != null && !st.prefill; // confirmed at the prescribed load
+  // Any fixed-load set gets a one-tap DONE (single value, range, or a backoff's
+  // computed load). "Done" logs the prescribed load (the low end for a range) so
+  // the athlete never has to retype a number that's already on screen.
+  const hasFixed = !!range && isFinite(capKg);
+  const doneKg = range ? range.lo : NaN; // what DONE logs — the prescribed / low-end weight
+  const fixedDone = hasFixed && st.weightKg != null && !st.prefill; // they've confirmed a real weight
   // Seed steppers/↺ from the logged weight, else the coach's fixed load or suggestion, else last week.
   const seed = st.weightKg ?? ex.sets[si - 1]?.weightKg ?? (isFinite(loadNum) ? loadNum : isFinite(sugNum) ? sugNum : isFinite(lwNum) ? lwNum : "");
   const val = st.weightKg != null ? fmtKg(st.weightKg) : "";
@@ -133,7 +140,7 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
         <span data-rpeval="${key}" style="flex:0 0 auto;width:56px;text-align:right;font:600 14px/1 'Barlow Condensed',sans-serif;color:rgb(65,97,128);">${st.rpe != null ? st.rpe : "RATE"}</span>
       </div>`
     : "";
-  const last = st.lastWeek
+  const last = st.lastWeek && !hideLastWeek
     ? `<div style="margin-top:6px;font:400 10.5px/1 Barlow,sans-serif;letter-spacing:.06em;color:rgb(138,146,156);">LAST WEEK · ${st.lastWeek}</div>`
     : "";
   return `<div style="margin-left:12px;padding:7px 10px 8px 12px;border-left:2px solid rgba(89,128,166,.45);">
@@ -146,7 +153,7 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
       <input data-wi="${key}" ${isFinite(capKg) ? `data-fixed="${capKg}"` : ""} ${isFinite(minKg) ? `data-fixmin="${minKg}"` : ""} ${ro} inputmode="decimal" placeholder="${st.targetLoad ? `${st.targetLoad} kg` : st.targetSuggest ? `${st.targetSuggest} kg` : "kg"}" value="${val}" data-seed="${seed}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 15px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;${inStyle}">
       ${step("+", `data-inc="${key}"`)}
       <button data-same="${key}" ${dis} title="Same load as the set before" style="flex:0 0 auto;width:36px;height:36px;border:1px solid rgba(29,31,32,.14);border-radius:9px;background:transparent;color:rgb(65,97,128);font-size:13px;cursor:pointer;">↺</button>
-      ${isSingleFixed ? `<button data-fixdone="${key}" data-fx="${capKg}" ${dis} title="Log the prescribed load — no need to retype it" style="flex:0 0 auto;padding:0 11px;height:36px;border-radius:9px;cursor:pointer;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.05em;border:1px solid ${fixedDone ? "#4f9d69" : "rgba(89,128,166,.45)"};background:${fixedDone ? "rgba(79,157,105,.16)" : "transparent"};color:${fixedDone ? "#2e7d5a" : "#41617f"};">${fixedDone ? "✓ DONE" : "DONE"}</button>` : ""}
+      ${hasFixed ? `<button data-fixdone="${key}" data-fx="${doneKg}" ${dis} title="Log the prescribed load — no need to retype it" style="flex:0 0 auto;padding:0 12px;height:36px;border-radius:9px;cursor:pointer;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.05em;border:1px solid ${fixedDone ? "#4f9d69" : "rgba(89,128,166,.6)"};background:${fixedDone ? "rgba(79,157,105,.16)" : "rgba(89,128,166,.1)"};color:${fixedDone ? "#2e7d5a" : "#41617f"};">${fixedDone ? "✓ DONE" : "DONE"}</button>` : ""}
       ${failBtn}
     </div>
     ${rpeRow}
@@ -155,7 +162,7 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   </div>`;
 }
 
-function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locked: boolean): string {
+function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locked: boolean, bests: Map<string, ExBest> | null): string {
   const headStyle = expanded
     ? "border:1px solid rgb(89,128,166);background:rgba(89,128,166,.14);"
     : "border:1px solid rgba(29,31,32,.14);background:rgba(255,255,255,.62);";
@@ -169,7 +176,10 @@ function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locke
       <div style="font:600 16px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(29,45,61);">${ex.name}</div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">${clip}
         <span style="font:400 10.5px/1.2 Barlow,sans-serif;color:rgb(138,146,156);">${ex.scheme}</span></div>
-      ${ex.lastWeekLabel ? `<div style="margin-top:3px;font:400 9.5px/1 Barlow,sans-serif;letter-spacing:.06em;color:rgb(65,97,128);">LAST WEEK · ${ex.lastWeekLabel}</div>` : ""}
+      ${(() => {
+        if (bests) { const b = bestLabel(ex.name, ex.mainLift, bests); return b ? `<div style="margin-top:3px;font:400 9.5px/1 Barlow,sans-serif;letter-spacing:.06em;color:rgb(65,97,128);">BESTS · ${b}</div>` : ""; }
+        return ex.lastWeekLabel ? `<div style="margin-top:3px;font:400 9.5px/1 Barlow,sans-serif;letter-spacing:.06em;color:rgb(65,97,128);">LAST WEEK · ${ex.lastWeekLabel}</div>` : "";
+      })()}
     </div>
     <div style="flex:0 0 auto;text-align:right;">
       <div style="font:600 11.5px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.08em;color:rgb(107,116,128);">${prescription(ex)}</div>
@@ -177,24 +187,29 @@ function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locke
     </div>
     <span style="flex:0 0 auto;font-size:11px;color:rgb(65,97,128);">${expanded ? "▴" : "▾"}</span>
   </button>`;
-  const body = expanded ? ex.sets.map((st, si) => setRow(ex, ei, st, si, locked)).join("") : "";
+  const body = expanded ? ex.sets.map((st, si) => setRow(ex, ei, st, si, locked, !!bests)).join("") : "";
   return `<div>${header}${body}</div>`;
 }
 
-function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selected: string, isOpen: (ei: number) => boolean): string {
+function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selected: string, isOpen: (ei: number) => boolean, bests: Map<string, ExBest> | null): string {
   const dayRow = `<div style="flex:0 0 auto;display:flex;gap:5px;padding:14px 0 12px;">${dayButtons(week, selected)}</div>`;
   if (session.rest) {
     return `${dayRow}<div style="flex:0 0 auto;padding:24px 0;text-align:center;font:600 20px/1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(107,116,128);">REST DAY</div>`;
   }
+  const bestsOn = !!bests;
+  const refToggle = `<button id="refToggle" title="Switch between last week's loads and your all-time bests" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid ${bestsOn ? "rgb(89,128,166)" : "rgba(89,128,166,.4)"};border-radius:9px;background:${bestsOn ? "rgba(89,128,166,.14)" : "transparent"};color:rgb(41,61,80);font:600 9.5px/1 Barlow,sans-serif;letter-spacing:.1em;cursor:pointer;">${bestsOn ? "BESTS" : "LAST WEEK"} ⇄</button>`;
   const title = `<div style="flex:0 0 auto;padding-bottom:10px;">
     <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
       <span style="font:600 25px/1 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(29,45,61);">${session.name}</span>
       <button id="dayPickBtn" style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px 4px;border:1px solid rgb(89,128,166);border-radius:9px;background:rgba(89,128,166,.1);color:rgb(29,45,61);font:600 24px/1 'Barlow Condensed',sans-serif;letter-spacing:.02em;cursor:pointer;">${DAY_FULL[session.weekday]}<span style="font-size:12px;color:rgb(65,97,128);">▾</span></button>
     </div>
-    <div style="margin-top:6px;font:400 11px/1 Barlow,sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">${session.exercises.length} EXERCISES · ${session.loggedCount} / ${session.setCount} SETS LOGGED</div>
+    <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font:400 11px/1 Barlow,sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">${session.exercises.length} EXERCISES · ${session.loggedCount} / ${session.setCount} SETS LOGGED</span>
+      ${refToggle}
+    </div>
   </div>`;
   const altBlock = session.hasAlt ? altSelector(session) : "";
-  const exercises = session.exercises.map((ex, ei) => exerciseBlock(ex, ei, isOpen(ei), session.finished)).join("");
+  const exercises = session.exercises.map((ex, ei) => exerciseBlock(ex, ei, isOpen(ei), session.finished, bests)).join("");
   return dayRow + title + altBlock + exercises;
 }
 
@@ -361,6 +376,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   // manual override wins; otherwise an exercise auto-opens while it's mid-log
   // (some but not all sets done) so logging never collapses under you.
   const manualOpen = new Map<number, boolean>();
+  let showBests = false; // reference line: false = last week's loads, true = all-time bests
   const inProgress = (ex: SessionExercise) => ex.loggedCount > 0 && ex.loggedCount < ex.setCount;
   const isExOpen = (session: Session, ei: number) =>
     manualOpen.has(ei) ? manualOpen.get(ei)! : !!session.exercises[ei] && inProgress(session.exercises[ei]);
@@ -425,7 +441,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       return;
     }
 
-    if (body) body.innerHTML = bodyMarkup(week, session, selected, (ei) => isExOpen(session, ei));
+    if (body) body.innerHTML = bodyMarkup(week, session, selected, (ei) => isExOpen(session, ei), showBests ? exerciseBests(athleteId) : null);
 
     if (painSlider && session.pain != null) painSlider.value = String(session.pain);
     host.querySelector("#painVal") && (host.querySelector<HTMLElement>("#painVal")!.textContent = String(session.pain ?? painSlider?.value ?? 0));
@@ -499,6 +515,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       return render();
     }
     if (t.closest("#dayPickBtn")) return calendar.open();
+    if (t.closest("#refToggle")) { showBests = !showBests; return render(); }
     const vid = t.closest<HTMLElement>("[data-video]");
     if (vid?.dataset.video) { window.open(vid.dataset.video, "_blank", "noopener"); return; }
     const exBtn = t.closest<HTMLElement>("[data-ex]");

@@ -18,7 +18,9 @@ import {
   type MonthCell,
   type SetLog,
   type WeekTemplate,
+  type MainLift,
 } from "../program/program";
+import { epleyE1rm } from "../calc/epley";
 
 /**
  * Athlete dashboard data.
@@ -579,7 +581,65 @@ export function weekMetaForDate(d: DashboardData, date: string): { blockName?: s
 
 export function getSessionFor(athleteId: string, date: string): Session {
   const d = getDashboard(athleteId);
-  return getSession(templateForDate(d, date), d.programLogs ?? {}, date, d.sessionChoice?.[date] ?? "A");
+  return getSession(templateForDate(d, date), d.programLogs ?? {}, date, d.sessionChoice?.[date] ?? "A", templateForDate(d, addDays(date, -7)));
+}
+
+// --- per-exercise bests (all-time) -------------------------------------------
+// The athlete's own history, keyed by exercise name: the heaviest load ever put
+// on it, the best weight at each rep count (rep-maxes) and an Epley e1RM. Feeds
+// the "bests" toggle on the athlete log and the coach's builder — a compound
+// shows its #RMs, an accessory just its top load. Reps come from the template
+// that was live on each logged date (the low end of a range).
+export type ExBest = { maxLoad: number; byReps: Record<number, number>; e1rm: number; mainLift: MainLift | null };
+const repsLow = (s: string): number => { const m = String(s).match(/\d+/); return m ? parseInt(m[0], 10) : 0; };
+
+export function exerciseBests(athleteId: string): Map<string, ExBest> {
+  const d = getDashboard(athleteId);
+  const logs = d.programLogs ?? {};
+  const best = new Map<string, ExBest>();
+  const add = (name: string, mainLift: MainLift | null, kg: number, reps: number) => {
+    const k = name.trim().toLowerCase();
+    if (!k) return;
+    let b = best.get(k);
+    if (!b) { b = { maxLoad: 0, byReps: {}, e1rm: 0, mainLift }; best.set(k, b); }
+    if (mainLift != null) b.mainLift = mainLift;
+    b.maxLoad = Math.max(b.maxLoad, kg);
+    if (reps > 0) {
+      b.byReps[reps] = Math.max(b.byReps[reps] ?? 0, kg);
+      b.e1rm = Math.max(b.e1rm, epleyE1rm(kg, reps));
+    }
+  };
+  for (const date of Object.keys(logs)) {
+    const dayLog = logs[date];
+    if (!dayLog?.sets) continue;
+    const tpl = templateForDate(d, date);
+    const day = tpl[new Date(`${date}T00:00:00`).getDay()];
+    if (!day || day.rest) continue;
+    const scan = (list: typeof day.exercises | undefined, prefix: string) =>
+      list?.forEach((ex, ei) =>
+        ex.sets.forEach((st, si) => {
+          const log = dayLog.sets![`${prefix}${ei}_${si}`];
+          if (!log || log.weightKg == null || log.prefill) return;
+          add(ex.name, ex.mainLift, log.weightKg, repsLow(st.targetReps));
+        }),
+      );
+    scan(day.exercises, "");
+    scan(day.alt, "B");
+  }
+  return best;
+}
+
+/** Short label for the bests toggle. Compound → #RMs; accessory → top load. */
+export function bestLabel(name: string, mainLift: MainLift | null, bests: Map<string, ExBest>): string {
+  const b = bests.get(name.trim().toLowerCase());
+  if (!b || b.maxLoad <= 0) return "";
+  const compound = (b.mainLift ?? mainLift) != null;
+  if (compound) {
+    const reps = Object.keys(b.byReps).map(Number).sort((a, z) => a - z).slice(0, 4);
+    if (reps.length) return reps.map((r) => `${r}RM ${fmtKg(b.byReps[r])}`).join(" · ") + " kg";
+    return `e1RM ${fmtKg(Math.round(b.e1rm))} kg`;
+  }
+  return `best ${fmtKg(b.maxLoad)} kg`;
 }
 
 /** The athlete's A/B pick for a given day (Option B = the injury alternative). */
