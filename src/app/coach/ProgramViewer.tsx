@@ -170,6 +170,7 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
   const { base, totalVol, anyLogged } = useMemo(() => computeStats(days), [days]);
   const state = weekState(athleteId, week, live);
   const totalChanges = days.reduce((s, dv) => s + dv.diff.count, 0);
+  const todayIso = localIso(new Date());
 
   return (
     <div className={`cc-wk-block${current ? " cc-wk-current" : ""}${cols ? " cc-wk-block-col" : ""}`}>
@@ -206,14 +207,14 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
           <div className="cc-wk-days">
           {days.map((dv) =>
             dv.rest || !dv.exercises.length ? (
-              <div key={dv.weekday} className="cc-view-day cc-view-rest">
-                <span className="cc-day-name">{WEEKDAY_NAME[dv.weekday]}</span>
+              <div key={dv.weekday} className={`cc-view-day cc-view-rest${dv.date === todayIso ? " cc-view-today" : ""}`}>
+                <span className="cc-day-name">{WEEKDAY_NAME[dv.weekday]}{dv.date === todayIso ? <span className="cc-today-tag">TODAY</span> : null}</span>
                 <span className="cc-day-sub">rest{dv.date ? ` · ${fmtDay(dv.date)}` : ""}</span>
               </div>
             ) : (
-              <div key={dv.weekday} className="cc-view-day">
+              <div key={dv.weekday} className={`cc-view-day${dv.date === todayIso ? " cc-view-today" : ""}`}>
                 <div className="cc-view-day-head">
-                  <span className="cc-day-name">{WEEKDAY_NAME[dv.weekday]}{dv.date ? ` · ${fmtDay(dv.date)}` : ""}</span>
+                  <span className="cc-day-name">{WEEKDAY_NAME[dv.weekday]}{dv.date ? ` · ${fmtDay(dv.date)}` : ""}{dv.date === todayIso ? <span className="cc-today-tag">TODAY</span> : null}</span>
                   {(dv.sessionRpe != null || dv.pain != null) && (
                     <span className="cc-view-day-meta">
                       {dv.sessionRpe != null && <>session RPE {dv.sessionRpe}</>}

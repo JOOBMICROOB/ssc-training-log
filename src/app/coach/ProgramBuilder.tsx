@@ -36,7 +36,7 @@ import {
   type IntensityType,
 } from "./coachProgram";
 import { getClients } from "./coachData";
-import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel } from "../../lib/data/athleteData";
+import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel, exerciseBests, bestLabel } from "../../lib/data/athleteData";
 import { notifyAthletePublished } from "../../lib/auth/coachAuth";
 import { DiffLine } from "./DiffLine";
 import { fmtKg } from "../../lib/calc/records";
@@ -92,6 +92,15 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   const [showDiff, setShowDiff] = useState(true);
   const [progress, setProgress] = useState<{ dayId: string; exId: string } | null>(null);
   const [copyFrom, setCopyFrom] = useState(false);
+  const [showMaxes, setShowMaxes] = useState(false);
+  // The athlete's all-time bests per exercise (live athletes only) — for the RM toggle.
+  const bests = useMemo(() => (live ? exerciseBests(athleteId) : null), [live, athleteId, program]);
+  // Per-day markers: is this the calendar day today, and (live) has the athlete
+  // confirmed that session — so done days and "today" pop out at a glance.
+  const dayMeta = (weekday: number) => {
+    const date = dayDate(week, weekday);
+    return { date, isToday: !!date && date === localIso(new Date()), done: !!(live && date && getSessionFor(athleteId, date).finished) };
+  };
 
   const meso = program.mesocycles.find((m) => m.id === mesoId) ?? program.mesocycles[0];
   const week = meso.weeks.find((w) => w.id === weekId) ?? meso.weeks[meso.weeks.length - 1];
@@ -852,6 +861,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
               )}
               <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <button className="cc-chip" aria-current={repRange} onClick={() => setRepRange((v) => !v)}>Rep ranges · {repRange ? "on" : "off"}</button>
+                {live && <button className="cc-chip" aria-current={showMaxes} onClick={() => setShowMaxes((v) => !v)}>RMs / maxes · {showMaxes ? "on" : "off"}</button>}
                 {prevWeek && (
                   <button className="cc-chip" aria-current={showDiff} onClick={() => setShowDiff((v) => !v)}>Changes vs {prevWeek.name} · {showDiff ? "on" : "off"}</button>
                 )}
@@ -882,9 +892,9 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
 
           {orderedDays.map((d) =>
             d.rest || !d.exercises.length ? (
-              <div key={d.id} className={`cc-day${week.status === "published" ? " cc-day-published" : ""}`}>
+              <div key={d.id} className={`cc-day${week.status === "published" ? " cc-day-published" : ""}${dayMeta(d.weekday).isToday ? " cc-day-today" : ""}`}>
                 <div className="cc-rest-day">
-                  <span className="cc-day-name">{WEEKDAY_NAME[d.weekday]}</span>
+                  <span className="cc-day-name">{WEEKDAY_NAME[d.weekday]}{dayMeta(d.weekday).isToday ? <span className="cc-today-tag">TODAY</span> : null}</span>
                   <span className="cc-day-sub">rest day{dayDate(week, d.weekday) ? ` · ${fmtDay(dayDate(week, d.weekday)!)}` : ""}</span>
                   <div className="cc-day-actions">
                     <button className="cc-xbtn" onClick={() => makeTraining(d.id)}>+ Make training day</button>
@@ -894,13 +904,13 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
             ) : (
               <div
                 key={d.id}
-                className={`cc-day${drop?.dayId === d.id ? " cc-drop-on" : ""}${week.status === "published" ? " cc-day-published" : ""}`}
+                className={`cc-day${drop?.dayId === d.id ? " cc-drop-on" : ""}${week.status === "published" ? " cc-day-published" : ""}${dayMeta(d.weekday).isToday ? " cc-day-today" : ""}${dayMeta(d.weekday).done ? " cc-day-done" : ""}`}
                 onDragOver={(e) => { e.preventDefault(); if (!drop || drop.dayId !== d.id) setDrop({ dayId: d.id, beforeExId: null }); }}
                 onDragLeave={(e) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setDrop((c) => (c?.dayId === d.id ? null : c)); }}
                 onDrop={(e) => handleDrop(e, d.id)}
               >
                 <div className="cc-day-head">
-                  <span className="cc-day-name">{WEEKDAY_NAME[d.weekday]}{dayDate(week, d.weekday) ? ` · ${fmtDay(dayDate(week, d.weekday)!)}` : ""}</span>
+                  <span className="cc-day-name">{WEEKDAY_NAME[d.weekday]}{dayDate(week, d.weekday) ? ` · ${fmtDay(dayDate(week, d.weekday)!)}` : ""}{dayMeta(d.weekday).isToday ? <span className="cc-today-tag">TODAY</span> : null}{dayMeta(d.weekday).done ? <span className="cc-done-tag">✓ LOGGED</span> : null}</span>
                   <span className="cc-day-sub">training day · {d.exercises.length} exercises · {d.exercises.reduce((a, e) => a + e.sets, 0)} sets</span>
                   <div className="cc-day-actions">
                     <select className="cc-day-select" value={d.weekday} onChange={(e) => moveDay(d.id, Number(e.target.value))} title="Move to weekday">
@@ -938,6 +948,9 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         )}
                         {prevByWeekday[d.weekday]?.[ex.name.toLowerCase()] && (
                           <div className="cc-ex-prev">last wk · {prevByWeekday[d.weekday][ex.name.toLowerCase()]}</div>
+                        )}
+                        {showMaxes && bests && bestLabel(ex.name, ex.mainLift, bests) && (
+                          <div className="cc-ex-best">{ex.mainLift ? "RMs" : "best"} · {bestLabel(ex.name, ex.mainLift, bests)}</div>
                         )}
                         {rdiff && <DiffLine d={rdiff} prevName={prevWeek?.name} />}
                       </div>
