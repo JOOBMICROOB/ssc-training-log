@@ -57,16 +57,15 @@
      shows/hides; if the page body can scroll even a little, the navy shell peeks
      below the app ("blue bar underneath"). Only the inner content card scrolls.
      Kept in normal flow (not position:fixed) so mobile font-boosting stays off. */
-  /* Pin the whole app to the viewport with position:fixed. The body is painted
-     navy (for the status-bar blend), so ANY area the app doesn't cover shows navy
-     — and iOS resolves CSS heights (100dvh / 100%) shorter than the real screen as
-     the toolbar moves, which left a navy strip below the app. A fixed inset:0 shell
-     can only ever match or OVER-cover the viewport (never fall short), so the frost
-     content always reaches the bottom edge and no navy can appear. Font-boosting
-     from position:fixed is disabled by text-size-adjust:100% on the shell. */
+  /* The body is painted navy (for the status-bar blend), so ANY area the app
+     doesn't cover shows navy. Fill with 100vh — NOT 100dvh (which iOS resolves
+     shorter than the screen as the toolbar moves → navy gap) and NOT position:fixed
+     (which collapses to a fraction of the screen in installed iOS PWAs → "half a
+     screen"). 100vh is the FULL screen in a standalone PWA and the large viewport
+     in a Safari tab, so it's always ≥ the visible area — it can never fall short and
+     leave a navy strip. Only the inner content card scrolls; body scroll is locked. */
   .athlete-shell.has-frame {
-    position: fixed;
-    inset: 0;
+    height: 100vh;
     min-height: 0;
     overflow: hidden;
     overscroll-behavior: none;
