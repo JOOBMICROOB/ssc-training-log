@@ -570,7 +570,9 @@ function mountThemeWidget(host: HTMLElement): () => void {
           <button class="a-theme-tile" data-pick="${t.id}" data-theme="${t.id}">
             <div class="a-theme-preview">
               <div class="a-theme-pv-bar"></div>
-              <div class="a-theme-pv-chip"></div>
+              <svg class="a-theme-pv-graph" viewBox="0 0 100 26" preserveAspectRatio="none">
+                <polyline points="2,20 22,13 42,16 62,7 82,11 98,4" style="fill:none;stroke:rgb(var(--a-accent-rgb));stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round" />
+              </svg>
               <div class="a-theme-pv-btn">DONE</div>
             </div>
             <div class="a-theme-tile-name"><span class="a-theme-w-dot" style="background:${t.swatch}"></span>${t.name}</div>

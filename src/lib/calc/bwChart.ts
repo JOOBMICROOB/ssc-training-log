@@ -178,37 +178,39 @@ export type BwStyle = {
   nowVerticalColor?: string;
 };
 
+// Colours are theme vars (rgb(var(--a-*))): the graph recolours with the app
+// theme. Emitted via inline style (SVG attributes don't resolve var()).
 export const DASH_STYLE: BwStyle = {
   uid: "dash",
-  areaColor: "#5980a6",
+  areaColor: "rgb(var(--a-accent-rgb))",
   areaOpacity: 0.28,
-  line: "#2c455d",
+  line: "rgb(var(--a-navy-rgb))",
   lineWidth: 2.5,
   glow: false,
   pointFill: "#ffffff",
-  pointStroke: "#2c455d",
+  pointStroke: "rgb(var(--a-navy-rgb))",
   pointR: 3,
-  lastFill: "#1d2d3d",
+  lastFill: "rgb(var(--a-navy-rgb))",
   lastR: 4.5,
-  runout: "#5980a6",
+  runout: "rgb(var(--a-accent-rgb))",
   runoutDash: "3 6",
 };
 
 export const FULL_STYLE: BwStyle = {
   uid: "full",
-  areaColor: "#6fb4ff",
+  areaColor: "color-mix(in srgb, rgb(var(--a-accent-rgb)) 60%, #fff)",
   areaOpacity: 0.3,
-  line: "#9ed0ff",
+  line: "color-mix(in srgb, rgb(var(--a-accent-rgb)) 45%, #fff)",
   lineWidth: 2.6,
   glow: true,
-  pointFill: "#0d1b2c",
-  pointStroke: "#9ed0ff",
+  pointFill: "color-mix(in srgb, rgb(var(--a-navy-rgb)) 62%, #000)",
+  pointStroke: "color-mix(in srgb, rgb(var(--a-accent-rgb)) 45%, #fff)",
   pointR: 3.2,
   lastFill: "#ffffff",
   lastR: 5,
-  runout: "rgba(158,208,255,.65)",
+  runout: "rgba(var(--a-accent-rgb), 0.62)",
   runoutDash: "2 7",
-  nowVerticalColor: "rgba(158,208,255,.35)",
+  nowVerticalColor: "rgba(var(--a-accent-rgb), 0.35)",
 };
 
 export function renderBwSvgInner(m: BwModel, s: BwStyle): string {
@@ -217,8 +219,8 @@ export function renderBwSvgInner(m: BwModel, s: BwStyle): string {
   const glowAttr = s.glow ? ` filter="url(#${glowId})"` : "";
   const defs =
     `<defs><linearGradient id="${fillId}" x1="0" y1="0" x2="0" y2="1">` +
-    `<stop offset="0%" stop-color="${s.areaColor}" stop-opacity="${s.areaOpacity}"></stop>` +
-    `<stop offset="100%" stop-color="${s.areaColor}" stop-opacity="0"></stop></linearGradient>` +
+    `<stop offset="0%" style="stop-color:${s.areaColor};stop-opacity:${s.areaOpacity}"></stop>` +
+    `<stop offset="100%" style="stop-color:${s.areaColor};stop-opacity:0"></stop></linearGradient>` +
     (s.glow
       ? `<filter id="${glowId}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3" result="b"></feGaussianBlur><feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter>`
       : "") +
@@ -226,24 +228,24 @@ export function renderBwSvgInner(m: BwModel, s: BwStyle): string {
 
   const area = m.areaPath ? `<path d="${m.areaPath}" fill="url(#${fillId})"></path>` : "";
   const line = m.linePath
-    ? `<path d="${m.linePath}" fill="none" stroke="${s.line}" stroke-width="${s.lineWidth}" stroke-linecap="round"${glowAttr}></path>`
+    ? `<path d="${m.linePath}" style="fill:none;stroke:${s.line}" stroke-width="${s.lineWidth}" stroke-linecap="round"${glowAttr}></path>`
     : "";
   const runout = m.runoutPath
-    ? `<path d="${m.runoutPath}" fill="none" stroke="${s.runout}" stroke-width="2" stroke-dasharray="${s.runoutDash}" stroke-linecap="round"></path>`
+    ? `<path d="${m.runoutPath}" style="fill:none;stroke:${s.runout}" stroke-width="2" stroke-dasharray="${s.runoutDash}" stroke-linecap="round"></path>`
     : "";
   const nowV =
     s.nowVerticalColor && m.last
-      ? `<line x1="${m.last.x.toFixed(1)}" y1="${m.last.y.toFixed(1)}" x2="${m.last.x.toFixed(1)}" y2="${VB_H}" stroke="${s.nowVerticalColor}" stroke-width="1"></line>`
+      ? `<line x1="${m.last.x.toFixed(1)}" y1="${m.last.y.toFixed(1)}" x2="${m.last.x.toFixed(1)}" y2="${VB_H}" style="stroke:${s.nowVerticalColor}" stroke-width="1"></line>`
       : "";
   const dots = m.points
     .slice(0, -1)
     .map(
       (p) =>
-        `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${s.pointR}" fill="${s.pointFill}" stroke="${s.pointStroke}" stroke-width="1.6"></circle>`,
+        `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${s.pointR}" style="fill:${s.pointFill};stroke:${s.pointStroke}" stroke-width="1.6"></circle>`,
     )
     .join("");
   const lastDot = m.last
-    ? `<circle cx="${m.last.x.toFixed(1)}" cy="${m.last.y.toFixed(1)}" r="${s.lastR}" fill="${s.lastFill}"${glowAttr}></circle>`
+    ? `<circle cx="${m.last.x.toFixed(1)}" cy="${m.last.y.toFixed(1)}" r="${s.lastR}" style="fill:${s.lastFill}"${glowAttr}></circle>`
     : "";
 
   return defs + area + line + runout + nowV + dots + lastDot;

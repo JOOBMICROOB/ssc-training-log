@@ -99,7 +99,7 @@
   padding: 8px;
 }
 .a-theme-pv-bar { position: absolute; top: 0; left: 0; right: 0; height: 16px; background: rgb(var(--a-navy-rgb)); }
-.a-theme-pv-chip { margin-top: 22px; width: 60%; height: 12px; border-radius: 4px; border: 1px solid rgb(var(--a-accent-rgb)); background: rgba(var(--a-accent-rgb), 0.16); }
+.a-theme-pv-graph { position: absolute; left: 8px; right: 8px; bottom: 8px; height: 30px; width: calc(100% - 16px); opacity: 0.95; }
 .a-theme-pv-btn {
   position: absolute; right: 8px; bottom: 8px;
   font: 700 8px/1 "Barlow Condensed", sans-serif; letter-spacing: 0.06em;
