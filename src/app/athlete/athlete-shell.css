@@ -47,6 +47,12 @@
   .athlete-frame > .blueprint {
     width: 100% !important;
     height: 100% !important;
+    /* Fill the viewport with 100vh too, so the LOGIN screen (which isn't a locked
+       full-bleed frame — no .has-frame / height chain) also covers the screen. On
+       login the height:100% can't resolve (no definite parent), so this floor is
+       what stops the login-bg card ending short and letting the navy body show
+       below it. 100vh is always >= the visible area, so no navy gap on any device. */
+    min-height: 100vh !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     padding-top: env(safe-area-inset-top);
