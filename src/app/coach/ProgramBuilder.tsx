@@ -36,7 +36,7 @@ import {
   type IntensityType,
 } from "./coachProgram";
 import { getClients } from "./coachData";
-import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel, exerciseBests, bestLabel } from "../../lib/data/athleteData";
+import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel, exerciseBests, bestLabel, clearAthleteProgram } from "../../lib/data/athleteData";
 import { notifyAthletePublished } from "../../lib/auth/coachAuth";
 import { DiffLine } from "./DiffLine";
 import { fmtKg } from "../../lib/calc/records";
@@ -886,6 +886,19 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                 <button className="cc-mini" style={{ padding: "9px 16px", fontSize: 11 }} onClick={publishBlock}>Publish full block →</button>
                 <button className="cc-mini" style={{ padding: "9px 16px", fontSize: 11 }} onClick={() => copyForwardMany(copyN)}>Copy week forward (×{copyN})</button>
                 <button className="cc-mini" style={{ padding: "9px 16px", fontSize: 11 }} onClick={() => setCopyFrom(true)}>Copy from another athlete →</button>
+                {live && (
+                  <button
+                    className="cc-mini"
+                    style={{ padding: "9px 16px", fontSize: 11, color: "var(--bad, #b5534f)", borderColor: "color-mix(in srgb, var(--bad, #b5534f) 45%, transparent)" }}
+                    onClick={() => {
+                      if (!confirm(`Unassign ${athleteName}'s program entirely?\n\nEvery published week is wiped — their app shows rest days (no sessions) until you publish a new block. Logged history, PRs and bodyweight are kept. This can't be undone.`)) return;
+                      clearAthleteProgram(athleteId);
+                      alert(`${athleteName}'s program has been cleared. Their app will refresh to no program.`);
+                    }}
+                  >
+                    Unassign program
+                  </button>
+                )}
               </div>
             </div>
           </div>

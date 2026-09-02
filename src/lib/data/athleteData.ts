@@ -89,6 +89,10 @@ export type DashboardData = {
   // resolves the week whose start is on/before a given date, so making weeks in
   // advance never changes what's "current" — the date does.
   publishedWeeks?: Record<string, { week: WeekTemplate; blockName?: string; weekName?: string }>;
+  // Bumped whenever the coach clears the program. On sync, the side with the
+  // higher epoch wins publishedWeeks outright (no union), so a "clear" can't be
+  // resurrected by stale weeks still sitting on the server.
+  programEpoch?: number;
   // Weekly adherence snapshots — the score the coach tracks over time.
   adherenceHistory: { weekStart: string; percent: number }[];
   lastSnapshotWeek: string | null;
@@ -734,6 +738,24 @@ export function publishProgramWeek(
   });
 }
 
+/**
+ * Coach unassigns the athlete's program entirely — every published week, the
+ * legacy single week and the block label are wiped, so the athlete shows "no
+ * program" (all rest days). The epoch bump makes the clear survive cloud sync.
+ * Logged history, PRs and bodyweight are kept.
+ */
+export function clearAthleteProgram(athleteId: string) {
+  const d = getDashboard(athleteId);
+  save(athleteId, {
+    ...d,
+    publishedWeeks: {},
+    programWeek: undefined,
+    blockStart: null,
+    programEpoch: (d.programEpoch ?? 0) + 1,
+    program: { ...d.program, blockName: "", weekName: undefined },
+  });
+}
+
 /** Coach renames the block / current week — updates the athlete's label live. */
 export function setProgramLabels(athleteId: string, patch: { blockName?: string; weekName?: string }) {
   const d = getDashboard(athleteId);
@@ -1083,7 +1105,13 @@ function mergeDashboard(server: Partial<DashboardData>, incoming: DashboardData)
     checkin: obj("checkin") as DashboardData["checkin"],
     notes: mergeNotes(server.notes, incoming.notes),
     programLogs: mergeLogs(server.programLogs, incoming.programLogs),
-    publishedWeeks: { ...server.publishedWeeks, ...incoming.publishedWeeks },
+    // Same epoch → union (normal publish flow). Different epoch → the newer side
+    // (a "clear" bumps it) wins the whole set, so a cleared program stays cleared.
+    programEpoch: Math.max(server.programEpoch ?? 0, incoming.programEpoch ?? 0),
+    publishedWeeks:
+      (server.programEpoch ?? 0) === (incoming.programEpoch ?? 0)
+        ? { ...server.publishedWeeks, ...incoming.publishedWeeks }
+        : ((incoming.programEpoch ?? 0) > (server.programEpoch ?? 0) ? incoming.publishedWeeks : server.publishedWeeks) ?? {},
     bwEntries: Object.values({ ...byKey(server.bwEntries, "date"), ...byKey(incoming.bwEntries, "date") }).sort((a, b) =>
       a.date.localeCompare(b.date),
     ),
