@@ -296,6 +296,12 @@ function computeStreak(data: DashboardData, today: Date): number {
   let streak = 0;
   let cursor = todayIso;
   const floor = data.streakStart ?? "";
+  // The last published week repeats forward forever (templateForDate). Once an
+  // athlete outruns their written program (block ended, coach hasn't published the
+  // next block), those repeated sessions are "phantom" — unlogged by definition.
+  // They must not break the streak: the athlete hasn't actually missed anything.
+  const lastWeekStart = Object.keys(data.publishedWeeks ?? {}).sort().at(-1) ?? "";
+  const beyondProgram = (d: string) => !!lastWeekStart && d > addDays(lastWeekStart, 6);
   for (let guard = 0; guard < 400; guard++) {
     if (floor && cursor < floor) break; // don't count backfilled history before the floor
     const s = getSession(templateForDate(data, cursor), logs, cursor);
@@ -317,11 +323,11 @@ function computeStreak(data: DashboardData, today: Date): number {
       cursor = addDays(cursor, -1);
       continue;
     }
-    if (cursor === todayIso) {
+    if (cursor === todayIso || beyondProgram(cursor)) {
       cursor = addDays(cursor, -1);
-      continue; // today's session still in progress — grace, no break
+      continue; // today's session (grace) or a phantom repeat day — never a break
     }
-    break; // a past training day left unlogged ends the streak
+    break; // a past training day left unlogged, inside the written program, ends the streak
   }
   return streak;
 }
