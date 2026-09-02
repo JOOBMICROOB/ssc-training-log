@@ -104,6 +104,15 @@ export function AthleteApp() {
   // Every other screen is the captured design frame, injected as-is and wired.
   const showFrame = !!session && screen !== "login";
 
+  // While a full-bleed frame is showing, lock the document so ONLY the inner card
+  // scrolls — the page body can't move, so the navy shell can never peek below the
+  // app. Login (no frame) stays unlocked so its taller form scrolls normally.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("app-locked", showFrame);
+    return () => root.classList.remove("app-locked");
+  }, [showFrame]);
+
   useEffect(() => {
     if (!showFrame) return;
     const host = hostRef.current;

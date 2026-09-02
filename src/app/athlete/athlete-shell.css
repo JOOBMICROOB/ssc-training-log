@@ -7,6 +7,10 @@
   align-items: flex-start;
   padding: 20px 0;
   background: #eaf0f6 url(/assets/bg-frost-light2.png) center / cover fixed;
+  /* Never let mobile browsers auto-inflate the app's text ("font boosting") —
+     it silently enlarged buttons/labels. Keep every size exactly as authored. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 .athlete-frame {
   /* the captured frames are 380px-wide phone mockups */
@@ -38,7 +42,7 @@
   .athlete-shell { padding: 0; background: #1a2c3e; min-height: 100dvh; }
   .athlete-frame { width: 100%; max-width: none; height: 100%; }
   /* Full-bleed on a real phone: drop the 380px mockup card chrome and fill the
-     screen. The frame fills the pinned shell (below) and its inner
+     screen. The frame fills the bounded shell (below) and its inner
      `overflow-y:auto` panel scrolls. Safe areas clear the status bar. */
   .athlete-frame > .blueprint {
     width: 100% !important;
@@ -47,20 +51,24 @@
     box-shadow: none !important;
     padding-top: env(safe-area-inset-top);
   }
-  /* App-shell pin: once signed in, tie the shell to the visual viewport and
-     stop the document itself from scrolling. Android's dynamic toolbar changes
-     100dvh as it shows/hides; without this pin the page body scrolls and a navy
-     strip of the shell peeks below the app ("blue rectangle underneath"). Only
-     the inner content card scrolls, so the app frame always fills the screen
-     exactly. Login stays unpinned (no .has-frame) so its taller form can grow
-     and scroll normally. */
+  /* Once signed in, bound the shell to exactly one viewport and clip it, and lock
+     the html/body so the DOCUMENT can't scroll at all (the `.app-locked` classes
+     are toggled from AthleteApp). Android's dynamic toolbar changes 100dvh as it
+     shows/hides; if the page body can scroll even a little, the navy shell peeks
+     below the app ("blue bar underneath"). Only the inner content card scrolls.
+     Kept in normal flow (not position:fixed) so mobile font-boosting stays off. */
   .athlete-shell.has-frame {
-    position: fixed;
-    inset: 0;
+    height: 100dvh;
     min-height: 0;
-    height: 100%;
     overflow: hidden;
     overscroll-behavior: none;
+  }
+  html.app-locked,
+  html.app-locked body {
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: #1a2c3e;
   }
 }
 
