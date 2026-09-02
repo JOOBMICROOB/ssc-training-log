@@ -36,13 +36,14 @@
 
 @media (max-width: 520px) {
   .athlete-shell { padding: 0; background: #1a2c3e; min-height: 100dvh; }
-  .athlete-frame { width: 100%; max-width: none; }
+  .athlete-frame { width: 100%; max-width: none; height: 100dvh; }
   /* Full-bleed on a real phone: drop the 380px mockup card chrome and fill the
-     screen, clearing the status bar / home indicator via the safe-area insets. */
+     screen. The frame is a FIXED viewport height (not auto) so its inner
+     `overflow-y:auto` panel actually scrolls — with height:auto the flex child
+     grew with content and nothing scrolled. Safe areas clear the status bar. */
   .athlete-frame > .blueprint {
     width: 100% !important;
-    height: auto !important;
-    min-height: 100dvh;
+    height: 100dvh !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     padding-top: env(safe-area-inset-top);
