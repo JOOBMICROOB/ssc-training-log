@@ -68,11 +68,11 @@ export function wireShop(host: HTMLElement, athleteId: string): () => void {
               <div style="font:600 15px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(29,45,61);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
               <div style="margin-top:4px;font:400 10.5px/1.35 Barlow,sans-serif;color:rgb(138,146,156);">${meta}</div>
             </div>
-            <div style="flex:0 0 auto;text-align:right;min-width:40px;white-space:nowrap;font:600 13px/1 'Barlow Condensed',sans-serif;color:${freeRemaining ? "rgb(65,97,128)" : "rgb(29,45,61)"};">${price}</div>
+            <div style="flex:0 0 auto;text-align:right;min-width:40px;white-space:nowrap;font:600 13px/1 'Barlow Condensed',sans-serif;color:${freeRemaining ? "rgb(var(--a-accent2-rgb))" : "rgb(29,45,61)"};">${price}</div>
             <div style="flex:0 0 auto;display:flex;align-items:center;gap:4px;">
-              <button data-minus="${p.id}" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.16);border-radius:8px;background:transparent;color:rgb(65,97,128);font-size:13px;cursor:pointer;">−</button>
+              <button data-minus="${p.id}" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.16);border-radius:8px;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:13px;cursor:pointer;">−</button>
               <span style="width:16px;text-align:center;font:600 14px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${qty}</span>
-              <button data-plus="${p.id}" style="width:26px;height:26px;border:1px solid rgba(89,128,166,.45);border-radius:8px;background:rgba(89,128,166,.1);color:rgb(65,97,128);font-size:13px;cursor:pointer;">+</button>
+              <button data-plus="${p.id}" style="width:26px;height:26px;border:1px solid rgba(var(--a-accent-rgb),.45);border-radius:8px;background:rgba(var(--a-accent-rgb),.1);color:rgb(var(--a-accent2-rgb));font-size:13px;cursor:pointer;">+</button>
             </div>
           </div>`;
         })

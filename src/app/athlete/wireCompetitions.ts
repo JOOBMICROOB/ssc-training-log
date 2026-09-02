@@ -81,19 +81,19 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
         let bg = "rgba(255,255,255,.66)";
         let color = "rgb(29,45,61)";
         let dot = "transparent";
-        if (training) dot = "rgb(89,128,166)";
+        if (training) dot = "rgb(var(--a-accent-rgb))";
         if (meet) {
           dot = "transparent";
           if (meet.level === "international" || meet.opted) {
             bg = "rgb(29,45,61)";
             color = "rgb(242,242,243)";
-            border = meet.opted ? "1px solid rgb(89,128,166)" : "1px solid rgb(29,45,61)";
+            border = meet.opted ? "1px solid rgb(var(--a-accent-rgb))" : "1px solid rgb(29,45,61)";
           } else {
-            border = "1px solid rgb(89,128,166)";
-            bg = "rgba(89,128,166,.14)";
+            border = "1px solid rgb(var(--a-accent-rgb))";
+            bg = "rgba(var(--a-accent-rgb),.14)";
           }
         } else if (cell.isToday) {
-          border = "1px solid rgba(89,128,166,.7)";
+          border = "1px solid rgba(var(--a-accent-rgb),.7)";
         }
 
         return `<div style="position:relative;height:32px;display:grid;place-items:center;border:${border};border-radius:8px;background:${bg};color:${color};font:600 12px/1 'Barlow Condensed',sans-serif;backdrop-filter:blur(12px);box-shadow:rgba(20,36,52,.06) 0px 2px 6px;">
@@ -106,8 +106,8 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
     calEl.innerHTML = `
       <div style="display:flex;align-items:baseline;gap:9px;">
         <span style="font:600 25px/1 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(29,45,61);">${MONTHS_LONG[month]} ${year}</span>
-        <button data-nav="-1" style="margin-left:auto;width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:transparent;color:rgb(65,97,128);font-size:11px;cursor:pointer;">‹</button>
-        <button data-nav="1" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:transparent;color:rgb(65,97,128);font-size:11px;cursor:pointer;">›</button>
+        <button data-nav="-1" style="margin-left:auto;width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:11px;cursor:pointer;">‹</button>
+        <button data-nav="1" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:11px;cursor:pointer;">›</button>
       </div>
       <div style="display:flex;gap:6px;margin-top:10px;">
         ${filterBtn("ALL", "all")}${filterBtn("NATIONAL", "national")}${filterBtn("INTERNATIONAL", "international")}
@@ -119,8 +119,8 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
       </div>
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:5px;">${dayCells}</div>
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;font:400 9px/1 Barlow,sans-serif;letter-spacing:.07em;color:rgb(107,116,128);">
-        <span style="flex:0 0 auto;white-space:nowrap;display:flex;align-items:center;gap:5px;"><span style="width:6px;height:6px;border-radius:50%;background:rgb(89,128,166);"></span>TRAINING</span>
-        <span style="flex:0 0 auto;white-space:nowrap;display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border:1px solid rgb(89,128,166);border-radius:2px;"></span>NATIONAL</span>
+        <span style="flex:0 0 auto;white-space:nowrap;display:flex;align-items:center;gap:5px;"><span style="width:6px;height:6px;border-radius:50%;background:rgb(var(--a-accent-rgb));"></span>TRAINING</span>
+        <span style="flex:0 0 auto;white-space:nowrap;display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border:1px solid rgb(var(--a-accent-rgb));border-radius:2px;"></span>NATIONAL</span>
         <span style="flex:0 0 auto;white-space:nowrap;display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;background:rgb(29,45,61);border-radius:2px;"></span>INTERNATIONAL</span>
       </div>`;
   }
@@ -132,11 +132,11 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
     const natBadge =
       c.level === "international"
         ? `<span style="flex:0 0 auto;padding:4px 8px;border:1px solid rgb(29,45,61);border-radius:8px;background:rgb(29,45,61);color:rgb(242,242,243);font:600 9px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;">INTERNATIONAL</span>`
-        : `<span style="flex:0 0 auto;padding:4px 8px;border:1px solid rgba(89,128,166,.4);border-radius:8px;background:rgba(89,128,166,.12);color:rgb(65,97,128);font:600 9px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;">NATIONAL</span>`;
+        : `<span style="flex:0 0 auto;padding:4px 8px;border:1px solid rgba(var(--a-accent-rgb),.4);border-radius:8px;background:rgba(var(--a-accent-rgb),.12);color:rgb(var(--a-accent2-rgb));font:600 9px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;">NATIONAL</span>`;
 
     const toggle = opted
-      ? `<button style="width:100%;margin-top:11px;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgb(89,128,166);border-radius:12px;background:rgba(89,128,166,.12);cursor:default;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;">
-          <span style="flex:0 0 auto;width:34px;height:20px;border-radius:11px;background:rgb(89,128,166);position:relative;display:block;">
+      ? `<button style="width:100%;margin-top:11px;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgb(var(--a-accent-rgb));border-radius:12px;background:rgba(var(--a-accent-rgb),.12);cursor:default;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;">
+          <span style="flex:0 0 auto;width:34px;height:20px;border-radius:11px;background:rgb(var(--a-accent-rgb));position:relative;display:block;">
             <span style="position:absolute;top:2px;left:16px;width:16px;height:16px;border-radius:50%;background:rgb(242,242,243);box-shadow:rgba(29,31,32,.35) 0px 1px 3px;"></span>
           </span>
           <span style="flex:1 1 0%;text-align:left;font:600 12.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.09em;color:rgb(29,45,61);">ENTRY CONFIRMED · LOCKED</span>
@@ -153,12 +153,12 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
           <span style="flex:0 0 auto;font:400 9.5px/1 Barlow,sans-serif;color:rgb(138,146,156);">${going} going</span>
         </button>`;
 
-    const cardBorder = opted ? "rgb(89,128,166)" : "rgba(29,31,32,.14)";
-    const cardBg = opted ? "rgba(89,128,166,.14)" : "rgba(255,255,255,.62)";
+    const cardBorder = opted ? "rgb(var(--a-accent-rgb))" : "rgba(29,31,32,.14)";
+    const cardBg = opted ? "rgba(var(--a-accent-rgb),.14)" : "rgba(255,255,255,.62)";
 
     return `<div style="padding:13px;border-radius:14px;border:1px solid ${cardBorder};background:${cardBg};backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;">
         <div style="display:flex;align-items:flex-start;gap:12px;">
-          <div style="flex:0 0 auto;width:54px;text-align:center;padding:7px 0;border:1px solid rgba(89,128,166,.4);border-radius:10px;background:rgb(242,242,243);">
+          <div style="flex:0 0 auto;width:54px;text-align:center;padding:7px 0;border:1px solid rgba(var(--a-accent-rgb),.4);border-radius:10px;background:rgb(242,242,243);">
             <div style="font:600 21px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${dd.getDate()}</div>
             <div style="margin-top:2px;font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.13em;color:rgb(107,116,128);">${MONTHS[dd.getMonth()]}</div>
           </div>
@@ -274,7 +274,7 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
       return `<div style="margin:14px 18px 0;padding:14px;border-radius:16px;background:rgba(255,255,255,.72);border:1px solid rgba(29,31,32,.08);box-shadow:rgba(20,36,52,.06) 0 4px 14px;">
         <div style="font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(29,45,61);">${LIFT_LABEL[l]}</div>
         ${rows}
-        ${warm ? `<div style="margin-top:10px;padding-top:9px;border-top:1px solid rgba(29,31,32,.08);font:400 10.5px/1.4 Barlow,sans-serif;color:rgb(65,97,128);"><strong style="letter-spacing:.06em;">WARM-UP</strong> · ${warm}</div>` : ""}
+        ${warm ? `<div style="margin-top:10px;padding-top:9px;border-top:1px solid rgba(29,31,32,.08);font:400 10.5px/1.4 Barlow,sans-serif;color:rgb(var(--a-accent2-rgb));"><strong style="letter-spacing:.06em;">WARM-UP</strong> · ${warm}</div>` : ""}
       </div>`;
     }).join("");
 

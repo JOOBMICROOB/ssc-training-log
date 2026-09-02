@@ -45,7 +45,7 @@ function prRowHtml(p: { lift: string; key?: string; value: string; date: string;
     <span style="flex:1 1 0%;font:600 15px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(29,45,61);">${p.lift}</span>
     <span data-pr-value style="flex:0 0 auto;font:600 20px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${p.value}</span>
     <span style="flex:0 0 auto;width:64px;text-align:right;font:400 10px/1.2 Barlow,sans-serif;color:rgb(107,116,128);">${p.date}</span>
-    <span style="flex:0 0 auto;width:46px;text-align:right;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:rgb(65,97,128);">${p.delta}</span>
+    <span style="flex:0 0 auto;width:46px;text-align:right;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:rgb(var(--a-accent2-rgb));">${p.delta}</span>
   </div>`;
 }
 
@@ -141,7 +141,7 @@ function applyModel(host: HTMLElement, model: DashboardModel) {
   {
     const done = model.todayCard.done;
     const rest = model.todayCard.rest;
-    const accent = done ? "79, 157, 105" : rest ? "138, 146, 156" : "89, 128, 166";
+    const accent = done ? "79, 157, 105" : rest ? "138, 146, 156" : "var(--a-accent-rgb)";
     const solid = done ? "rgb(79,157,105)" : rest ? "rgb(107,116,128)" : "rgb(29,45,61)";
     const btn = host.querySelector<HTMLElement>("#nextSessionBtn");
     const icon = host.querySelector<HTMLElement>("#nextIcon");
@@ -228,7 +228,7 @@ function editPrBaseline(athleteId: string, valueSpan: HTMLElement, lift: "squat"
   inp.value = current;
   inp.inputMode = "decimal";
   inp.style.cssText =
-    "width:74px;font:600 18px/1 'Barlow Condensed',sans-serif;color:#1d2d3d;border:1px solid rgb(89,128,166);border-radius:8px;padding:2px 6px;background:#fff;text-align:right;";
+    "width:74px;font:600 18px/1 'Barlow Condensed',sans-serif;color:#1d2d3d;border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background:#fff;text-align:right;";
   valueSpan.style.display = "none";
   valueSpan.parentElement?.insertBefore(inp, valueSpan.nextSibling);
   inp.focus();
@@ -280,7 +280,7 @@ function openTileEditor(athleteId: string, span: HTMLElement, field: EditField, 
     editor = inp;
   }
   editor.style.cssText =
-    "font:600 16px/1 'Barlow Condensed',sans-serif;color:#1d2d3d;border:1px solid rgb(89,128,166);border-radius:8px;padding:2px 6px;background:#fff;max-width:100%;";
+    "font:600 16px/1 'Barlow Condensed',sans-serif;color:#1d2d3d;border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background:#fff;max-width:100%;";
   span.style.display = "none";
   parent.appendChild(editor);
   editor.focus();
@@ -339,7 +339,7 @@ function editCompTotal(athleteId: string, span: HTMLElement) {
   inp.size = 6;
   inp.placeholder = "kg";
   inp.style.cssText =
-    "font:600 28px/1 'Barlow Condensed',sans-serif;color:#1d2d3d;border:1px solid rgb(89,128,166);border-radius:8px;padding:1px 6px;background:#fff;width:110px;max-width:100%;";
+    "font:600 28px/1 'Barlow Condensed',sans-serif;color:#1d2d3d;border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:1px 6px;background:#fff;width:110px;max-width:100%;";
   span.style.display = "none";
   parent.appendChild(inp);
   inp.focus();
@@ -420,7 +420,7 @@ function buildModal(model: DashboardModel): {
           <div style="font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.14em;color:#8a929c">WEEKLY CHECK-IN</div>
           <div style="margin-top:5px;font:600 17px/1.1 'Barlow Condensed',sans-serif;color:#1d2d3d">${model.checkinStatus}</div>
         </div>
-        <button data-close style="border:0;background:transparent;color:#41617f;font-size:16px;cursor:pointer;line-height:1">▴</button>
+        <button data-close style="border:0;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:16px;cursor:pointer;line-height:1">▴</button>
       </div>
       <div style="height:1px;background:rgba(29,31,32,.1);margin:14px 0 2px"></div>
       ${rows}

@@ -3,7 +3,7 @@
 .a-root {
   --navy: #1d2d3d; --navy-top: #22344400; --navy-deep: #14212c;
   --bg: #ececef; --card: #ffffff; --line: rgba(29,31,32,.12);
-  --accent: #5980a6; --accent-deep: #416180; --text: #1d1f20; --muted: #6b7480;
+  --accent: rgb(var(--a-accent-rgb)); --accent-deep: rgb(var(--a-accent2-rgb)); --text: #1d1f20; --muted: #6b7480;
   font-family: "Barlow", system-ui, sans-serif; color: var(--text);
   max-width: 440px; margin: 0 auto; min-height: 100%;
   background: var(--bg); position: relative; overflow: hidden;

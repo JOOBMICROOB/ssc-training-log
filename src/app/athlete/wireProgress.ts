@@ -32,7 +32,7 @@ function e1rmCard(lift: MainLift, p: LiftProgress): string {
       const h = w.e1rm > 0 ? Math.max(4, Math.round((w.e1rm / maxE) * 82)) : 2;
       const last = i === p.weeks.length - 1 && w.e1rm > 0;
       return `<span style="flex:1 1 0%;display:flex;flex-direction:column;align-items:center;gap:5px;">
-        <span title="${w.e1rm ? `${fmtKg(w.e1rm)} kg` : "—"}" style="width:100%;height:${h}px;background:${last ? "rgb(29,45,61)" : "rgba(89,128,166,.5)"};border-radius:3px 3px 0 0;"></span>
+        <span title="${w.e1rm ? `${fmtKg(w.e1rm)} kg` : "—"}" style="width:100%;height:${h}px;background:${last ? "rgb(29,45,61)" : "rgba(var(--a-accent-rgb),.5)"};border-radius:3px 3px 0 0;"></span>
         <span style="font:400 8px/1 Barlow,sans-serif;letter-spacing:.06em;color:rgb(162,169,178);">${w.label}</span>
       </span>`;
     })
@@ -75,7 +75,7 @@ function e1rmCard(lift: MainLift, p: LiftProgress): string {
     <div style="height:1px;background:rgba(29,31,32,.1);margin:15px 0 0;"></div>
     <div style="margin-top:13px;font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.15em;color:rgb(138,146,156);">ESTIMATED 1RM · LAST ${p.weeks.length} WEEKS</div>
     <div style="display:flex;align-items:baseline;gap:9px;margin-top:6px;">
-      <span style="font:600 26px/1 'Barlow Condensed',sans-serif;color:rgb(65,97,128);">${p.currentLabel}</span>
+      <span style="font:600 26px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-accent2-rgb));">${p.currentLabel}</span>
       <span style="font:400 10.5px/1.3 Barlow,sans-serif;color:rgb(138,146,156);">${p.deltaLabel}</span>
     </div>
     <div style="display:flex;align-items:flex-end;gap:5px;height:86px;margin-top:11px;">${bars}</div>
@@ -92,7 +92,7 @@ function tonnageCard(ton: { total: string; caption: string; sessions: SessionTon
         const pct = Math.round((s.tonnage / max) * 100);
         return `<div style="display:flex;align-items:center;gap:9px;">
           <span style="flex:0 0 auto;width:84px;font:400 9.5px/1 Barlow,sans-serif;letter-spacing:.07em;color:rgb(107,116,128);">${s.label}</span>
-          <span style="flex:1 1 0%;height:7px;border-radius:4px;background:rgba(29,31,32,.1);overflow:hidden;"><span style="display:block;height:100%;width:${pct}%;background:${isMax ? "rgb(29,45,61)" : "rgba(89,128,166,.5)"};"></span></span>
+          <span style="flex:1 1 0%;height:7px;border-radius:4px;background:rgba(29,31,32,.1);overflow:hidden;"><span style="display:block;height:100%;width:${pct}%;background:${isMax ? "rgb(29,45,61)" : "rgba(var(--a-accent-rgb),.5)"};"></span></span>
           <span style="flex:0 0 auto;width:66px;text-align:right;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(29,45,61);">${Math.round(s.tonnage).toLocaleString("de-DE")} kg</span>
         </div>`;
       })
