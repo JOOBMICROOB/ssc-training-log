@@ -76,8 +76,16 @@
     overflow: hidden;
     overscroll-behavior: none;
   }
+  /* Match the whole chain to 100vh. The global `html, body, #root { height:100% }`
+     resolves to the SMALL viewport on iOS Safari, and because the body is locked
+     (overflow:hidden) it then CLIPS the 100vh app down to that small height —
+     leaving the app shorter than the real visible area, so the navy body shows in
+     the gap behind Safari's toolbar. Sizing html/body/#root to 100vh too means
+     nothing clips the app short; it always covers (or over-covers) the screen. */
   html.app-locked,
-  html.app-locked body {
+  html.app-locked body,
+  html.app-locked #root {
+    height: 100vh;
     overflow: hidden;
     overscroll-behavior: none;
   }
