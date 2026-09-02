@@ -104,37 +104,14 @@ export function AthleteApp() {
   // Every other screen is the captured design frame, injected as-is and wired.
   const showFrame = !!session && screen !== "login";
 
-  // While a full-bleed frame is showing, lock the document so ONLY the inner card
-  // scrolls — the page body can't move, so the navy shell can never peek below the
-  // app. Login (no frame) stays unlocked so its taller form scrolls normally.
-  //
-  // Height is driven from JS, not CSS: iOS Safari resolves 100dvh / 100% height
-  // inconsistently as the toolbar shows/hides, which left the app shorter than the
-  // screen and exposed the navy shell below it. `visualViewport.height` is the
-  // exact visible height on every device, so pinning the shell to it fills the
-  // screen precisely — no navy strip, ever. Updated as the toolbar / keyboard move.
+  // While a full-bleed frame is showing, lock the document (html/body) so the page
+  // itself can't scroll — the shell is pinned with position:fixed and only the
+  // inner content card scrolls. Login (no frame) stays unlocked so its taller form
+  // scrolls normally.
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle("app-locked", showFrame);
-    if (!showFrame) {
-      root.style.removeProperty("--app-h");
-      return () => root.classList.remove("app-locked");
-    }
-    const vv = window.visualViewport;
-    const setH = () => root.style.setProperty("--app-h", `${Math.round(vv?.height ?? window.innerHeight)}px`);
-    setH();
-    window.addEventListener("resize", setH);
-    window.addEventListener("orientationchange", setH);
-    vv?.addEventListener("resize", setH);
-    vv?.addEventListener("scroll", setH);
-    return () => {
-      root.classList.remove("app-locked");
-      root.style.removeProperty("--app-h");
-      window.removeEventListener("resize", setH);
-      window.removeEventListener("orientationchange", setH);
-      vv?.removeEventListener("resize", setH);
-      vv?.removeEventListener("scroll", setH);
-    };
+    return () => root.classList.remove("app-locked");
   }, [showFrame]);
 
   useEffect(() => {

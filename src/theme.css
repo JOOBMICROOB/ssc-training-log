@@ -68,6 +68,9 @@
 }
 
 * { box-sizing: border-box; }
+/* Never let mobile browsers auto-inflate text ("font boosting") — it silently
+   enlarged the app's buttons/labels. Sizes stay exactly as authored. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 html, body, #root { height: 100%; }
 /* Stop the whole document from rubber-banding on touch — pulls should move our
    own content, never bounce the page and flash the background behind the app. */
