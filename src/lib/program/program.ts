@@ -21,6 +21,9 @@ export type SetTemplate = {
   targetPercent?: string; // coach-prescribed %1RM
   targetSuggest?: string; // advisory working weight (kg) shown as a hint — NOT a cap
   backoffPct?: number; // auto-backdown: sets after the first are this % below the top set's logged load
+  linkPct?: number; // linked %: this set's load = (linkEi exercise's top logged set) minus this %
+  linkEi?: number; // index (within the day) of the source exercise the linked % reads from
+  percentOfMax?: boolean; // %1RM whose kg (rounded to 2.5) is auto-shown from the athlete's 1RM
   fixedLoad?: boolean; // load is fixed — the athlete may only go lighter, with a warning
   toFailure?: boolean; // no target — push to failure and log what you did
   timed?: boolean; // a time-based hold — no weight, athlete just marks it done
@@ -155,7 +158,9 @@ function isCompLift(name: string, mainLift: MainLift | null): boolean {
   return /^comp\b|^competition\b/.test(n) || BARE_LIFT[mainLift].includes(n);
 }
 
-export function getSession(template: WeekTemplate, logs: ProgramLogs, date: string, option: "A" | "B" = "A", prevTemplate?: WeekTemplate): Session {
+const round2p5 = (kg: number) => Math.round(kg / 2.5) * 2.5;
+
+export function getSession(template: WeekTemplate, logs: ProgramLogs, date: string, option: "A" | "B" = "A", prevTemplate?: WeekTemplate, oneRm?: Partial<Record<MainLift, number>>): Session {
   const weekday = fromISO(date).getDay();
   const day = template[weekday] ?? { rest: true, exercises: [] };
   const hasAlt = !!day.alt && day.alt.length > 0;
@@ -210,17 +215,44 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
           // from the top set's LOGGED weight, e.g. 10% ⇒ 100 kg top → 90 kg backoffs.
           let targetLoad = st.targetLoad;
           let fixedLoad = st.fixedLoad;
+          let targetSuggest = st.targetSuggest;
           if (st.backoffPct != null && si >= 1) {
             const topKg = dayLog.sets?.[`${kp}${ei}_0`]?.weightKg;
             if (topKg != null && topKg > 0) {
-              targetLoad = String(Math.round((topKg * (1 - st.backoffPct / 100)) / 2.5) * 2.5);
+              targetLoad = String(round2p5(topKg * (1 - st.backoffPct / 100)));
               fixedLoad = true;
             } else {
               targetLoad = undefined; // top set not logged yet — show the % hint instead
               fixedLoad = false;
             }
           }
-          return { ...st, targetLoad, fixedLoad, key, weightKg, rpe, note: log.note ?? "", failed, done, heldSeconds, prefill, lastWeek: lw };
+          // Tool 1 — linked %: this set's load = the heaviest LOGGED set of the source
+          // exercise (linkEi), minus linkPct. Updates live as the source is logged.
+          if (st.linkPct != null && st.linkEi != null) {
+            const srcSets = dayLog.sets ?? {};
+            let topKg = 0;
+            for (const k of Object.keys(srcSets)) {
+              if (k.startsWith(`${kp}${st.linkEi}_`)) {
+                const w = srcSets[k]?.weightKg;
+                if (w != null && w > topKg) topKg = w;
+              }
+            }
+            if (topKg > 0) {
+              targetLoad = String(round2p5(topKg * (1 - st.linkPct / 100)));
+              fixedLoad = true;
+            } else {
+              targetLoad = undefined; // source not logged yet
+              fixedLoad = false;
+            }
+          }
+          // Tool 2 — %1RM auto-load: show the athlete the concrete kg (their 1RM ×
+          // the %, rounded to 2.5) as a suggestion, so they don't do the maths.
+          if (st.percentOfMax && st.targetPercent && ex.mainLift && !targetSuggest) {
+            const rm = oneRm?.[ex.mainLift] ?? 0;
+            const pct = parseFloat(st.targetPercent.replace(",", "."));
+            if (rm > 0 && isFinite(pct)) targetSuggest = String(round2p5((rm * pct) / 100));
+          }
+          return { ...st, targetLoad, fixedLoad, targetSuggest, key, weightKg, rpe, note: log.note ?? "", failed, done, heldSeconds, prefill, lastWeek: lw };
         });
         // Compact last-week summary for the collapsed header — same-exercise only.
         const prevWeights = (samePrevEx(ei, ex.name) ? ex.sets : [])

@@ -16,7 +16,7 @@ import liezeProgram from "./liezeProgram.json";
 import stefProgram from "./stefProgram.json";
 import zitaProgram from "./zitaProgram.json";
 
-export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure" | "seconds" | "backoff";
+export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure" | "seconds" | "backoff" | "linkpct";
 export type ExRow = {
   id: string;
   name: string;
@@ -27,6 +27,7 @@ export type ExRow = {
   intensity: IntensityType;
   value: string;
   suggest?: string; // advisory working weight (kg) shown to the athlete as a hint
+  linkEi?: number; // for intensity "linkpct": index (in the day) of the source exercise
   scheme: string;
   mainLift: MainLift | null;
 };
@@ -94,7 +95,9 @@ export function weekForToday(p: Program, todayIso: string): string | undefined {
 // --- converters --------------------------------------------------------------
 function exToRow(ex: ExerciseTemplate): ExRow {
   const first = ex.sets[0];
-  const intensity: IntensityType = first?.backoffPct != null
+  const intensity: IntensityType = first?.linkPct != null
+    ? "linkpct"
+    : first?.backoffPct != null
     ? "backoff"
     : first?.timed
     ? "seconds"
@@ -106,7 +109,7 @@ function exToRow(ex: ExerciseTemplate): ExRow {
           ? "percent"
           : "rpe";
   const value =
-    intensity === "backoff" ? String(first?.backoffPct ?? "") : intensity === "seconds" ? first?.holdSeconds ?? "" : intensity === "fixed" ? first?.targetLoad ?? "" : intensity === "percent" ? first?.targetPercent ?? "" : intensity === "failure" ? "" : first?.targetRpe ?? "";
+    intensity === "linkpct" ? String(first?.linkPct ?? "") : intensity === "backoff" ? String(first?.backoffPct ?? "") : intensity === "seconds" ? first?.holdSeconds ?? "" : intensity === "fixed" ? first?.targetLoad ?? "" : intensity === "percent" ? first?.targetPercent ?? "" : intensity === "failure" ? "" : first?.targetRpe ?? "";
   return {
     id: uid("ex"),
     name: ex.name,
@@ -117,6 +120,7 @@ function exToRow(ex: ExerciseTemplate): ExRow {
     intensity,
     value,
     suggest: first?.targetSuggest ?? "",
+    linkEi: first?.linkEi,
     scheme: "Top set",
     mainLift: ex.mainLift,
   };
@@ -134,18 +138,26 @@ function rowToEx(row: ExRow): ExerciseTemplate {
   const timed = row.intensity === "seconds";
   const backoff = row.intensity === "backoff";
   const backoffPct = backoff ? parseFloat(String(row.value).replace(",", ".")) : NaN;
+  const percent = row.intensity === "percent";
+  const link = row.intensity === "linkpct";
+  const linkPct = link ? parseFloat(String(row.value).replace(",", ".")) : NaN;
   const sets = Array.from({ length: Math.max(1, row.sets) }, () => ({
     targetReps: row.reps,
     targetRpe: row.intensity === "rpe" ? row.value : "",
     requiresRpe,
     // Carry the coach's prescription through to the athlete's set.
     targetLoad: fixed ? row.value : undefined,
-    targetPercent: row.intensity === "percent" ? row.value : undefined,
+    targetPercent: percent ? row.value : undefined,
+    // %1RM auto-shows the concrete kg (rounded to 2.5) from the athlete's 1RM.
+    percentOfMax: percent || undefined,
     // Advisory suggested load — only meaningful when there isn't already a fixed
     // load (RPE / %1RM / to-failure rows). Shown to the athlete as a hint, not a cap.
-    targetSuggest: !fixed && !backoff && row.suggest?.trim() ? row.suggest.trim() : undefined,
+    targetSuggest: !fixed && !backoff && !link && row.suggest?.trim() ? row.suggest.trim() : undefined,
     // Auto-backdown: sets after set 1 are this % below the top set's logged load.
     backoffPct: backoff && isFinite(backoffPct) ? backoffPct : undefined,
+    // Linked %: this exercise's load = source exercise's top logged set minus this %.
+    linkPct: link && isFinite(linkPct) ? linkPct : undefined,
+    linkEi: link && row.linkEi != null ? row.linkEi : undefined,
     fixedLoad: fixed || undefined,
     toFailure: failure || undefined,
     timed: timed || undefined,
@@ -492,6 +504,7 @@ export function rowPresc(ex: ExRow): string {
     case "failure": return "to failure";
     case "seconds": return `${ex.value || "?"} s`;
     case "backoff": return `−${ex.value || "?"}% off top`;
+    case "linkpct": return `−${ex.value || "?"}% linked`;
     default: return ex.value ? `RPE${ex.value}` : "—";
   }
 }

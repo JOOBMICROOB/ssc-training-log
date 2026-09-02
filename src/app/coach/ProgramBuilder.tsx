@@ -988,6 +988,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         <option value="failure">Failure</option>
                         <option value="seconds">Seconds</option>
                         <option value="backoff">Backoff %</option>
+                        <option value="linkpct">Link %</option>
                       </select>
                       {ex.intensity === "failure" ? (
                         <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)", font: "500 10px/1 var(--font-body)", letterSpacing: ".05em" }} title="No target — the athlete pushes to failure.">TO FAILURE</div>
@@ -995,6 +996,8 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         <input className="cc-in" value={ex.value} placeholder="secs" title="Hold time in seconds (e.g. 40-60) — the athlete just marks it done" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
                       ) : ex.intensity === "backoff" ? (
                         <input className="cc-in" value={ex.value} placeholder="% off top" title="Auto-backdown: every set after set 1 is this % below the TOP set's logged weight (e.g. 10 → a 100 kg top set gives 90 kg backoffs)." onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
+                      ) : ex.intensity === "linkpct" ? (
+                        <input className="cc-in" value={ex.value} placeholder="% off" title="Linked %: this exercise's load = the source exercise's top LOGGED set minus this %. Pick the source in the next column." onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
                       ) : ex.intensity === "rpe" ? (
                         <input className="cc-in" list="rpe-opts" value={ex.value} placeholder="RPE" title="Target RPE (5–10, or a range)" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
                       ) : ex.intensity === "percent" ? (
@@ -1002,7 +1005,18 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                       ) : (
                         <input className="cc-in" value={ex.value} placeholder="kg" title="Working load (kg) — the athlete can only go lighter" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
                       )}
-                      {ex.intensity === "fixed" || ex.intensity === "load" || ex.intensity === "seconds" || ex.intensity === "backoff" ? (
+                      {ex.intensity === "linkpct" ? (
+                        (() => {
+                          const myIdx = d.exercises.findIndex((x) => x.id === ex.id);
+                          const opts = d.exercises.map((o, oi) => ({ o, oi })).filter(({ oi }) => oi < myIdx);
+                          return (
+                            <select className="cc-in cc-in-scheme" value={ex.linkEi ?? ""} title="Source exercise — its top logged set is the reference this % comes off" onChange={(e) => mutRow(d.id, ex.id, { linkEi: e.target.value === "" ? undefined : Number(e.target.value) })}>
+                              <option value="">source…</option>
+                              {opts.map(({ o, oi }) => <option key={o.id} value={oi}>{o.name || `Exercise ${oi + 1}`}</option>)}
+                            </select>
+                          );
+                        })()
+                      ) : ex.intensity === "fixed" || ex.intensity === "load" || ex.intensity === "seconds" || ex.intensity === "backoff" ? (
                         <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)" }} title="This row already shows a concrete number — no separate suggestion needed.">—</div>
                       ) : (
                         <input className="cc-in" value={ex.suggest ?? ""} placeholder={ex.intensity === "percent" && pctToKg(ex) ? pctToKg(ex) : "kg"} title="Suggested working weight (kg) — shown to the athlete as a hint. It does NOT cap what they enter." onChange={(e) => mutRow(d.id, ex.id, { suggest: e.target.value })} />

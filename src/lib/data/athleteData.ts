@@ -594,7 +594,10 @@ export function weekMetaForDate(d: DashboardData, date: string): { blockName?: s
 
 export function getSessionFor(athleteId: string, date: string): Session {
   const d = getDashboard(athleteId);
-  return getSession(templateForDate(d, date), d.programLogs ?? {}, date, d.sessionChoice?.[date] ?? "A", templateForDate(d, addDays(date, -7)));
+  // The athlete's 1RM per lift (their recorded PRs) — feeds %1RM auto-loads.
+  const pr = (k: string) => { const p = (d.prs ?? []).find((x) => x.key === k); const n = p ? parseFloat(p.value.replace(",", ".")) : 0; return isFinite(n) ? n : 0; };
+  const oneRm = { squat: pr("squat"), bench: pr("bench"), deadlift: pr("deadlift") };
+  return getSession(templateForDate(d, date), d.programLogs ?? {}, date, d.sessionChoice?.[date] ?? "A", templateForDate(d, addDays(date, -7)), oneRm);
 }
 
 // --- per-exercise bests (all-time) -------------------------------------------
