@@ -322,7 +322,10 @@ function computeStreak(data: DashboardData, today: Date): number {
       }
     }
     const frac = total ? logged / total : 0;
-    if (frac >= 0.8) {
+    // A session the athlete CONFIRMED (finished) always counts — that's an explicit
+    // "I did this" — even if the raw logged fraction reads low (coach-prefilled
+    // loads never re-touched, or a repeated-week template that grew extra sets).
+    if (s.finished || frac >= 0.8) {
       streak++;
       cursor = addDays(cursor, -1);
       continue;
