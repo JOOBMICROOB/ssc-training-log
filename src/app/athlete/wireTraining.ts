@@ -43,6 +43,7 @@ const DAY2 = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 const clampKg = (n: number) => Math.max(0, Math.min(MAX_SET_KG, Math.round(n * 2) / 2));
 const DAY_FULL = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const MONTHS = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]; // the practical logging range
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const parseKg = (s: string) => parseFloat(s.replace(",", ".").replace(/[^0-9.]/g, ""));
 
@@ -133,11 +134,17 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   const failBtn = st.requiresRpe
     ? `<button data-fail="${key}" ${dis} title="Failed rep" style="flex:0 0 auto;padding:0 9px;height:36px;border:1px solid ${st.failed ? "#d98a8a" : "rgba(29,31,32,.14)"};border-radius:9px;background:${st.failed ? "rgba(217,138,138,.15)" : "transparent"};color:${st.failed ? "#b45454" : "#8a929c"};font:600 10px/1 'Barlow Condensed',sans-serif;letter-spacing:.08em;cursor:pointer;">FAIL</button>`
     : "";
+  // RPE picker: tappable chips (5–10 in 0.5 steps) instead of a fiddly slider —
+  // precise on mobile, and it reads clearly as "not rated yet" until one is picked.
   const rpeRow = st.requiresRpe
-    ? `<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-        <span style="flex:0 0 auto;width:44px;font:400 9px/1 Barlow,sans-serif;letter-spacing:.12em;color:rgb(138,146,156);">RPE</span>
-        <input type="range" data-rpe="${key}" ${dis} min="5" max="10" step="0.5" value="${st.rpe ?? 7.5}" style="flex:1 1 0;height:18px;accent-color:rgb(var(--a-accent2-rgb));">
-        <span data-rpeval="${key}" style="flex:0 0 auto;width:56px;text-align:right;font:600 14px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-accent2-rgb));">${st.rpe != null ? st.rpe : "RATE"}</span>
+    ? `<div style="display:flex;align-items:center;gap:6px;margin-top:7px;">
+        <span style="flex:0 0 auto;width:28px;font:400 9px/1 Barlow,sans-serif;letter-spacing:.08em;color:${st.rpe == null ? "#b45454" : "rgb(138,146,156)"};">${st.rpe == null ? "RATE" : "RPE"}</span>
+        <div style="flex:1 1 0;display:flex;gap:3px;">
+          ${RPE_VALUES.map((v) => {
+            const on = st.rpe === v;
+            return `<button data-rpeset="${key}" data-v="${v}" ${dis} style="flex:1 1 0;min-width:0;height:32px;border-radius:8px;cursor:pointer;box-sizing:border-box;font:700 11px/1 'Barlow Condensed',sans-serif;border:1px solid ${on ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.3)"};background:${on ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.06)"};color:${on ? "rgb(242,242,243)" : "rgb(var(--a-accent2-rgb))"};">${Number.isInteger(v) ? v : v.toString().replace(".5", "½")}</button>`;
+          }).join("")}
+        </div>
       </div>`
     : "";
   const last = st.lastWeek && !hideLastWeek
@@ -558,7 +565,17 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     }
 
     // edits are gated when the session is confirmed/locked
-    if (t.closest("[data-inc],[data-dec],[data-same],[data-fail],[data-done],[data-fixdone],[data-secs],[data-wi],[data-note]") && !unlockGate()) return;
+    if (t.closest("[data-inc],[data-dec],[data-same],[data-fail],[data-done],[data-fixdone],[data-rpeset],[data-secs],[data-wi],[data-note]") && !unlockGate()) return;
+
+    // RPE chip: tap to rate; tap the current value again to clear it.
+    const rpeset = t.closest<HTMLElement>("[data-rpeset]");
+    if (rpeset) {
+      const k = rpeset.dataset.rpeset!;
+      const v = Number(rpeset.dataset.v);
+      let cur: number | null = null;
+      getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === k) cur = st.rpe; }));
+      return logSet(athleteId, selected, k, { rpe: cur === v ? null : v });
+    }
 
     // Fixed-load "DONE": confirm the prescribed load without retyping it (a plain
     // pre-fill never counts as logged until the athlete confirms). Toggles off.
@@ -600,18 +617,10 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     }
   });
 
-  body?.addEventListener("input", (e) => {
-    const t = e.target as HTMLInputElement;
-    if (t.matches("[data-rpe]")) {
-      const badge = body?.querySelector<HTMLElement>(`[data-rpeval="${t.dataset.rpe}"]`);
-      if (badge) badge.textContent = t.value;
-    }
-  });
   body?.addEventListener("change", (e) => {
     const t = e.target as HTMLInputElement;
     if (isFinished()) return;
-    if (t.matches("[data-rpe]")) logSet(athleteId, selected, t.dataset.rpe!, { rpe: Number(t.value) });
-    else if (t.matches("[data-secs]")) {
+    if (t.matches("[data-secs]")) {
       const v = parseInt(t.value.replace(/[^0-9]/g, ""), 10);
       if (t.value.trim() === "") logSet(athleteId, selected, t.dataset.secs!, { heldSeconds: null, done: false });
       else if (Number.isFinite(v) && v > 0) logSet(athleteId, selected, t.dataset.secs!, { heldSeconds: v, done: true });
