@@ -22,9 +22,11 @@
   --radius: 3px;
 
   /* Athlete app accent, as RGB triplets so any rgba(...,alpha) can theme cleanly.
-     Themes below re-point these; navy/ink stays fixed for readability. */
+     Themes below re-point these. --a-navy-rgb is the DARK accent (top bar, dark
+     widgets, dark text); it shifts per theme too (plum / burgundy / deep green). */
   --a-accent-rgb: 89, 128, 166;
   --a-accent2-rgb: 65, 97, 128;
+  --a-navy-rgb: 29, 45, 61;
 }
 
 /* ---- athlete app themes (Specific Strength · Flower · Flame · Nature) ---------
@@ -33,11 +35,13 @@
 [data-theme="strength"] {
   --a-accent-rgb: 89, 128, 166;
   --a-accent2-rgb: 65, 97, 128;
+  --a-navy-rgb: 29, 45, 61;
   --a-panel-bg: url(/assets/bg-frost-light2.png) center center / cover no-repeat rgb(251, 253, 255);
 }
 [data-theme="flower"] {
   --a-accent-rgb: 214, 96, 158;
   --a-accent2-rgb: 176, 74, 124;
+  --a-navy-rgb: 74, 40, 92;
   --a-panel-bg:
     radial-gradient(circle at 12% 10%, rgba(240, 150, 200, 0.62), transparent 34%),
     radial-gradient(circle at 88% 32%, rgba(238, 138, 194, 0.58), transparent 34%),
@@ -47,6 +51,7 @@
 [data-theme="flame"] {
   --a-accent-rgb: 224, 101, 74;
   --a-accent2-rgb: 184, 74, 48;
+  --a-navy-rgb: 118, 34, 52;
   --a-panel-bg:
     radial-gradient(circle at 16% 12%, rgba(244, 150, 120, 0.6), transparent 42%),
     radial-gradient(circle at 84% 66%, rgba(244, 138, 108, 0.55), transparent 44%),
@@ -55,6 +60,7 @@
 [data-theme="nature"] {
   --a-accent-rgb: 112, 176, 70;
   --a-accent2-rgb: 86, 142, 50;
+  --a-navy-rgb: 38, 84, 46;
   --a-panel-bg:
     radial-gradient(circle at 14% 10%, rgba(160, 215, 95, 0.58), transparent 34%),
     radial-gradient(circle at 82% 58%, rgba(150, 205, 90, 0.5), transparent 36%),

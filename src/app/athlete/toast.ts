@@ -11,7 +11,7 @@ export function showToast(message: string, ms = 3400) {
     el.style.cssText =
       "position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));" +
       "transform:translateX(-50%) translateY(10px);max-width:min(92vw,430px);z-index:9999;" +
-      "padding:12px 16px;border-radius:14px;background:rgba(29,45,61,.96);color:#f2f2f3;" +
+      "padding:12px 16px;border-radius:14px;background:rgba(var(--a-navy-rgb),.96);color:#f2f2f3;" +
       "font:500 13px/1.45 Barlow,sans-serif;box-shadow:0 10px 34px rgba(20,36,52,.30);" +
       "opacity:0;transition:opacity .18s ease,transform .18s ease;pointer-events:none;text-align:center;";
     document.body.appendChild(el);

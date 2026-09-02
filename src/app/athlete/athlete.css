@@ -1,7 +1,7 @@
 /* Athlete app — styled to the Claude Design frames (soft, rounded, navy header
    over a light body; immersive navy for login + lift detail). */
 .a-root {
-  --navy: #1d2d3d; --navy-top: #22344400; --navy-deep: #14212c;
+  --navy: rgb(var(--a-navy-rgb)); --navy-top: #22344400; --navy-deep: #14212c;
   --bg: #ececef; --card: #ffffff; --line: rgba(29,31,32,.12);
   --accent: rgb(var(--a-accent-rgb)); --accent-deep: rgb(var(--a-accent2-rgb)); --text: #1d1f20; --muted: #6b7480;
   font-family: "Barlow", system-ui, sans-serif; color: var(--text);
@@ -16,7 +16,7 @@
 /* top app bar */
 .a-bar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 18px; background: linear-gradient(180deg,#20313f,#1a2937); color: #eef2f6;
+  padding: 14px 18px; background: linear-gradient(180deg,rgb(var(--a-navy-rgb)),rgb(var(--a-navy-rgb))); color: #eef2f6;
 }
 .a-logo { display: flex; align-items: center; gap: 9px; cursor: pointer; }
 .a-logo svg { display: block; }
@@ -27,7 +27,7 @@
 
 /* cards */
 .a-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; box-shadow: 0 1px 2px rgba(29,31,32,.05); }
-.a-card.navy { background: #1d2d3d; color: #eef2f6; border-color: rgba(255,255,255,.08); }
+.a-card.navy { background: rgb(var(--a-navy-rgb)); color: #eef2f6; border-color: rgba(255,255,255,.08); }
 .a-stat { background: var(--card); border: 1px solid var(--line); border-radius: 13px; padding: 12px 14px; }
 .a-stat .v { font: 600 22px/1 "Barlow Condensed", sans-serif; }
 

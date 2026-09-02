@@ -72,7 +72,7 @@ function dayButtons(week: ReturnType<typeof getWeekFor>, selected: string): stri
     .map((d) => {
       const active = d.date === selected;
       const style = active
-        ? "border:1px solid rgb(29,45,61);background:rgb(29,45,61);color:rgb(242,242,243);"
+        ? "border:1px solid rgb(var(--a-navy-rgb));background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);"
         : d.rest
           ? "border:1px solid rgba(29,31,32,.14);background:transparent;color:rgb(138,146,156);"
           : "border:1px solid rgba(29,31,32,.14);background:rgba(var(--a-accent-rgb),.12);color:rgb(60,69,79);";
@@ -118,8 +118,8 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
         <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">Target hold ${hold ? `${hold} s` : "for time"}${st.heldSeconds != null ? ` · <span style="color:#2e7d5a;font-weight:600;">held ${st.heldSeconds}s</span>` : on ? ' · <span style="color:#2e7d5a;font-weight:600;">DONE</span>' : ""}</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
-        <input data-secs="${key}" ${ro} inputmode="numeric" placeholder="held (s)" value="${secVal}" style="flex:1.4 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 15px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;border:1px solid rgba(var(--a-accent-rgb),.45);background:rgba(var(--a-accent-rgb),.08);color:#1d2d3d;">
-        <input data-wi="${key}" ${ro} inputmode="decimal" placeholder="+kg" value="${val}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 14px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;border:1px solid rgba(var(--a-accent-rgb),.25);background:rgba(var(--a-accent-rgb),.05);color:#1d2d3d;">
+        <input data-secs="${key}" ${ro} inputmode="numeric" placeholder="held (s)" value="${secVal}" style="flex:1.4 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 15px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;border:1px solid rgba(var(--a-accent-rgb),.45);background:rgba(var(--a-accent-rgb),.08);color:rgb(var(--a-navy-rgb));">
+        <input data-wi="${key}" ${ro} inputmode="decimal" placeholder="+kg" value="${val}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 14px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;border:1px solid rgba(var(--a-accent-rgb),.25);background:rgba(var(--a-accent-rgb),.05);color:rgb(var(--a-navy-rgb));">
         <button data-done="${key}" ${dis} title="Mark done without a time" style="flex:0 0 auto;width:44px;height:36px;border-radius:9px;cursor:pointer;font:600 15px/1 'Barlow Condensed',sans-serif;border:1px solid ${on ? "#4f9d69" : "rgba(var(--a-accent-rgb),.45)"};background:${on ? "rgba(79,157,105,.16)" : "transparent"};color:${on ? "#2e7d5a" : "rgb(var(--a-accent2-rgb))"};">✓</button>
       </div>
       ${st.note ? `<input data-note="${key}" ${ro} placeholder="Notes" value="${st.note.replace(/"/g, "&quot;")}" style="width:100%;margin-top:6px;padding:7px 10px;background:rgb(242,242,243);border:1px solid rgba(29,31,32,.16);color:rgb(29,31,32);font-size:12.5px;border-radius:10px;">` : ""}
@@ -127,7 +127,7 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   }
   const inStyle = st.failed
     ? "border:1px solid #d98a8a;background:rgba(217,138,138,.12);color:#b45454;"
-    : "border:1px solid rgba(var(--a-accent-rgb),.45);background:rgba(var(--a-accent-rgb),.08);color:#1d2d3d;";
+    : "border:1px solid rgba(var(--a-accent-rgb),.45);background:rgba(var(--a-accent-rgb),.08);color:rgb(var(--a-navy-rgb));";
   const step = (label: string, attr: string) =>
     `<button ${attr} ${dis} style="flex:0 0 auto;width:32px;height:36px;border:1px solid rgba(29,31,32,.14);border-radius:9px;background:#fff;color:rgb(var(--a-accent2-rgb));font:600 17px/1 'Barlow Condensed',sans-serif;cursor:pointer;">${label}</button>`;
   const failBtn = st.requiresRpe
@@ -167,13 +167,13 @@ function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locke
     ? "border:1px solid rgb(var(--a-accent-rgb));background:rgba(var(--a-accent-rgb),.14);"
     : "border:1px solid rgba(29,31,32,.14);background:rgba(255,255,255,.62);";
   const clip = ex.video
-    ? `<span data-video="${encodeURI(ex.video)}" title="Watch the coach's clip" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:6px;background:rgb(29,45,61);color:rgb(242,242,243);font:600 8px/1 Barlow,sans-serif;letter-spacing:.06em;cursor:pointer;">▶ WATCH</span>`
+    ? `<span data-video="${encodeURI(ex.video)}" title="Watch the coach's clip" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:6px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 8px/1 Barlow,sans-serif;letter-spacing:.06em;cursor:pointer;">▶ WATCH</span>`
     : ex.clip
-      ? `<span title="Coach attached a clip" style="flex:0 0 auto;display:grid;place-items:center;width:15px;height:15px;border-radius:5px;background:rgb(29,45,61);color:rgb(242,242,243);font-size:7px;">▶</span>`
+      ? `<span title="Coach attached a clip" style="flex:0 0 auto;display:grid;place-items:center;width:15px;height:15px;border-radius:5px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font-size:7px;">▶</span>`
       : "";
   const header = `<button data-ex="${ei}" style="width:100%;display:flex;align-items:center;gap:10px;text-align:left;padding:11px 12px;cursor:pointer;border-radius:12px;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;${headStyle}">
     <div style="flex:1 1 0;">
-      <div style="font:600 16px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(29,45,61);">${ex.name}</div>
+      <div style="font:600 16px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(var(--a-navy-rgb));">${ex.name}</div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">${clip}
         <span style="font:400 10.5px/1.2 Barlow,sans-serif;color:rgb(138,146,156);">${ex.scheme}</span></div>
       ${(() => {
@@ -200,8 +200,8 @@ function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selec
   const refToggle = `<button id="refToggle" title="Switch between last week's loads and your all-time bests" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid ${bestsOn ? "rgb(var(--a-accent-rgb))" : "rgba(var(--a-accent-rgb),.4)"};border-radius:9px;background:${bestsOn ? "rgba(var(--a-accent-rgb),.14)" : "transparent"};color:rgb(41,61,80);font:600 9.5px/1 Barlow,sans-serif;letter-spacing:.1em;cursor:pointer;">${bestsOn ? "BESTS" : "LAST WEEK"} ⇄</button>`;
   const title = `<div style="flex:0 0 auto;padding-bottom:10px;">
     <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
-      <span style="font:600 25px/1 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(29,45,61);">${session.name}</span>
-      <button id="dayPickBtn" style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px 4px;border:1px solid rgb(var(--a-accent-rgb));border-radius:9px;background:rgba(var(--a-accent-rgb),.1);color:rgb(29,45,61);font:600 24px/1 'Barlow Condensed',sans-serif;letter-spacing:.02em;cursor:pointer;">${DAY_FULL[session.weekday]}<span style="font-size:12px;color:rgb(var(--a-accent2-rgb));">▾</span></button>
+      <span style="font:600 25px/1 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(var(--a-navy-rgb));">${session.name}</span>
+      <button id="dayPickBtn" style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px 4px;border:1px solid rgb(var(--a-accent-rgb));border-radius:9px;background:rgba(var(--a-accent-rgb),.1);color:rgb(var(--a-navy-rgb));font:600 24px/1 'Barlow Condensed',sans-serif;letter-spacing:.02em;cursor:pointer;">${DAY_FULL[session.weekday]}<span style="font-size:12px;color:rgb(var(--a-accent2-rgb));">▾</span></button>
     </div>
     <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span style="font:400 11px/1 Barlow,sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">${session.exercises.length} EXERCISES · ${session.loggedCount} / ${session.setCount} SETS LOGGED</span>
@@ -217,7 +217,7 @@ function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selec
 function altSelector(session: Session): string {
   const btn = (opt: "A" | "B") => {
     const on = session.option === opt;
-    return `<button data-opt="${opt}" style="flex:1 1 0;padding:9px 0;border:1px solid ${on ? "rgb(var(--a-accent-rgb))" : "rgba(var(--a-accent-rgb),.28)"};border-radius:10px;background:${on ? "rgba(var(--a-accent-rgb),.14)" : "transparent"};color:${on ? "rgb(29,45,61)" : "rgb(107,116,128)"};font:600 15px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;cursor:pointer;">OPTION ${opt}</button>`;
+    return `<button data-opt="${opt}" style="flex:1 1 0;padding:9px 0;border:1px solid ${on ? "rgb(var(--a-accent-rgb))" : "rgba(var(--a-accent-rgb),.28)"};border-radius:10px;background:${on ? "rgba(var(--a-accent-rgb),.14)" : "transparent"};color:${on ? "rgb(var(--a-navy-rgb))" : "rgb(107,116,128)"};font:600 15px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;cursor:pointer;">OPTION ${opt}</button>`;
   };
   const note = session.note
     ? `<div style="margin-top:9px;padding:10px 12px;border-radius:10px;background:rgba(var(--a-accent-rgb),.08);border:1px solid rgba(var(--a-accent-rgb),.18);font:400 13px/1.45 Barlow,sans-serif;color:rgb(var(--a-accent2-rgb));"><span style="display:block;font:600 10px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(107,116,128);margin-bottom:4px;">FROM YOUR COACH</span>${escapeHtml(session.note)}</div>`
@@ -234,11 +234,11 @@ function lockMarkup(week: ReturnType<typeof getWeekFor>, selected: string, curre
   return `${dayRow}
     <div style="flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px 22px;gap:14px;">
       <div style="width:64px;height:64px;border-radius:20px;display:grid;place-items:center;background:rgba(var(--a-accent-rgb),.12);border:1px solid rgba(var(--a-accent-rgb),.3);font-size:30px;">🔒</div>
-      <div style="font:600 22px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(29,45,61);">NEXT WEEK IS LOCKED</div>
+      <div style="font:600 22px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(var(--a-navy-rgb));">NEXT WEEK IS LOCKED</div>
       <div style="max-width:280px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(89,101,115);">
         You've logged <strong>${currentPct}%</strong> of this week so far. Get to <strong>50%</strong> and next week unlocks automatically — it keeps your training honest and your coach's data clean.
       </div>
-      <button data-goto="${backTo}" style="display:inline-flex;align-items:center;gap:8px;margin-top:4px;padding:11px 18px;border-radius:12px;border:1px solid rgb(var(--a-accent-rgb));background:rgb(29,45,61);color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;cursor:pointer;">← BACK TO THE WEEK YOU'RE LOGGING</button>
+      <button data-goto="${backTo}" style="display:inline-flex;align-items:center;gap:8px;margin-top:4px;padding:11px 18px;border-radius:12px;border:1px solid rgb(var(--a-accent-rgb));background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;cursor:pointer;">← BACK TO THE WEEK YOU'RE LOGGING</button>
       <div style="max-width:280px;font:400 11px/1.5 Barlow,sans-serif;color:rgb(138,146,156);">
         Need this week opened early? Message your coach — they can unlock it for you.
       </div>
@@ -276,15 +276,15 @@ function buildCalendar(
         const sel = c.date === selected;
         const ev = eventMap[c.date];
         // No dot on rest days (a plain tile already reads as rest).
-        const dotColor = c.status === "rest" ? "transparent" : c.status === "logged" ? "#1d2d3d" : "rgb(var(--a-accent-rgb))";
+        const dotColor = c.status === "rest" ? "transparent" : c.status === "logged" ? "rgb(var(--a-navy-rgb))" : "rgb(var(--a-accent-rgb))";
         const tile = sel
-          ? "background:#1d2d3d;color:#f2f2f3;"
+          ? "background:rgb(var(--a-navy-rgb));color:#f2f2f3;"
           : ev
-            ? (ev.type === "vacation" ? "background:rgba(232,161,58,.24);color:#1d2d3d;" : "background:rgba(124,107,214,.2);color:#1d2d3d;")
+            ? (ev.type === "vacation" ? "background:rgba(232,161,58,.24);color:rgb(var(--a-navy-rgb));" : "background:rgba(124,107,214,.2);color:rgb(var(--a-navy-rgb));")
             : c.status === "logged"
-              ? "background:rgba(var(--a-accent-rgb),.22);color:#1d2d3d;" // logged → light blue
+              ? "background:rgba(var(--a-accent-rgb),.22);color:rgb(var(--a-navy-rgb));" // logged → light blue
               : c.status === "training"
-                ? "background:#e6eaef;color:#1d2d3d;" // planned, not logged → light grey
+                ? "background:#e6eaef;color:rgb(var(--a-navy-rgb));" // planned, not logged → light grey
                 : "background:transparent;color:#aab0b8;"; // rest → plain
         const ring = c.isToday && !sel ? "box-shadow:0 0 0 2.5px rgb(var(--a-accent-rgb)) inset;" : "";
         const evMark = ev ? `<span style="position:absolute;top:2px;right:4px;font-size:8px;line-height:1;">${ev.type === "vacation" ? "🌴" : "★"}</span>` : "";
@@ -300,7 +300,7 @@ function buildCalendar(
         return `<button data-cal="${d.date}" style="width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:11px 12px;margin-top:6px;border-radius:14px;cursor:pointer;border:1px solid ${sel ? "rgb(var(--a-accent-rgb))" : "rgba(29,31,32,.10)"};background:${sel ? "rgba(var(--a-accent-rgb),.12)" : "rgba(255,255,255,.7)"};">
           <span style="flex:0 0 auto;width:30px;text-align:center;font:600 16px/1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(var(--a-accent2-rgb));">${d.sessionLabel}</span>
           <span style="flex:1 1 0;">
-            <span style="display:block;font:600 13px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:#1d2d3d;">${d.name} · ${DAY_FULL[d.weekday]}</span>
+            <span style="display:block;font:600 13px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(var(--a-navy-rgb));">${d.name} · ${DAY_FULL[d.weekday]}</span>
             <span style="display:block;margin-top:2px;font:400 10.5px/1 Barlow,sans-serif;color:#8a929c;">${d.exerciseCount} exercises · ${d.setCount} sets</span>
           </span>
           <span style="flex:0 0 auto;font:600 9.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(var(--a-accent2-rgb));">${status}</span>
@@ -310,7 +310,7 @@ function buildCalendar(
     root.innerHTML = `<div style="width:344px;max-width:96vw;max-height:calc(100dvh - 32px);overflow-y:auto;background:#f4f8fc;border:1px solid rgba(29,31,32,.12);border-radius:20px;box-shadow:0 24px 60px rgba(9,17,28,.4);padding:16px;">
       <div style="display:flex;align-items:center;gap:8px;">
         <button data-cal-prev style="width:34px;height:34px;border:1px solid rgba(29,31,32,.14);border-radius:9px;background:#fff;color:rgb(var(--a-accent2-rgb));cursor:pointer;">‹</button>
-        <div style="flex:1 1 0;text-align:center;font:600 15px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:#1d2d3d;">${MONTHS[month]} ${year}</div>
+        <div style="flex:1 1 0;text-align:center;font:600 15px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(var(--a-navy-rgb));">${MONTHS[month]} ${year}</div>
         <button data-cal-next style="width:34px;height:34px;border:1px solid rgba(29,31,32,.14);border-radius:9px;background:#fff;color:rgb(var(--a-accent2-rgb));cursor:pointer;">›</button>
         <button data-cal-close style="width:34px;height:34px;border:0;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:16px;cursor:pointer;">✕</button>
       </div>
@@ -322,7 +322,7 @@ function buildCalendar(
         <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:#e6eaef;margin-right:5px;vertical-align:-1px;"></span>TRAINING</span>
         <span><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:rgba(var(--a-accent-rgb),.4);margin-right:5px;vertical-align:-1px;"></span>LOGGED</span>
       </div>
-      <button data-cal="${today}" style="width:100%;margin-top:12px;padding:11px;border:1px solid rgb(var(--a-accent-rgb));border-radius:12px;background:rgba(var(--a-accent-rgb),.12);color:#1d2d3d;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">GO TO TODAY'S SESSION</button>
+      <button data-cal="${today}" style="width:100%;margin-top:12px;padding:11px;border:1px solid rgb(var(--a-accent-rgb));border-radius:12px;background:rgba(var(--a-accent-rgb),.12);color:rgb(var(--a-navy-rgb));font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">GO TO TODAY'S SESSION</button>
       <div style="height:1px;background:rgba(29,31,32,.1);margin:14px 0 4px;"></div>
       <div style="font:400 9px/1 Barlow,sans-serif;letter-spacing:.14em;color:#8a929c;">SESSIONS THIS WEEK</div>
       ${sessions}
@@ -390,7 +390,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   const shareBtn = document.createElement("button");
   shareBtn.textContent = "↗ SHARE TO STORY";
   shareBtn.style.cssText =
-    "width:100%;margin-top:8px;padding:13px;border:1px solid rgb(var(--a-accent-rgb));border-radius:14px;background:rgba(var(--a-accent-rgb),.12);color:rgb(29,45,61);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;display:none;";
+    "width:100%;margin-top:8px;padding:13px;border:1px solid rgb(var(--a-accent-rgb));border-radius:14px;background:rgba(var(--a-accent-rgb),.12);color:rgb(var(--a-navy-rgb));font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;display:none;";
   finishBtn?.parentElement?.insertBefore(shareBtn, finishBtn.nextSibling);
   shareBtn.addEventListener("click", () => showShareSheet(athleteId, selected));
 
@@ -463,12 +463,12 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     if (finishBtn) {
       const active = canConfirm || session.finished;
       finishBtn.style.cursor = active ? "pointer" : "default";
-      finishBtn.style.background = session.finished ? "rgba(46,125,90,.14)" : canConfirm ? "rgb(29,45,61)" : "transparent";
+      finishBtn.style.background = session.finished ? "rgba(46,125,90,.14)" : canConfirm ? "rgb(var(--a-navy-rgb))" : "transparent";
       finishBtn.style.color = session.finished ? "#2e7d5a" : canConfirm ? "rgb(242,242,243)" : "rgb(138,146,156)";
       finishBtn.style.border = session.finished
         ? "1px solid rgba(46,125,90,.5)"
         : canConfirm
-          ? "1px solid rgb(29,45,61)"
+          ? "1px solid rgb(var(--a-navy-rgb))"
           : "1px solid rgba(29,31,32,.16)";
     }
     if (finishNote)

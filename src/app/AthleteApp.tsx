@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import "./athlete/design.css";
 import "./athlete/athlete-shell.css";
 import { AthleteLogin } from "./athlete/LoginScreen";
@@ -13,6 +13,7 @@ import { getSession, signOut, subscribe, type AthleteSession } from "../lib/auth
 import { finalizeWeeklyAdherence, hydrateFromServer } from "../lib/data/athleteData";
 import { wirePullToRefresh } from "./athlete/pullToRefresh";
 import { pushSupported, pushPermission, enablePush } from "../lib/push/push";
+import { getTheme } from "./athlete/theme";
 
 // The REAL design frames (rendered markup captured from Claude Design), imported
 // verbatim. The app renders these directly so it IS the design, not a rebuild.
@@ -39,19 +40,6 @@ function prep(html: string): string {
   return html.replace(/url\(&quot;assets\/bg-frost-light2\.png&quot;\)[^;"]*/g, "var(--a-panel-bg)");
 }
 
-export type Theme = "strength" | "flower" | "flame" | "nature";
-export const THEMES: { id: Theme; name: string }[] = [
-  { id: "strength", name: "Specific Strength" },
-  { id: "flower", name: "Flower" },
-  { id: "flame", name: "Flame" },
-  { id: "nature", name: "Nature" },
-];
-const THEME_KEY = "ssc.theme";
-const loadTheme = (): Theme => {
-  try { const t = localStorage.getItem(THEME_KEY) as Theme; if (THEMES.some((x) => x.id === t)) return t; } catch { /* ignore */ }
-  return "strength";
-};
-
 const SCREEN_KEY = "ssc.athlete.screen";
 const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 /**
@@ -76,11 +64,12 @@ export function AthleteApp() {
   const [session, setSession] = useState<AthleteSession | null>(() => getSession());
   const [screen, setScreen] = useState<Screen>(() => restoreScreen(!!getSession()));
   const [selectedLift, setSelectedLift] = useState<MainLift>("squat");
-  const [theme, setTheme] = useState<Theme>(loadTheme);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const shellRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ } }, [theme]);
+  // Apply the saved theme to the shell before paint (the dashboard widget drives
+  // it thereafter via applyTheme, which sets the same attribute imperatively).
+  useLayoutEffect(() => { shellRef.current?.setAttribute("data-theme", getTheme()); }, [session, screen]);
 
   // Keep session in sync with sign-in / sign-out (incl. other tabs).
   useEffect(() => subscribe(setSession), []);
@@ -234,7 +223,7 @@ export function AthleteApp() {
   }, [screen, showFrame, session, selectedLift]);
 
   return (
-    <div className="athlete-shell" data-theme={theme}>
+    <div className="athlete-shell" ref={shellRef} data-theme={getTheme()}>
       {!showFrame ? (
         <AthleteLogin
           session={session}
@@ -243,40 +232,8 @@ export function AthleteApp() {
           onSignOut={() => void signOut()}
         />
       ) : (
-        <>
-          <div ref={hostRef} className="athlete-frame" />
-          <ThemePicker theme={theme} open={pickerOpen} onToggle={() => setPickerOpen((v) => !v)} onPick={(t) => { setTheme(t); setPickerOpen(false); }} />
-        </>
+        <div ref={hostRef} className="athlete-frame" />
       )}
-    </div>
-  );
-}
-
-// A palette swatch for each theme's accent — read from the CSS vars so it always
-// matches the live theme colours.
-const SWATCH: Record<Theme, string> = {
-  strength: "rgb(89,128,166)",
-  flower: "rgb(214,96,158)",
-  flame: "rgb(224,101,74)",
-  nature: "rgb(112,176,70)",
-};
-function ThemePicker({ theme, open, onToggle, onPick }: { theme: Theme; open: boolean; onToggle: () => void; onPick: (t: Theme) => void }) {
-  return (
-    <div className="a-theme-picker">
-      {open && (
-        <div className="a-theme-pop" role="menu">
-          {THEMES.map((t) => (
-            <button key={t.id} className={`a-theme-opt${t.id === theme ? " on" : ""}`} onClick={() => onPick(t.id)} role="menuitemradio" aria-checked={t.id === theme}>
-              <span className="a-theme-dot" style={{ background: SWATCH[t.id] }} />
-              <span>{t.name}</span>
-              {t.id === theme && <span className="a-theme-check">✓</span>}
-            </button>
-          ))}
-        </div>
-      )}
-      <button className="a-theme-fab" onClick={onToggle} title="Change theme" aria-label="Change theme" style={{ background: SWATCH[theme] }}>
-        <span>🎨</span>
-      </button>
     </div>
   );
 }

@@ -48,7 +48,7 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
     const on = filter === value;
     return `<button data-filter="${value}" style="flex:1 1 0%;padding:8px 0;border-radius:10px;font:600 10.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.09em;cursor:pointer;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;${
       on
-        ? "border:1px solid rgb(29,45,61);background:rgb(29,45,61);color:rgb(242,242,243);"
+        ? "border:1px solid rgb(var(--a-navy-rgb));background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);"
         : "border:1px solid rgba(29,31,32,.14);background:transparent;color:rgb(107,116,128);"
     }">${label}</button>`;
   }
@@ -79,15 +79,15 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
 
         let border = "1px solid rgba(29,31,32,.1)";
         let bg = "rgba(255,255,255,.66)";
-        let color = "rgb(29,45,61)";
+        let color = "rgb(var(--a-navy-rgb))";
         let dot = "transparent";
         if (training) dot = "rgb(var(--a-accent-rgb))";
         if (meet) {
           dot = "transparent";
           if (meet.level === "international" || meet.opted) {
-            bg = "rgb(29,45,61)";
+            bg = "rgb(var(--a-navy-rgb))";
             color = "rgb(242,242,243)";
-            border = meet.opted ? "1px solid rgb(var(--a-accent-rgb))" : "1px solid rgb(29,45,61)";
+            border = meet.opted ? "1px solid rgb(var(--a-accent-rgb))" : "1px solid rgb(var(--a-navy-rgb))";
           } else {
             border = "1px solid rgb(var(--a-accent-rgb))";
             bg = "rgba(var(--a-accent-rgb),.14)";
@@ -105,7 +105,7 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
 
     calEl.innerHTML = `
       <div style="display:flex;align-items:baseline;gap:9px;">
-        <span style="font:600 25px/1 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(29,45,61);">${MONTHS_LONG[month]} ${year}</span>
+        <span style="font:600 25px/1 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(var(--a-navy-rgb));">${MONTHS_LONG[month]} ${year}</span>
         <button data-nav="-1" style="margin-left:auto;width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:11px;cursor:pointer;">‹</button>
         <button data-nav="1" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:11px;cursor:pointer;">›</button>
       </div>
@@ -121,7 +121,7 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
       <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:9px;font:400 9px/1 Barlow,sans-serif;letter-spacing:.07em;color:rgb(107,116,128);">
         <span style="flex:0 0 auto;white-space:nowrap;display:flex;align-items:center;gap:5px;"><span style="width:6px;height:6px;border-radius:50%;background:rgb(var(--a-accent-rgb));"></span>TRAINING</span>
         <span style="flex:0 0 auto;white-space:nowrap;display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;border:1px solid rgb(var(--a-accent-rgb));border-radius:2px;"></span>NATIONAL</span>
-        <span style="flex:0 0 auto;white-space:nowrap;display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;background:rgb(29,45,61);border-radius:2px;"></span>INTERNATIONAL</span>
+        <span style="flex:0 0 auto;white-space:nowrap;display:flex;align-items:center;gap:5px;"><span style="width:8px;height:8px;background:rgb(var(--a-navy-rgb));border-radius:2px;"></span>INTERNATIONAL</span>
       </div>`;
   }
 
@@ -131,7 +131,7 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
     const going = c.going + (opted ? 1 : 0);
     const natBadge =
       c.level === "international"
-        ? `<span style="flex:0 0 auto;padding:4px 8px;border:1px solid rgb(29,45,61);border-radius:8px;background:rgb(29,45,61);color:rgb(242,242,243);font:600 9px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;">INTERNATIONAL</span>`
+        ? `<span style="flex:0 0 auto;padding:4px 8px;border:1px solid rgb(var(--a-navy-rgb));border-radius:8px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 9px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;">INTERNATIONAL</span>`
         : `<span style="flex:0 0 auto;padding:4px 8px;border:1px solid rgba(var(--a-accent-rgb),.4);border-radius:8px;background:rgba(var(--a-accent-rgb),.12);color:rgb(var(--a-accent2-rgb));font:600 9px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;">NATIONAL</span>`;
 
     const toggle = opted
@@ -139,11 +139,11 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
           <span style="flex:0 0 auto;width:34px;height:20px;border-radius:11px;background:rgb(var(--a-accent-rgb));position:relative;display:block;">
             <span style="position:absolute;top:2px;left:16px;width:16px;height:16px;border-radius:50%;background:rgb(242,242,243);box-shadow:rgba(29,31,32,.35) 0px 1px 3px;"></span>
           </span>
-          <span style="flex:1 1 0%;text-align:left;font:600 12.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.09em;color:rgb(29,45,61);">ENTRY CONFIRMED · LOCKED</span>
+          <span style="flex:1 1 0%;text-align:left;font:600 12.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.09em;color:rgb(var(--a-navy-rgb));">ENTRY CONFIRMED · LOCKED</span>
           <span style="flex:0 0 auto;font:400 9.5px/1 Barlow,sans-serif;color:rgb(138,146,156);">🔒 ${going} going</span>
         </button>
         ${(getAttemptPlans(athleteId)[c.id] as AttemptPlan | undefined)?.published
-          ? `<button data-attempts="${c.id}" style="width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:none;border-radius:12px;background:rgb(29,45,61);color:rgb(242,242,243);font:600 12.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;box-shadow:rgba(20,36,52,.18) 0px 5px 14px;">🏋️ MY ATTEMPTS ›</button>`
+          ? `<button data-attempts="${c.id}" style="width:100%;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:none;border-radius:12px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 12.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;box-shadow:rgba(20,36,52,.18) 0px 5px 14px;">🏋️ MY ATTEMPTS ›</button>`
           : ""}`
       : `<button data-optin="${c.id}" style="width:100%;margin-top:11px;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(29,31,32,.14);border-radius:12px;background:transparent;cursor:pointer;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;">
           <span style="flex:0 0 auto;width:34px;height:20px;border-radius:11px;background:rgba(29,31,32,.2);position:relative;display:block;">
@@ -159,11 +159,11 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
     return `<div style="padding:13px;border-radius:14px;border:1px solid ${cardBorder};background:${cardBg};backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;">
         <div style="display:flex;align-items:flex-start;gap:12px;">
           <div style="flex:0 0 auto;width:54px;text-align:center;padding:7px 0;border:1px solid rgba(var(--a-accent-rgb),.4);border-radius:10px;background:rgb(242,242,243);">
-            <div style="font:600 21px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${dd.getDate()}</div>
+            <div style="font:600 21px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${dd.getDate()}</div>
             <div style="margin-top:2px;font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.13em;color:rgb(107,116,128);">${MONTHS[dd.getMonth()]}</div>
           </div>
           <div style="flex:1 1 0%;">
-            <div style="font:600 17px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(29,45,61);">${c.name}</div>
+            <div style="font:600 17px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(var(--a-navy-rgb));">${c.name}</div>
             <div style="margin-top:3px;font:400 11px/1.35 Barlow,sans-serif;color:rgb(107,116,128);">${c.location} · ${weeksLabel(weeksOut(c.date, today))}</div>
           </div>
           ${natBadge}
@@ -244,7 +244,7 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
     const raw = getAttemptPlans(athleteId)[compId] as AttemptPlan | undefined;
     const plan = raw?.published ? raw : undefined; // only a published plan is visible
     const dd = new Date(comp.date + "T00:00:00");
-    const head = `<div style="position:sticky;top:0;background:rgb(29,45,61);color:#f2f2f3;padding:calc(16px + env(safe-area-inset-top)) 18px 16px;display:flex;align-items:center;gap:12px;box-shadow:rgba(9,17,28,.25) 0 3px 12px;">
+    const head = `<div style="position:sticky;top:0;background:rgb(var(--a-navy-rgb));color:#f2f2f3;padding:calc(16px + env(safe-area-inset-top)) 18px 16px;display:flex;align-items:center;gap:12px;box-shadow:rgba(9,17,28,.25) 0 3px 12px;">
         <button data-close style="flex:0 0 auto;width:34px;height:34px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:rgba(255,255,255,.1);color:#f2f2f3;font-size:18px;cursor:pointer;">‹</button>
         <div style="flex:1 1 0;"><div style="font:600 19px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.02em;">${comp.name}</div>
           <div style="margin-top:2px;font:400 10px/1 Barlow,sans-serif;letter-spacing:.1em;color:rgba(242,242,243,.7);">${dd.getDate()}/${dd.getMonth() + 1}/${dd.getFullYear()} · ${comp.location}</div></div>
@@ -266,19 +266,19 @@ export function wireCompetitions(host: HTMLElement, athleteId: string): () => vo
         const a = plan.attempts[l][w];
         return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid rgba(29,31,32,.08);">
           <span style="flex:0 0 auto;width:60px;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:rgb(107,116,128);">${WHICH_LABEL[w]}</span>
-          <span style="flex:1 1 0;font:700 22px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${kg(a.neutral)}<span style="font-size:12px;color:rgb(138,146,156);"> kg</span></span>
+          <span style="flex:1 1 0;font:700 22px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${kg(a.neutral)}<span style="font-size:12px;color:rgb(138,146,156);"> kg</span></span>
           <span style="flex:0 0 auto;font:400 9.5px/1.4 Barlow,sans-serif;color:rgb(138,146,156);text-align:right;">low ${kg(a.low)}<br>high ${kg(a.high)}</span>
           ${statusChip(plan.status[l][w])}
         </div>`;
       }).join("");
       return `<div style="margin:14px 18px 0;padding:14px;border-radius:16px;background:rgba(255,255,255,.72);border:1px solid rgba(29,31,32,.08);box-shadow:rgba(20,36,52,.06) 0 4px 14px;">
-        <div style="font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(29,45,61);">${LIFT_LABEL[l]}</div>
+        <div style="font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(var(--a-navy-rgb));">${LIFT_LABEL[l]}</div>
         ${rows}
         ${warm ? `<div style="margin-top:10px;padding-top:9px;border-top:1px solid rgba(29,31,32,.08);font:400 10.5px/1.4 Barlow,sans-serif;color:rgb(var(--a-accent2-rgb));"><strong style="letter-spacing:.06em;">WARM-UP</strong> · ${warm}</div>` : ""}
       </div>`;
     }).join("");
 
-    const summary = `<div style="margin:16px 18px 0;padding:14px;border-radius:16px;background:rgb(29,45,61);color:#f2f2f3;display:flex;gap:20px;flex-wrap:wrap;">
+    const summary = `<div style="margin:16px 18px 0;padding:14px;border-radius:16px;background:rgb(var(--a-navy-rgb));color:#f2f2f3;display:flex;gap:20px;flex-wrap:wrap;">
         <div><div style="font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.12em;color:rgba(242,242,243,.6);">CONFIRMED TOTAL</div><div style="margin-top:4px;font:700 24px/1 'Barlow Condensed',sans-serif;">${liveTotal ? kg(liveTotal) + " kg" : "—"}</div></div>
         <div><div style="font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.12em;color:rgba(242,242,243,.6);">PLANNED TOTAL</div><div style="margin-top:4px;font:700 24px/1 'Barlow Condensed',sans-serif;">${kg(planned)} kg</div></div>
         ${plan.goals.placement ? `<div><div style="font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.12em;color:rgba(242,242,243,.6);">GOAL</div><div style="margin-top:4px;font:600 15px/1.1 'Barlow Condensed',sans-serif;">${plan.goals.placement}</div></div>` : ""}

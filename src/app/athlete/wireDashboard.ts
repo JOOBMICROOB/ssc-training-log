@@ -15,6 +15,7 @@ import {
 } from "../../lib/data/athleteData";
 import { renderBwSvgInner, DASH_STYLE } from "../../lib/calc/bwChart";
 import { logWithConfirm } from "./bwLog";
+import { THEMES, getTheme, themeName, applyTheme, type Theme } from "./theme";
 
 /**
  * Makes the injected 2a dashboard interactive:
@@ -42,8 +43,8 @@ function setText(host: HTMLElement, id: string, value: string) {
 
 function prRowHtml(p: { lift: string; key?: string; value: string; date: string; delta: string }): string {
   return `<div data-lift="${p.key ?? ""}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(255,255,255,.75);border-radius:16px;background:rgba(255,255,255,.62);backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;cursor:pointer;">
-    <span style="flex:1 1 0%;font:600 15px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(29,45,61);">${p.lift}</span>
-    <span data-pr-value style="flex:0 0 auto;font:600 20px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${p.value}</span>
+    <span style="flex:1 1 0%;font:600 15px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(var(--a-navy-rgb));">${p.lift}</span>
+    <span data-pr-value style="flex:0 0 auto;font:600 20px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${p.value}</span>
     <span style="flex:0 0 auto;width:64px;text-align:right;font:400 10px/1.2 Barlow,sans-serif;color:rgb(107,116,128);">${p.date}</span>
     <span style="flex:0 0 auto;width:46px;text-align:right;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:rgb(var(--a-accent2-rgb));">${p.delta}</span>
   </div>`;
@@ -142,7 +143,7 @@ function applyModel(host: HTMLElement, model: DashboardModel) {
     const done = model.todayCard.done;
     const rest = model.todayCard.rest;
     const accent = done ? "79, 157, 105" : rest ? "138, 146, 156" : "var(--a-accent-rgb)";
-    const solid = done ? "rgb(79,157,105)" : rest ? "rgb(107,116,128)" : "rgb(29,45,61)";
+    const solid = done ? "rgb(79,157,105)" : rest ? "rgb(107,116,128)" : "rgb(var(--a-navy-rgb))";
     const btn = host.querySelector<HTMLElement>("#nextSessionBtn");
     const icon = host.querySelector<HTMLElement>("#nextIcon");
     if (btn) {
@@ -228,7 +229,7 @@ function editPrBaseline(athleteId: string, valueSpan: HTMLElement, lift: "squat"
   inp.value = current;
   inp.inputMode = "decimal";
   inp.style.cssText =
-    "width:74px;font:600 18px/1 'Barlow Condensed',sans-serif;color:#1d2d3d;border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background:#fff;text-align:right;";
+    "width:74px;font:600 18px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background:#fff;text-align:right;";
   valueSpan.style.display = "none";
   valueSpan.parentElement?.insertBefore(inp, valueSpan.nextSibling);
   inp.focus();
@@ -280,7 +281,7 @@ function openTileEditor(athleteId: string, span: HTMLElement, field: EditField, 
     editor = inp;
   }
   editor.style.cssText =
-    "font:600 16px/1 'Barlow Condensed',sans-serif;color:#1d2d3d;border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background:#fff;max-width:100%;";
+    "font:600 16px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background:#fff;max-width:100%;";
   span.style.display = "none";
   parent.appendChild(editor);
   editor.focus();
@@ -339,7 +340,7 @@ function editCompTotal(athleteId: string, span: HTMLElement) {
   inp.size = 6;
   inp.placeholder = "kg";
   inp.style.cssText =
-    "font:600 28px/1 'Barlow Condensed',sans-serif;color:#1d2d3d;border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:1px 6px;background:#fff;width:110px;max-width:100%;";
+    "font:600 28px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:1px 6px;background:#fff;width:110px;max-width:100%;";
   span.style.display = "none";
   parent.appendChild(inp);
   inp.focus();
@@ -403,10 +404,10 @@ function buildModal(model: DashboardModel): {
       <div style="margin-top:14px">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <span style="font:400 10px/1 Barlow,sans-serif;letter-spacing:.12em;color:#6b7480">${label}</span>
-          <span data-v="${key}" style="font:600 15px/1 'Barlow Condensed',sans-serif;color:#1d2d3d">${scores[key]}</span>
+          <span data-v="${key}" style="font:600 15px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb))">${scores[key]}</span>
         </div>
         <input type="range" min="0" max="10" value="${scores[key]}" data-k="${key}"
-          style="width:100%;margin-top:7px;height:6px;accent-color:#1d2d3d">
+          style="width:100%;margin-top:7px;height:6px;accent-color:rgb(var(--a-navy-rgb))">
       </div>`,
   ).join("");
 
@@ -418,14 +419,14 @@ function buildModal(model: DashboardModel): {
       <div style="display:flex;align-items:flex-start;justify-content:space-between">
         <div>
           <div style="font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.14em;color:#8a929c">WEEKLY CHECK-IN</div>
-          <div style="margin-top:5px;font:600 17px/1.1 'Barlow Condensed',sans-serif;color:#1d2d3d">${model.checkinStatus}</div>
+          <div style="margin-top:5px;font:600 17px/1.1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb))">${model.checkinStatus}</div>
         </div>
         <button data-close style="border:0;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:16px;cursor:pointer;line-height:1">▴</button>
       </div>
       <div style="height:1px;background:rgba(29,31,32,.1);margin:14px 0 2px"></div>
       ${rows}
-      <textarea data-note placeholder="Additional information for the coach" style="width:100%;min-height:64px;margin-top:16px;padding:11px;background:rgba(255,255,255,.6);border:1px solid rgba(29,31,32,.14);border-radius:12px;color:#1d2d3d;font-size:12.5px;resize:none;box-sizing:border-box">${model.checkin.note}</textarea>
-      <button data-submit style="width:100%;margin-top:12px;padding:14px;border:1px solid #1d2d3d;border-radius:12px;background:#1d2d3d;color:#f2f2f3;font:600 14px/1 'Barlow Condensed',sans-serif;letter-spacing:.14em;cursor:pointer">SUBMIT CHECK-IN</button>
+      <textarea data-note placeholder="Additional information for the coach" style="width:100%;min-height:64px;margin-top:16px;padding:11px;background:rgba(255,255,255,.6);border:1px solid rgba(29,31,32,.14);border-radius:12px;color:rgb(var(--a-navy-rgb));font-size:12.5px;resize:none;box-sizing:border-box">${model.checkin.note}</textarea>
+      <button data-submit style="width:100%;margin-top:12px;padding:14px;border:1px solid rgb(var(--a-navy-rgb));border-radius:12px;background:rgb(var(--a-navy-rgb));color:#f2f2f3;font:600 14px/1 'Barlow Condensed',sans-serif;letter-spacing:.14em;cursor:pointer">SUBMIT CHECK-IN</button>
     </div>`;
 
   const close = () => {
@@ -525,9 +526,74 @@ export function wireDashboard(
   // Double-tap the avatar to pick a new profile picture.
   host.querySelector<HTMLElement>("#profilePic")?.addEventListener("dblclick", () => pickAvatar(athleteId));
 
+  const unThemeWidget = mountThemeWidget(host);
+
   const unsub = subscribeDashboard(() => applyModel(host, getDashboardModel(athleteId)));
   return () => {
     unsub();
     modal.root.remove();
+    unThemeWidget();
   };
+}
+
+/** A theme card at the bottom of the dashboard + a preview popup to switch. */
+function mountThemeWidget(host: HTMLElement): () => void {
+  const anchor = host.querySelector("#sentNotesWrap");
+  if (!anchor) return () => {};
+
+  const widget = document.createElement("div");
+  widget.className = "a-theme-widget";
+  const renderWidget = () => {
+    const t = getTheme();
+    const sw = THEMES.find((x) => x.id === t)?.swatch ?? "";
+    widget.innerHTML = `
+      <div class="a-theme-w-left">
+        <span class="a-theme-w-dot" style="background:${sw}"></span>
+        <span><span class="a-theme-w-k">APP THEME</span><span class="a-theme-w-name">${themeName(t)}</span></span>
+      </div>
+      <span class="a-theme-w-cta">Change ›</span>`;
+  };
+  renderWidget();
+  anchor.insertAdjacentElement("afterend", widget);
+
+  const pop = document.createElement("div");
+  pop.className = "a-theme-modal";
+  pop.style.display = "none";
+  pop.innerHTML = `
+    <div class="a-theme-sheet">
+      <div class="a-theme-sheet-head">
+        <div class="a-theme-sheet-title">Choose a theme</div>
+        <button class="a-theme-close" aria-label="Close">✕</button>
+      </div>
+      <div class="a-theme-grid">
+        ${THEMES.map((t) => `
+          <button class="a-theme-tile" data-pick="${t.id}" data-theme="${t.id}">
+            <div class="a-theme-preview">
+              <div class="a-theme-pv-bar"></div>
+              <div class="a-theme-pv-chip"></div>
+              <div class="a-theme-pv-btn">DONE</div>
+            </div>
+            <div class="a-theme-tile-name"><span class="a-theme-w-dot" style="background:${t.swatch}"></span>${t.name}</div>
+            <div class="a-theme-tile-sub">${t.sub}</div>
+          </button>`).join("")}
+      </div>
+    </div>`;
+  document.body.appendChild(pop);
+
+  const mark = () => {
+    const t = getTheme();
+    pop.querySelectorAll<HTMLElement>("[data-pick]").forEach((el) => el.classList.toggle("on", el.dataset.pick === t));
+  };
+  const open = () => { mark(); pop.style.display = "flex"; };
+  const close = () => { pop.style.display = "none"; };
+
+  widget.addEventListener("click", open);
+  pop.addEventListener("click", (e) => {
+    const tgt = e.target as HTMLElement;
+    if (tgt === pop || tgt.closest(".a-theme-close")) return close();
+    const pick = tgt.closest<HTMLElement>("[data-pick]");
+    if (pick?.dataset.pick) { applyTheme(pick.dataset.pick as Theme); renderWidget(); mark(); close(); }
+  });
+
+  return () => { widget.remove(); pop.remove(); };
 }

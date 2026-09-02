@@ -48,7 +48,7 @@ export function wireShop(host: HTMLElement, athleteId: string): () => void {
     if (sizesEl)
       sizesEl.innerHTML = SIZES.map(
         (s) =>
-          `<button data-size="${s}" style="flex:1 1 0%;padding:8px 0;border-radius:10px;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.08em;cursor:pointer;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;${s === size ? "border:1px solid rgb(29,45,61);background:rgb(29,45,61);color:rgb(242,242,243);" : "border:1px solid rgba(29,31,32,.14);background:transparent;color:rgb(107,116,128);"}">${s}</button>`,
+          `<button data-size="${s}" style="flex:1 1 0%;padding:8px 0;border-radius:10px;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.08em;cursor:pointer;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;${s === size ? "border:1px solid rgb(var(--a-navy-rgb));background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);" : "border:1px solid rgba(29,31,32,.14);background:transparent;color:rgb(107,116,128);"}">${s}</button>`,
       ).join("");
 
     if (listEl)
@@ -65,13 +65,13 @@ export function wireShop(host: HTMLElement, athleteId: string): () => void {
               <img src="${imgs[0] ?? ""}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">
             </button>
             <div style="flex:1 1 0%;min-width:0;">
-              <div style="font:600 15px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(29,45,61);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
+              <div style="font:600 15px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(var(--a-navy-rgb));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
               <div style="margin-top:4px;font:400 10.5px/1.35 Barlow,sans-serif;color:rgb(138,146,156);">${meta}</div>
             </div>
-            <div style="flex:0 0 auto;text-align:right;min-width:40px;white-space:nowrap;font:600 13px/1 'Barlow Condensed',sans-serif;color:${freeRemaining ? "rgb(var(--a-accent2-rgb))" : "rgb(29,45,61)"};">${price}</div>
+            <div style="flex:0 0 auto;text-align:right;min-width:40px;white-space:nowrap;font:600 13px/1 'Barlow Condensed',sans-serif;color:${freeRemaining ? "rgb(var(--a-accent2-rgb))" : "rgb(var(--a-navy-rgb))"};">${price}</div>
             <div style="flex:0 0 auto;display:flex;align-items:center;gap:4px;">
               <button data-minus="${p.id}" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.16);border-radius:8px;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:13px;cursor:pointer;">−</button>
-              <span style="width:16px;text-align:center;font:600 14px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${qty}</span>
+              <span style="width:16px;text-align:center;font:600 14px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${qty}</span>
               <button data-plus="${p.id}" style="width:26px;height:26px;border:1px solid rgba(var(--a-accent-rgb),.45);border-radius:8px;background:rgba(var(--a-accent-rgb),.1);color:rgb(var(--a-accent2-rgb));font-size:13px;cursor:pointer;">+</button>
             </div>
           </div>`;
@@ -87,9 +87,9 @@ export function wireShop(host: HTMLElement, athleteId: string): () => void {
     if (submitTxt) submitTxt.textContent = items === 0 ? "PICK SOMETHING FIRST" : "SEND REQUEST TO COACH";
     if (submitEl) {
       submitEl.style.cursor = items === 0 ? "default" : "pointer";
-      submitEl.style.background = items === 0 ? "transparent" : "rgb(29,45,61)";
+      submitEl.style.background = items === 0 ? "transparent" : "rgb(var(--a-navy-rgb))";
       submitEl.style.color = items === 0 ? "rgb(138,146,156)" : "rgb(242,242,243)";
-      submitEl.style.border = items === 0 ? "1px solid rgba(29,31,32,.14)" : "1px solid rgb(29,45,61)";
+      submitEl.style.border = items === 0 ? "1px solid rgba(29,31,32,.14)" : "1px solid rgb(var(--a-navy-rgb))";
     }
   }
 

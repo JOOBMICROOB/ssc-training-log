@@ -32,7 +32,7 @@ function e1rmCard(lift: MainLift, p: LiftProgress): string {
       const h = w.e1rm > 0 ? Math.max(4, Math.round((w.e1rm / maxE) * 82)) : 2;
       const last = i === p.weeks.length - 1 && w.e1rm > 0;
       return `<span style="flex:1 1 0%;display:flex;flex-direction:column;align-items:center;gap:5px;">
-        <span title="${w.e1rm ? `${fmtKg(w.e1rm)} kg` : "—"}" style="width:100%;height:${h}px;background:${last ? "rgb(29,45,61)" : "rgba(var(--a-accent-rgb),.5)"};border-radius:3px 3px 0 0;"></span>
+        <span title="${w.e1rm ? `${fmtKg(w.e1rm)} kg` : "—"}" style="width:100%;height:${h}px;background:${last ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.5)"};border-radius:3px 3px 0 0;"></span>
         <span style="font:400 8px/1 Barlow,sans-serif;letter-spacing:.06em;color:rgb(162,169,178);">${w.label}</span>
       </span>`;
     })
@@ -42,19 +42,19 @@ function e1rmCard(lift: MainLift, p: LiftProgress): string {
       (rm) =>
         `<div style="flex:1 1 0%;padding:9px 8px;border:1px solid rgba(29,31,32,.12);border-radius:11px;text-align:center;background:rgba(255,255,255,.62);backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;">
           <div style="font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.13em;color:rgb(138,146,156);">${rm.reps}RM</div>
-          <div style="margin-top:5px;font:600 17px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${rm.weight != null ? `${fmtKg(rm.weight)} kg` : "—"}</div>
+          <div style="margin-top:5px;font:600 17px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${rm.weight != null ? `${fmtKg(rm.weight)} kg` : "—"}</div>
         </div>`,
     )
     .join("");
   const sel = LIFTS.map(
     (l) =>
-      `<button data-lift="${l.key}" style="flex:1 1 0%;min-height:38px;padding:10px 4px;border-radius:11px;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;cursor:pointer;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;${l.key === lift ? "border:1px solid rgb(29,45,61);background:rgb(29,45,61);color:rgb(242,242,243);" : "border:1px solid rgba(29,31,32,.14);background:transparent;color:rgb(107,116,128);"}">${l.label}</button>`,
+      `<button data-lift="${l.key}" style="flex:1 1 0%;min-height:38px;padding:10px 4px;border-radius:11px;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;cursor:pointer;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;${l.key === lift ? "border:1px solid rgb(var(--a-navy-rgb));background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);" : "border:1px solid rgba(29,31,32,.14);background:transparent;color:rgb(107,116,128);"}">${l.label}</button>`,
   ).join("");
   const variantRows = p.variants
     .map(
       (v) => `<div style="display:flex;align-items:baseline;gap:10px;padding:7px 0;border-top:1px solid rgba(29,31,32,.08);">
-        <span style="flex:1 1 0%;font:600 12px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(29,45,61);">${v.name}</span>
-        <span style="flex:0 0 auto;font:600 15px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${fmtKg(v.weight)} kg</span>
+        <span style="flex:1 1 0%;font:600 12px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(var(--a-navy-rgb));">${v.name}</span>
+        <span style="flex:0 0 auto;font:600 15px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${fmtKg(v.weight)} kg</span>
         <span style="flex:0 0 auto;width:34px;text-align:right;font:400 10px/1 Barlow,sans-serif;color:rgb(138,146,156);">×${v.reps}</span>
       </div>`,
     )
@@ -68,7 +68,7 @@ function e1rmCard(lift: MainLift, p: LiftProgress): string {
     <div style="display:flex;gap:5px;">${sel}</div>
 
     <div style="margin-top:14px;font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.15em;color:rgb(138,146,156);">${TITLE[lift]} · 1RM (HEAVIEST LOGGED)</div>
-    <div style="margin-top:6px;font:600 40px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${one.weight != null ? `${fmtKg(one.weight)} kg` : "—"}</div>
+    <div style="margin-top:6px;font:600 40px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${one.weight != null ? `${fmtKg(one.weight)} kg` : "—"}</div>
     <div style="display:flex;gap:6px;margin-top:11px;">${tiles}</div>
     ${variantBlock}
 
@@ -92,20 +92,20 @@ function tonnageCard(ton: { total: string; caption: string; sessions: SessionTon
         const pct = Math.round((s.tonnage / max) * 100);
         return `<div style="display:flex;align-items:center;gap:9px;">
           <span style="flex:0 0 auto;width:84px;font:400 9.5px/1 Barlow,sans-serif;letter-spacing:.07em;color:rgb(107,116,128);">${s.label}</span>
-          <span style="flex:1 1 0%;height:7px;border-radius:4px;background:rgba(29,31,32,.1);overflow:hidden;"><span style="display:block;height:100%;width:${pct}%;background:${isMax ? "rgb(29,45,61)" : "rgba(var(--a-accent-rgb),.5)"};"></span></span>
-          <span style="flex:0 0 auto;width:66px;text-align:right;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(29,45,61);">${Math.round(s.tonnage).toLocaleString("de-DE")} kg</span>
+          <span style="flex:1 1 0%;height:7px;border-radius:4px;background:rgba(29,31,32,.1);overflow:hidden;"><span style="display:block;height:100%;width:${pct}%;background:${isMax ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.5)"};"></span></span>
+          <span style="flex:0 0 auto;width:66px;text-align:right;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(var(--a-navy-rgb));">${Math.round(s.tonnage).toLocaleString("de-DE")} kg</span>
         </div>`;
       })
       .join("") || `<span style="font:400 10px/1.4 Barlow,sans-serif;color:rgb(138,146,156);">No sessions logged yet this ${scope}.</span>`;
   const scopeBtn = (key: "week" | "block", label: string) =>
-    `<button data-scope="${key}" style="flex:0 0 auto;min-height:32px;padding:9px 11px;border-radius:10px;font:600 9.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;cursor:pointer;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;${scope === key ? "border:1px solid rgb(29,45,61);background:rgb(29,45,61);color:rgb(242,242,243);" : "border:1px solid rgba(29,31,32,.14);background:transparent;color:rgb(107,116,128);"}">${label}</button>`;
+    `<button data-scope="${key}" style="flex:0 0 auto;min-height:32px;padding:9px 11px;border-radius:10px;font:600 9.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;cursor:pointer;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;${scope === key ? "border:1px solid rgb(var(--a-navy-rgb));background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);" : "border:1px solid rgba(29,31,32,.14);background:transparent;color:rgb(107,116,128);"}">${label}</button>`;
   return `<div style="${CARD}">
     <div style="display:flex;align-items:center;gap:9px;">
       <span style="flex:1 1 0%;font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.15em;color:rgb(138,146,156);">TONNAGE</span>
       ${scopeBtn("week", "THIS WEEK")}${scopeBtn("block", "THIS BLOCK")}
     </div>
     <div style="display:flex;align-items:baseline;gap:9px;margin-top:9px;">
-      <span style="font:600 30px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${ton.total}</span>
+      <span style="font:600 30px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${ton.total}</span>
       <span style="font:400 10.5px/1.3 Barlow,sans-serif;color:rgb(138,146,156);">${ton.caption}</span>
     </div>
     <div style="display:flex;flex-direction:column;gap:7px;margin-top:11px;">${bars}</div>
@@ -116,7 +116,7 @@ function estCard(est: { total: string; gl: string; glSub: string }): string {
   const row = (label: string, sub: string, val: string) =>
     `<div style="display:flex;align-items:baseline;gap:10px;">
       <span style="flex:1 1 0%;"><span style="display:block;font:400 9px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(138,146,156);">${label}</span><span style="display:block;margin-top:4px;font:400 10.5px/1.3 Barlow,sans-serif;color:rgb(162,169,178);">${sub}</span></span>
-      <span style="flex:0 0 auto;font:600 23px/1 'Barlow Condensed',sans-serif;color:rgb(29,45,61);">${val}</span>
+      <span style="flex:0 0 auto;font:600 23px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${val}</span>
     </div>`;
   return `<div style="${CARD}display:flex;flex-direction:column;gap:11px;">
     ${row("ESTIMATED TOTAL", "squat + bench + deadlift e1RM", est.total)}

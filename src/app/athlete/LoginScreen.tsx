@@ -61,7 +61,7 @@ const primaryBtn: CSSProperties = {
   border: "1px solid rgb(242,242,243)",
   borderRadius: 14,
   background: "rgb(242,242,243)",
-  color: "rgb(29,45,61)",
+  color: "rgb(var(--a-navy-rgb))",
   font: '600 15px / 1 "Barlow Condensed", sans-serif',
   letterSpacing: "0.16em",
   cursor: "pointer",
