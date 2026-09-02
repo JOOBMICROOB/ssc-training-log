@@ -22,9 +22,13 @@ export function themeName(id: Theme): string {
   return THEMES.find((t) => t.id === id)?.name ?? "Specific Strength";
 }
 
-/** Persist + apply a theme to every athlete shell on screen. */
+/** Persist + apply a theme. Set on <html> so body-appended popups (check-in,
+ *  bodyweight confirm, calendar, share sheet…) inherit the themed vars too — the
+ *  .athlete-shell only covers in-frame content. Coach UI doesn't use --a-* vars,
+ *  so a stray attribute on <html> is harmless there. */
 export function applyTheme(t: Theme): void {
   try { localStorage.setItem(KEY, t); } catch { /* ignore */ }
+  document.documentElement.setAttribute("data-theme", t);
   document.querySelectorAll<HTMLElement>(".athlete-shell").forEach((el) => el.setAttribute("data-theme", t));
   window.dispatchEvent(new CustomEvent("ssc-theme", { detail: t }));
 }

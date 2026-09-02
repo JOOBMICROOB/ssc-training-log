@@ -67,9 +67,13 @@ export function AthleteApp() {
   const shellRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
 
-  // Apply the saved theme to the shell before paint (the dashboard widget drives
-  // it thereafter via applyTheme, which sets the same attribute imperatively).
-  useLayoutEffect(() => { shellRef.current?.setAttribute("data-theme", getTheme()); }, [session, screen]);
+  // Apply the saved theme before paint — on <html> (so body-appended popups
+  // inherit it) and on the shell. The dashboard widget drives it thereafter.
+  useLayoutEffect(() => {
+    const t = getTheme();
+    document.documentElement.setAttribute("data-theme", t);
+    shellRef.current?.setAttribute("data-theme", t);
+  }, [session, screen]);
 
   // Keep session in sync with sign-in / sign-out (incl. other tabs).
   useEffect(() => subscribe(setSession), []);
