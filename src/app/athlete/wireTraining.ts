@@ -496,6 +496,25 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     const s = parseKg(el?.dataset.seed || "");
     return isFinite(s) ? s : 0;
   };
+  // The heaviest weight we have any evidence this athlete handles on this exercise
+  // — all-time best, last week, the prescribed/suggested load. A log far above it
+  // is almost always a typo (10 → 100), so we confirm before writing it.
+  const refWeight = (key: string): number => {
+    const m = key.match(/^B?(\d+)_(\d+)$/);
+    if (!m) return 0;
+    const session = getSessionFor(athleteId, selected);
+    const ex = session.exercises[Number(m[1])];
+    const st = ex?.sets[Number(m[2])];
+    if (!ex) return 0;
+    const best = exerciseBests(athleteId).get(ex.name.trim().toLowerCase())?.maxLoad ?? 0;
+    const nums = [
+      best,
+      st ? parseFloat(String(st.lastWeek).replace(",", ".")) : NaN,
+      st?.targetLoad ? parseFloat(st.targetLoad.replace(",", ".")) : NaN,
+      st?.targetSuggest ? parseFloat(st.targetSuggest.replace(",", ".")) : NaN,
+    ].filter((n) => isFinite(n) && n > 0);
+    return nums.length ? Math.max(...nums) : 0;
+  };
   // Fixed loads cap the "+" stepper — the athlete can't step above the fixed weight.
   const capFixed = (key: string, kg: number): number => {
     const f = parseFloat(body?.querySelector<HTMLInputElement>(`[data-wi="${key}"]`)?.dataset.fixed ?? "");
@@ -606,6 +625,17 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
           showToast(`Below your ${rangeLabel} — that's completely fine, lighter is OK 👍`);
         }
         if (isFinite(kg) && kg > 0 && kg <= MAX_SET_KG) {
+          // Mislog guard — only for free (non-capped) entries: a value far above
+          // everything known for this exercise is almost always a typo.
+          if (!isFinite(cap)) {
+            const ref = refWeight(t.dataset.wi!);
+            if (ref >= 20 && kg > ref * 1.6 && kg - ref >= 25) {
+              if (!confirm(`${fmtKg(kg)} kg is well above anything logged for this exercise (best so far ${fmtKg(ref)} kg).\n\nIs that right?`)) {
+                render(); // typo — revert the field to the stored value
+                return;
+              }
+            }
+          }
           logSet(athleteId, selected, t.dataset.wi!, { weightKg: kg, failed: false });
         } else {
           showToast(`Enter a weight between 0 and ${MAX_SET_KG} kg.`);
