@@ -58,14 +58,16 @@
      below the app ("blue bar underneath"). Only the inner content card scrolls.
      Kept in normal flow (not position:fixed) so mobile font-boosting stays off. */
   .athlete-shell.has-frame {
-    height: 100dvh;
+    /* --app-h is the real visible height, set from JS (visualViewport). Falls
+       back to 100dvh before JS runs / where the var is unset. */
+    height: var(--app-h, 100dvh);
     min-height: 0;
     overflow: hidden;
     overscroll-behavior: none;
   }
   html.app-locked,
   html.app-locked body {
-    height: 100dvh;
+    height: var(--app-h, 100dvh);
     overflow: hidden;
     overscroll-behavior: none;
     background: #1a2c3e;
