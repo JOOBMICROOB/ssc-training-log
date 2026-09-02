@@ -13,9 +13,11 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
   const frame = scroll.parentElement;
   if (!frame) return () => {};
 
-  // Keep native scroll fast + stop the bounce chaining to the page.
+  // Keep native scroll fast + stop the bounce chaining to the page. NOTE: we do
+  // NOT set `will-change: transform` permanently — a standing compositor layer on
+  // the scroller makes Android scrolling feel heavy/sticky. It's applied only for
+  // the duration of an actual pull (onStart) and cleared on reset.
   scroll.style.overscrollBehaviorY = "contain";
-  scroll.style.willChange = "transform";
 
   // Spinning emblem, parked above the card in the navy gap. Inverted for the navy
   // backdrop: a light-blue disc with a navy emblem (masked from the white PNG so
@@ -34,7 +36,9 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
   frame.appendChild(chip);
 
   let startY = 0;
+  let startX = 0;
   let pulling = false;
+  let engaged = false; // a clear downward pull began — only now do we move the card
   let pull = 0;
   let refreshing = false;
   let armed = false; // pulled far enough to trigger — logo spins while held here
@@ -54,18 +58,27 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
 
   const reset = () => {
     armed = false;
+    engaged = false;
     setCard(0, true);
     setChip(-46, 0, true);
-    window.setTimeout(() => { img.classList.remove("ptr-spinning"); img.style.transform = ""; refreshing = false; }, 340);
+    window.setTimeout(() => { img.classList.remove("ptr-spinning"); img.style.transform = ""; refreshing = false; scroll.style.willChange = ""; }, 340);
   };
 
   const onStart = (e: TouchEvent) => {
-    if (!refreshing && scroll.scrollTop <= 0) { startY = e.touches[0].clientY; pulling = true; pull = 0; armed = false; }
+    if (!refreshing && scroll.scrollTop <= 0) { startY = e.touches[0].clientY; startX = e.touches[0].clientX; pulling = true; engaged = false; pull = 0; armed = false; }
   };
   const onMove = (e: TouchEvent) => {
     if (!pulling) return;
-    if (scroll.scrollTop > 0) { pulling = false; reset(); return; }
+    if (scroll.scrollTop > 0) { pulling = false; if (engaged) reset(); return; }
     pull = e.touches[0].clientY - startY;
+    // Only take over the gesture once it's a clear DOWNWARD pull (not a horizontal
+    // swipe or a scroll-up flick). Until then, native scroll runs untouched.
+    if (!engaged) {
+      const dx = e.touches[0].clientX - startX;
+      if (pull > 10 && pull > Math.abs(dx) * 1.2) { engaged = true; scroll.style.willChange = "transform"; }
+      else if (pull < 0) { pulling = false; return; } // scrolling down — hand off to native
+      else return;
+    }
     if (pull <= 0) { setCard(0, false); setChip(-46, 0, false); return; }
     const d = Math.min(pull * 0.55, MAXD); // eased resistance
     setCard(d, false);
@@ -103,6 +116,8 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
       setCard(0, true);
       setChip(-46, 0, true);
       armed = false;
+      engaged = false;
+      scroll.style.willChange = "";
     }
   };
 
