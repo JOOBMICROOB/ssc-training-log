@@ -448,8 +448,12 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     if (sessRpeSlider && session.sessionRpe != null) sessRpeSlider.value = String(session.sessionRpe);
     host.querySelector("#sessRpeVal") && (host.querySelector<HTMLElement>("#sessRpeVal")!.textContent = String(session.sessionRpe ?? sessRpeSlider?.value ?? 8));
 
-    const left = session.setCount - session.loggedCount;
-    const canConfirm = !session.rest && left === 0 && session.setCount > 0;
+    // Don't let a session lock until BOTH every set has a weight AND every
+    // required RPE is rated — otherwise tapping finish on the last set confirms
+    // it with RPEs still blank ("locks too soon").
+    const setsLeft = session.setCount - session.loggedCount;
+    const rpeLeft = Math.max(0, session.rpeRequired - session.rpeLogged);
+    const canConfirm = !session.rest && setsLeft === 0 && rpeLeft === 0 && session.setCount > 0;
     const finishTxt = host.querySelector<HTMLElement>("#finishTxt");
     const finishNote = host.querySelector<HTMLElement>("#finishNote");
     if (finishTxt)
@@ -457,9 +461,11 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
         ? "REST DAY"
         : session.finished
           ? "SESSION CONFIRMED ✓ · TAP TO UNLOCK"
-          : left > 0
-            ? `LOG EVERY SET TO FINISH · ${left} LEFT`
-            : "CONFIRM SESSION";
+          : setsLeft > 0
+            ? `LOG EVERY SET TO FINISH · ${setsLeft} LEFT`
+            : rpeLeft > 0
+              ? `RATE RPE ON EVERY SET · ${rpeLeft} LEFT`
+              : "CONFIRM SESSION";
     if (finishBtn) {
       const active = canConfirm || session.finished;
       finishBtn.style.cursor = active ? "pointer" : "default";
@@ -476,9 +482,11 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
         ? ""
         : session.finished
           ? "Confirmed — your coach can see this session."
-          : left > 0
-            ? `${left} set${left === 1 ? "" : "s"} still need a weight before you can confirm.`
-            : "Everything's logged — confirm to lock the session.";
+          : setsLeft > 0
+            ? `${setsLeft} set${setsLeft === 1 ? "" : "s"} still need a weight before you can confirm.`
+            : rpeLeft > 0
+              ? `${rpeLeft} RPE rating${rpeLeft === 1 ? "" : "s"} still to enter before you can confirm.`
+              : "Everything's logged — confirm to lock the session.";
     shareBtn.style.display = session.finished ? "block" : "none";
   }
 
@@ -667,9 +675,11 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       if (confirm("Unlock this confirmed session to make changes?")) setSessionMeta(athleteId, selected, { finished: false });
       return;
     }
-    if (s.loggedCount >= s.setCount && s.setCount > 0) {
+    if (s.loggedCount >= s.setCount && s.rpeLogged >= s.rpeRequired && s.setCount > 0) {
       setSessionMeta(athleteId, selected, { finished: true });
       showShareSheet(athleteId, selected);
+    } else if (s.loggedCount >= s.setCount && s.rpeRequired > s.rpeLogged) {
+      showToast(`Rate the RPE on every set first — ${s.rpeRequired - s.rpeLogged} still to go.`);
     }
   });
 
