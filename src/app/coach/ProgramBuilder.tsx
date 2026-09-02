@@ -93,6 +93,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   const [progress, setProgress] = useState<{ dayId: string; exId: string } | null>(null);
   const [copyFrom, setCopyFrom] = useState(false);
   const [showMaxes, setShowMaxes] = useState(false);
+  const [linearFill, setLinearFill] = useState(false);
   // The athlete's all-time bests per exercise (live athletes only) — for the RM toggle.
   const bests = useMemo(() => (live ? exerciseBests(athleteId) : null), [live, athleteId, program]);
   // Per-day markers: is this the calendar day today, and (live) has the athlete
@@ -130,41 +131,122 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   const mutRow = (dayId: string, exId: string, patch: Partial<ExRow>) =>
     mutDay(dayId, (d) => ({ ...d, exercises: d.exercises.map((e) => (e.id === exId ? { ...e, ...patch } : e)) }));
 
-  // Intensity progression: spread a start→end value evenly across every week of
-  // the block for one exercise slot (matched by weekday + name + position), so
-  // "RPE7 in wk1 → RPE9 in wk5" auto-fills the logical jumps in between.
-  const applyProgression = (dayId: string, exId: string, kind: "rpe" | "percent", from: number, to: number) => {
+  // --- linear block build ----------------------------------------------------
+  // Spread a value evenly across the block's weeks for ONE exercise slot (matched
+  // by weekday + name + position-among-same-name), so a block reads as a smooth
+  // ramp. Rounding suits the row's unit: RPE 0.5, load 2.5 kg, everything else 1.
+  const intensityStep = (t: IntensityType) => (t === "rpe" ? 0.5 : t === "fixed" || t === "load" ? 2.5 : 1);
+  const rampable = (t: IntensityType) => t === "rpe" || t === "percent" || t === "fixed" || t === "load" || t === "seconds" || t === "backoff";
+  const nthMatch = (list: ExRow[], nameKey: string, pos: number): ExRow | undefined => {
+    let seen = -1;
+    for (const e of list) if (e.name.trim().toLowerCase() === nameKey && ++seen === pos) return e;
+    return undefined;
+  };
+  const slotOf = (dayId: string, exId: string) => {
+    const day = week.days.find((d) => d.id === dayId);
+    const ex = day?.exercises.find((e) => e.id === exId);
+    if (!day || !ex) return null;
+    const nameKey = ex.name.trim().toLowerCase();
+    const pos = day.exercises.filter((e) => e.name.trim().toLowerCase() === nameKey).indexOf(ex);
+    return { day, ex, nameKey, pos };
+  };
+  // Write `valueFor(i)` into the matching slot in weeks 0..maxIdx (null ⇒ leave it).
+  const spreadField = (weekday: number, nameKey: string, pos: number, field: "value" | "suggest", valueFor: (i: number) => string | null, maxIdx: number) =>
+    mutMeso((m) => ({
+      ...m,
+      weeks: m.weeks.map((w, i) => {
+        if (i > maxIdx) return w;
+        return {
+          ...w,
+          days: w.days.map((d) => {
+            if (d.weekday !== weekday) return d;
+            let seen = -1;
+            return {
+              ...d,
+              exercises: d.exercises.map((e) => {
+                if (e.name.trim().toLowerCase() !== nameKey) return e;
+                if (++seen !== pos) return e;
+                const v = valueFor(i);
+                return v == null ? e : { ...e, [field]: v };
+              }),
+            };
+          }),
+        };
+      }),
+    }));
+
+  // ⋯ modal "ramp": evenly spread from→to across EVERY week of the block for one slot.
+  const applyRamp = (dayId: string, exId: string, from: number, to: number) => {
+    const s = slotOf(dayId, exId);
+    if (!s) return;
+    const n = meso.weeks.length;
+    const step = intensityStep(s.ex.intensity);
+    spreadField(s.day.weekday, s.nameKey, s.pos, "value", (i) => String(Math.round((n <= 1 ? from : from + ((to - from) * i) / (n - 1)) / step) * step), n - 1);
+    setProgress(null);
+  };
+
+  // Auto-fill on edit: with linear mode on, editing a later week's number fills the
+  // weeks between it and W1 with an even ramp (W1 held as the start). Fires on blur
+  // so typing stays smooth. `field` = the prescription value or the suggested kg.
+  const linearAutoFill = (dayId: string, exId: string, field: "value" | "suggest") => {
+    if (!linearFill) return;
+    const curIdx = meso.weeks.findIndex((w) => w.id === week.id);
+    if (curIdx <= 0) return;
+    const s = slotOf(dayId, exId);
+    if (!s || (field === "value" && !rampable(s.ex.intensity))) return;
+    const w0 = meso.weeks[0].days.find((d) => d.weekday === s.day.weekday);
+    const fromEx = w0 ? nthMatch(w0.exercises, s.nameKey, s.pos) : undefined;
+    const from = parseFloat(String((fromEx?.[field] ?? "")).replace(",", "."));
+    const to = parseFloat(String((s.ex[field] ?? "")).replace(",", "."));
+    if (!isFinite(from) || !isFinite(to)) return;
+    const step = intensityStep(s.ex.intensity);
+    spreadField(s.day.weekday, s.nameKey, s.pos, field, (i) => (i === 0 ? null : String(Math.round((from + ((to - from) * i) / curIdx) / step) * step)), curIdx);
+  };
+
+  // Push this exercise (as edited) into every LATER week of the block — matched by
+  // weekday + position, so changing one exercise updates all the weeks to come.
+  const applyRowToLaterWeeks = (dayId: string, exId: string) => {
     const day = week.days.find((d) => d.id === dayId);
     const ex = day?.exercises.find((e) => e.id === exId);
     if (!day || !ex) return;
-    const weekday = day.weekday;
-    const nameKey = ex.name.trim().toLowerCase();
-    const pos = day.exercises.filter((e) => e.name.trim().toLowerCase() === nameKey).indexOf(ex);
-    const weeks = meso.weeks;
-    const n = weeks.length;
-    const round = kind === "rpe" ? (x: number) => Math.round(x * 2) / 2 : (x: number) => Math.round(x);
-    const valAt = (i: number) => (n <= 1 ? from : round(from + ((to - from) * i) / (n - 1)));
+    const exIndex = day.exercises.findIndex((e) => e.id === exId);
+    const curIdx = meso.weeks.findIndex((w) => w.id === week.id);
     mutMeso((m) => ({
       ...m,
-      weeks: m.weeks.map((w, i) => ({
-        ...w,
-        days: w.days.map((d) => {
-          if (d.weekday !== weekday) return d;
-          let seen = -1;
-          return {
-            ...d,
-            exercises: d.exercises.map((e) => {
-              if (e.name.trim().toLowerCase() !== nameKey) return e;
-              seen++;
-              if (seen !== pos) return e;
-              return { ...e, intensity: kind as IntensityType, value: String(valAt(i)) };
-            }),
-          };
-        }),
-      })),
+      weeks: m.weeks.map((w, i) => {
+        if (i <= curIdx) return w;
+        return {
+          ...w,
+          days: w.days.map((d) => {
+            if (d.weekday !== day.weekday) return d;
+            const list = [...d.exercises];
+            const copy = { ...ex, id: uid("ex") };
+            if (exIndex < list.length) list[exIndex] = copy;
+            else list.push(copy);
+            return { ...d, rest: false, exercises: list };
+          }),
+        };
+      }),
     }));
     setProgress(null);
   };
+
+  // Build N identical copies of the open week — a linear block's starting point.
+  // Ramp any exercise afterwards by editing its last-week value (auto-ramp on) or via ⋯.
+  const buildIdenticalMany = (n: number) =>
+    mutMeso((m) => {
+      const weeks = [...m.weeks];
+      let src = week;
+      let firstNew: string | null = null;
+      for (let i = 0; i < n; i++) {
+        const w = progressWeek(src, `WEEK ${weeks.length + 1}`);
+        weeks.push(w);
+        src = w;
+        if (i === 0) firstNew = w.id;
+      }
+      if (firstNew) setWeekId(firstNew);
+      return { ...m, weeks };
+    });
 
   // Copy another athlete's week structure into the one that's open — a fast start
   // when a proven layout beats building from zero. Days/rows are deep-cloned with
@@ -814,6 +896,20 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
               Deload drops one set off every back-down (keeps the top lift) and takes 1 RPE off.
             </p>
           </div>
+
+          <div className="cc-meso">
+            <div className="cc-side-k">Linear block · ramp W1 → last</div>
+            <p style={{ font: "400 10.5px/1.4 var(--font-body)", color: "var(--muted)", margin: "0 0 10px" }}>
+              Build identical weeks, then edit an exercise’s RPE or load in the <strong>last</strong> week — the weeks between fill in as an even ramp.
+            </p>
+            <button className="cc-chip" aria-current={linearFill} style={{ width: "100%", justifyContent: "center" }} onClick={() => setLinearFill((v) => !v)}>
+              Auto-ramp on edit · {linearFill ? "on" : "off"}
+            </button>
+            <button className="cc-dash-add" style={{ marginTop: 8 }} onClick={() => buildIdenticalMany(copyN)}>+ Build {copyN} identical week{copyN === 1 ? "" : "s"} from this one</button>
+            <p style={{ font: "400 9.5px/1.4 var(--font-body)", color: "var(--muted)", margin: "8px 0 0" }}>
+              With auto-ramp on: e.g. Week 1 at RPE 6, type RPE 9 in the last week → 6 · 7 · 8 · 9. Or hit ⋯ on any exercise for a start→end ramp. Uses the “how many weeks” count above.
+            </p>
+          </div>
         </aside>
 
         {/* ---------------- centre: the week ---------------- */}
@@ -954,7 +1050,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                   >
                     <div className="cc-ex-cols">
                       <div className="cc-ex-grip">
-                        <input className="cc-ex-name" list="ex-db" value={ex.name} onChange={(e) => mutRow(d.id, ex.id, { name: e.target.value })} onBlur={(e) => { ensureInDb(e.target.value, ex.mainLift); applySmartScheme(d.id, ex.id, e.target.value); }} />
+                        <input className="cc-ex-name" list="ex-db" value={ex.name} onChange={(e) => mutRow(d.id, ex.id, { name: e.target.value.toUpperCase() })} onBlur={(e) => { ensureInDb(e.target.value, ex.mainLift); applySmartScheme(d.id, ex.id, e.target.value); }} />
                         <input className="cc-ex-cue" placeholder="coach cue" value={ex.cue} onChange={(e) => mutRow(d.id, ex.id, { cue: e.target.value })} />
                         {loggedByWeekday[d.weekday]?.[ex.name.toLowerCase()] && (
                           <div className="cc-ex-logged">{loggedByWeekday[d.weekday][ex.name.toLowerCase()]}</div>
@@ -993,17 +1089,17 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                       {ex.intensity === "failure" ? (
                         <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)", font: "500 10px/1 var(--font-body)", letterSpacing: ".05em" }} title="No target — the athlete pushes to failure.">TO FAILURE</div>
                       ) : ex.intensity === "seconds" ? (
-                        <input className="cc-in" value={ex.value} placeholder="secs" title="Hold time in seconds (e.g. 40-60) — the athlete just marks it done" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
+                        <input className="cc-in" value={ex.value} placeholder="secs" title="Hold time in seconds (e.g. 40-60) — the athlete just marks it done" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} onBlur={() => linearAutoFill(d.id, ex.id, "value")} />
                       ) : ex.intensity === "backoff" ? (
-                        <input className="cc-in" value={ex.value} placeholder="% off top" title="Auto-backdown: every set after set 1 is this % below the TOP set's logged weight (e.g. 10 → a 100 kg top set gives 90 kg backoffs)." onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
+                        <input className="cc-in" value={ex.value} placeholder="% off top" title="Auto-backdown: every set after set 1 is this % below the TOP set's logged weight (e.g. 10 → a 100 kg top set gives 90 kg backoffs)." onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} onBlur={() => linearAutoFill(d.id, ex.id, "value")} />
                       ) : ex.intensity === "linkpct" ? (
                         <input className="cc-in" value={ex.value} placeholder="% off" title="Linked %: this exercise's load = the source exercise's top LOGGED set minus this %. Pick the source in the next column." onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
                       ) : ex.intensity === "rpe" ? (
-                        <input className="cc-in" list="rpe-opts" value={ex.value} placeholder="RPE" title="Target RPE (5–10, or a range)" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
+                        <input className="cc-in" list="rpe-opts" value={ex.value} placeholder="RPE" title="Target RPE (5–10, or a range)" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} onBlur={() => linearAutoFill(d.id, ex.id, "value")} />
                       ) : ex.intensity === "percent" ? (
-                        <input className="cc-in" value={ex.value} placeholder="%" title={pctToKg(ex) ? `${ex.value}% ≈ ${pctToKg(ex)} of their 1RM` : "% of 1RM (set their PR to compute kg)"} onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
+                        <input className="cc-in" value={ex.value} placeholder="%" title={pctToKg(ex) ? `${ex.value}% ≈ ${pctToKg(ex)} of their 1RM` : "% of 1RM (set their PR to compute kg)"} onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} onBlur={() => linearAutoFill(d.id, ex.id, "value")} />
                       ) : (
-                        <input className="cc-in" value={ex.value} placeholder="kg" title="Working load (kg) — the athlete can only go lighter" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} />
+                        <input className="cc-in" value={ex.value} placeholder="kg" title="Working load (kg) — the athlete can only go lighter" onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} onBlur={() => linearAutoFill(d.id, ex.id, "value")} />
                       )}
                       {ex.intensity === "linkpct" ? (
                         (() => {
@@ -1019,14 +1115,14 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                       ) : ex.intensity === "fixed" || ex.intensity === "load" || ex.intensity === "seconds" || ex.intensity === "backoff" ? (
                         <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)" }} title="This row already shows a concrete number — no separate suggestion needed.">—</div>
                       ) : (
-                        <input className="cc-in" value={ex.suggest ?? ""} placeholder={ex.intensity === "percent" && pctToKg(ex) ? pctToKg(ex) : "kg"} title="Suggested working weight (kg) — shown to the athlete as a hint. It does NOT cap what they enter." onChange={(e) => mutRow(d.id, ex.id, { suggest: e.target.value })} />
+                        <input className="cc-in" value={ex.suggest ?? ""} placeholder={ex.intensity === "percent" && pctToKg(ex) ? pctToKg(ex) : "kg"} title="Suggested working weight (kg) — shown to the athlete as a hint. It does NOT cap what they enter." onChange={(e) => mutRow(d.id, ex.id, { suggest: e.target.value })} onBlur={() => linearAutoFill(d.id, ex.id, "suggest")} />
                       )}
                       <select className="cc-in cc-in-scheme" value={ex.scheme} onChange={(e) => mutRow(d.id, ex.id, { scheme: e.target.value, ...(e.target.value === "Timed" ? { intensity: "seconds" as IntensityType, value: ex.intensity === "seconds" ? ex.value : "" } : e.target.value === "Auto backdown" ? { intensity: "backoff" as IntensityType, value: ex.intensity === "backoff" ? ex.value : "10" } : {}) })}>
                         {!SCHEMES.includes(ex.scheme as (typeof SCHEMES)[number]) && <option value={ex.scheme}>{ex.scheme || "—"}</option>}
                         {SCHEMES.map((s) => <option key={s} value={s}>{s}</option>)}
                       </select>
                       <div className="cc-row-ctl">
-                        <button title="Intensity progression across the block" onClick={() => setProgress({ dayId: d.id, exId: ex.id })}>⋯</button>
+                        <button title="Across the block — ramp this number W1→last, or push this exercise to every later week" onClick={() => setProgress({ dayId: d.id, exId: ex.id })}>⋯</button>
                         <button title="Up" onClick={() => nudge(d.id, ex.id, -1)}>↑</button>
                         <button title="Down" onClick={() => nudge(d.id, ex.id, 1)}>↓</button>
                         <button title="Duplicate" onClick={() => dupRow(d.id, ex.id)}>⧉</button>
@@ -1073,7 +1169,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         <div key={ex.id} className="cc-ex-row">
                           <div className="cc-ex-cols">
                             <div className="cc-ex-grip">
-                              <input className="cc-ex-name" list="ex-db" value={ex.name} onChange={(e) => altMutRow(d.id, ex.id, { name: e.target.value })} onBlur={(e) => ensureInDb(e.target.value, ex.mainLift)} />
+                              <input className="cc-ex-name" list="ex-db" value={ex.name} onChange={(e) => altMutRow(d.id, ex.id, { name: e.target.value.toUpperCase() })} onBlur={(e) => ensureInDb(e.target.value, ex.mainLift)} />
                               <input className="cc-ex-cue" placeholder="coach cue" value={ex.cue} onChange={(e) => altMutRow(d.id, ex.id, { cue: e.target.value })} />
                             </div>
                             <input className="cc-in" placeholder="url" value={ex.video} onChange={(e) => altMutRow(d.id, ex.id, { video: e.target.value })} />
@@ -1163,7 +1259,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
               {!shownDb.length && <div className="cc-cell-s">No matches.</div>}
             </div>
             <div className="cc-side-k" style={{ marginTop: 14 }}>Add to the database</div>
-            <input className="cc-db-search" style={{ marginBottom: 6 }} placeholder="Exercise name" value={newExName} onChange={(e) => setNewExName(e.target.value)} />
+            <input className="cc-db-search" style={{ marginBottom: 6 }} placeholder="Exercise name" value={newExName} onChange={(e) => setNewExName(e.target.value.toUpperCase())} />
             <input className="cc-db-search" style={{ marginBottom: 8 }} placeholder="Video url (optional)" value={newExVideo} onChange={(e) => setNewExVideo(e.target.value)} />
             <button className="cc-fullbtn" style={{ background: "var(--navy)", color: "#fff", borderColor: "var(--navy)" }} onClick={addDbExercise}>Save exercise</button>
           </div>
@@ -1175,10 +1271,12 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
         const ex = day?.exercises.find((e) => e.id === progress.exId);
         if (!ex) return null;
         return (
-          <ProgressionModal
+          <BlockModal
             ex={ex}
             weekNames={meso.weeks.map((w) => w.name)}
-            onApply={(kind, from, to) => applyProgression(progress.dayId, progress.exId, kind, from, to)}
+            curWeekIndex={meso.weeks.findIndex((w) => w.id === week.id)}
+            onRamp={(from, to) => applyRamp(progress.dayId, progress.exId, from, to)}
+            onPushLater={() => applyRowToLaterWeeks(progress.dayId, progress.exId)}
             onClose={() => setProgress(null)}
           />
         );
@@ -1255,41 +1353,78 @@ function CopyWeekModal({ currentAthleteId, onCopy, onClose }: { currentAthleteId
   );
 }
 
-/* ---------------------------------------------- intensity progression modal --- */
-function ProgressionModal({ ex, weekNames, onApply, onClose }: { ex: ExRow; weekNames: string[]; onApply: (kind: "rpe" | "percent", from: number, to: number) => void; onClose: () => void }) {
-  const kind: "rpe" | "percent" = ex.intensity === "percent" ? "percent" : "rpe";
+/* ------------------------------------------------ across-the-block modal (⋯) --- */
+// One home for block-wide edits of a single exercise: a linear ramp of its number
+// across every week (RPE / %1RM / load / seconds / backoff), and a "push this
+// exercise to every later week" so a tweak carries forward.
+function BlockModal({ ex, weekNames, curWeekIndex, onRamp, onPushLater, onClose }: {
+  ex: ExRow;
+  weekNames: string[];
+  curWeekIndex: number;
+  onRamp: (from: number, to: number) => void;
+  onPushLater: () => void;
+  onClose: () => void;
+}) {
+  const t = ex.intensity;
+  const canRamp = t === "rpe" || t === "percent" || t === "fixed" || t === "load" || t === "seconds" || t === "backoff";
+  const step = t === "rpe" ? 0.5 : t === "fixed" || t === "load" ? 2.5 : 1;
+  const unit = t === "rpe" ? "RPE" : t === "percent" || t === "backoff" ? "%" : t === "fixed" || t === "load" ? "kg" : t === "seconds" ? "s" : "";
+  const label = (v: number) => (t === "rpe" ? `RPE${v}` : t === "percent" || t === "backoff" ? `${v}%` : t === "fixed" || t === "load" ? `${v} kg` : t === "seconds" ? `${v} s` : String(v));
   const cur = parseFloat(String(ex.value).replace(",", "."));
-  const [from, setFrom] = useState(isFinite(cur) ? cur : kind === "rpe" ? 7 : 70);
-  const [to, setTo] = useState(isFinite(cur) ? Math.min(kind === "rpe" ? 10 : 100, (isFinite(cur) ? cur : 7) + (kind === "rpe" ? 2 : 10)) : kind === "rpe" ? 9 : 80);
+  const base = isFinite(cur) ? cur : t === "rpe" ? 7 : t === "percent" ? 70 : 0;
+  const [from, setFrom] = useState(base);
+  const [to, setTo] = useState(t === "rpe" ? Math.min(10, base + 2) : t === "percent" ? Math.min(100, base + 10) : base + (t === "fixed" || t === "load" ? 10 : 0));
   const n = weekNames.length;
-  const round = kind === "rpe" ? (x: number) => Math.round(x * 2) / 2 : (x: number) => Math.round(x);
+  const round = (x: number) => Math.round(x / step) * step;
   const valAt = (i: number) => (n <= 1 ? from : round(from + ((to - from) * i) / (n - 1)));
-  const unit = kind === "rpe" ? "RPE" : "%";
+  const isLast = curWeekIndex >= n - 1;
   return (
     <div className="cc-modal-scrim" onClick={onClose}>
       <div className="cc-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="cc-modal-title">Intensity progression</div>
-        <div className="cc-modal-sub">{ex.name || "this exercise"} · across {n} week{n === 1 ? "" : "s"} of the block · in {kind === "rpe" ? "RPE" : "%1RM"}</div>
-        <div style={{ display: "flex", gap: 14, margin: "16px 0 6px" }}>
-          <label className="cc-prog-field">Start ({unit})
-            <input type="number" step={kind === "rpe" ? 0.5 : 1} value={from} onChange={(e) => setFrom(Number(e.target.value))} />
-          </label>
-          <span style={{ alignSelf: "flex-end", paddingBottom: 8, color: "var(--muted)" }}>→</span>
-          <label className="cc-prog-field">End ({unit})
-            <input type="number" step={kind === "rpe" ? 0.5 : 1} value={to} onChange={(e) => setTo(Number(e.target.value))} />
-          </label>
-        </div>
-        <div className="cc-prog-preview">
-          {weekNames.map((wn, i) => (
-            <div key={i} className="cc-prog-chip"><span>{wn}</span><strong>{unit === "RPE" ? `RPE${valAt(i)}` : `${valAt(i)}%`}</strong></div>
-          ))}
-        </div>
-        <p style={{ font: "400 11px/1.4 var(--font-body)", color: "var(--muted)", margin: "10px 0 0" }}>
-          Applies to this exercise on {ex.name ? "its day" : "this day"} in every week of the block. Even jumps, rounded to {kind === "rpe" ? "0.5" : "1"}.
+        <div className="cc-modal-title">Across the block</div>
+        <div className="cc-modal-sub">{ex.name || "this exercise"} · {n} week{n === 1 ? "" : "s"}</div>
+
+        {canRamp ? (
+          <>
+            <div className="cc-side-k" style={{ marginTop: 16 }}>Linear ramp · {weekNames[0]} → {weekNames[n - 1] ?? weekNames[0]}</div>
+            <div style={{ display: "flex", gap: 14, margin: "8px 0 6px" }}>
+              <label className="cc-prog-field">Start ({unit})
+                <input type="number" step={step} value={from} onChange={(e) => setFrom(Number(e.target.value))} />
+              </label>
+              <span style={{ alignSelf: "flex-end", paddingBottom: 8, color: "var(--muted)" }}>→</span>
+              <label className="cc-prog-field">End ({unit})
+                <input type="number" step={step} value={to} onChange={(e) => setTo(Number(e.target.value))} />
+              </label>
+            </div>
+            <div className="cc-prog-preview">
+              {weekNames.map((wn, i) => (
+                <div key={i} className="cc-prog-chip"><span>{wn}</span><strong>{label(valAt(i))}</strong></div>
+              ))}
+            </div>
+            <p style={{ font: "400 11px/1.4 var(--font-body)", color: "var(--muted)", margin: "10px 0 0" }}>
+              Even jumps across the block, rounded to {step}{unit ? ` ${unit}` : ""}.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+              <button className="cc-mini cc-mini-solid" onClick={() => onRamp(from, to)}>Ramp {n} week{n === 1 ? "" : "s"}</button>
+            </div>
+          </>
+        ) : (
+          <p style={{ font: "400 11px/1.5 var(--font-body)", color: "var(--muted)", margin: "14px 0 0" }}>
+            “{t}” has no single number to ramp — but you can still push this exercise to every later week below.
+          </p>
+        )}
+
+        <div style={{ height: 1, background: "var(--line, rgba(0,0,0,.09))", margin: "18px 0" }} />
+        <div className="cc-side-k">Change every week to come</div>
+        <p style={{ font: "400 11px/1.4 var(--font-body)", color: "var(--muted)", margin: "6px 0 10px" }}>
+          Copy this exercise — name, sets, reps, intensity, scheme — into the same slot of every week after {weekNames[curWeekIndex] ?? "this one"}. Use it when you tweak an exercise and want the change to carry forward.
         </p>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-          <button className="cc-mini" onClick={onClose}>Cancel</button>
-          <button className="cc-mini cc-mini-solid" onClick={() => onApply(kind, from, to)}>Apply to {n} week{n === 1 ? "" : "s"}</button>
+        <button className="cc-mini" style={{ width: "100%" }} disabled={isLast} onClick={onPushLater}>
+          {isLast ? "This is the last week of the block" : `Apply to all weeks after ${weekNames[curWeekIndex] ?? ""} →`}
+        </button>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
+          <button className="cc-mini" onClick={onClose}>Close</button>
         </div>
       </div>
     </div>

@@ -368,7 +368,23 @@ export function saveProgram(p: Program) {
 // The exercise database is a shared catalogue (synced across coaches + the
 // Exercises page + the builder), so anything added anywhere shows everywhere.
 export function loadExercises(): DbExercise[] {
-  return getSharedData<DbExercise[]>("exercises", DB_SEED);
+  // Keep the catalogue consistent: every name in CAPS, no case-only duplicates
+  // ("Comp Squat" vs "COMP SQUAT"). Normalized once and persisted, so later loads
+  // are a no-op (no repeated writes / cloud churn).
+  const raw = getSharedData<DbExercise[]>("exercises", DB_SEED);
+  const seen = new Set<string>();
+  const norm: DbExercise[] = [];
+  let changed = false;
+  for (const e of raw) {
+    const up = e.name.toUpperCase();
+    const key = up.trim();
+    if (seen.has(key)) { changed = true; continue; } // drop a case-only duplicate
+    seen.add(key);
+    if (up !== e.name) { changed = true; norm.push({ ...e, name: up }); }
+    else norm.push(e);
+  }
+  if (changed) saveExercises(norm);
+  return norm;
 }
 export function saveExercises(list: DbExercise[]) {
   setSharedData("exercises", list);
