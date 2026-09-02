@@ -227,7 +227,11 @@ export function AthleteApp() {
   }, [screen, showFrame, session, selectedLift]);
 
   return (
-    <div className="athlete-shell" ref={shellRef} data-theme={getTheme()}>
+    <div
+      className={`athlete-shell${showFrame ? " has-frame" : ""}`}
+      ref={shellRef}
+      data-theme={getTheme()}
+    >
       {!showFrame ? (
         <AthleteLogin
           session={session}
@@ -238,6 +242,15 @@ export function AthleteApp() {
       ) : (
         <div ref={hostRef} className="athlete-frame" />
       )}
+      {/* Portrait-only app: on a phone held sideways, cover the tacky stretched
+          layout with a clean "rotate back" prompt (the manifest already locks the
+          installed PWA to portrait; this covers the plain browser tab). */}
+      <div className="rotate-guard" aria-hidden="true">
+        <div className="rotate-guard-inner">
+          <span className="rotate-guard-icon">↻</span>
+          <span className="rotate-guard-text">Rotate your phone to portrait</span>
+        </div>
+      </div>
     </div>
   );
 }
