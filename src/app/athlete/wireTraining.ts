@@ -546,7 +546,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   );
   // Session-level effort — the same scale for the whole session.
   const sessRpeSheet = buildPicker(
-    { title: "HOW HARD WAS THE SESSION?", sub: "How much did the whole session take out of you?", values: RPE_VALUES, wordOf: (v) => SESS_RPE_WORD[String(v)] ?? "" },
+    { title: "HOW HARD WAS THE SESSION?", sub: "How much did the whole session take out of you?", values: [5, 6, 7, 8, 9, 10], wordOf: (v) => SESS_RPE_WORD[String(v)] ?? "" },
     (v) => { if (!isLocked() && v != null) setSessionMeta(athleteId, selected, { sessionRpe: v }); },
   );
   // Pain — optional, defaults to zero (None) until the athlete sets it.
