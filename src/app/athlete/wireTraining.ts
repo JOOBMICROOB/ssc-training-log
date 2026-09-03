@@ -403,6 +403,13 @@ const RPE_WORD: Record<string, string> = {
   "8": "2 reps left", "7.5": "2–3 reps left", "7": "3 reps left", "6.5": "3–4 reps left",
   "6": "easy — 4+ left", "5.5": "very easy", "5": "warm-up easy",
 };
+// Session RPE reads as overall energy / how much the whole session took out of you,
+// not reps-in-reserve.
+const SESS_RPE_WORD: Record<string, string> = {
+  "10": "all-out — completely spent", "9.5": "almost nothing left", "9": "very hard",
+  "8.5": "hard", "8": "tough but doable", "7.5": "solid effort", "7": "moderate",
+  "6.5": "comfortable", "6": "easy", "5.5": "light", "5": "very light — barely tired",
+};
 
 // Pain scale (0 = none) — optional, defaults to zero until the athlete sets it.
 const PAIN_VALUES = Array.from({ length: 11 }, (_, i) => i); // 0..10
@@ -539,7 +546,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   );
   // Session-level effort — the same scale for the whole session.
   const sessRpeSheet = buildPicker(
-    { title: "HOW HARD WAS THE SESSION?", sub: "Overall effort across the whole session.", values: RPE_VALUES, wordOf: (v) => RPE_WORD[String(v)] ?? "" },
+    { title: "HOW HARD WAS THE SESSION?", sub: "How much did the whole session take out of you?", values: RPE_VALUES, wordOf: (v) => SESS_RPE_WORD[String(v)] ?? "" },
     (v) => { if (!isLocked() && v != null) setSessionMeta(athleteId, selected, { sessionRpe: v }); },
   );
   // Pain — optional, defaults to zero (None) until the athlete sets it.
@@ -589,8 +596,10 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     // Pain (defaults to None / 0) + session RPE buttons — open the picker on tap.
     const painVal = host.querySelector<HTMLElement>("#painVal");
     if (painVal && painBtn) {
+      // Pain sits at 0 by default; it only reads as "marked" (red) once the athlete
+      // logs an actual pain level (>0). A logged 0 looks the same as the default.
       const has = session.pain != null && session.pain > 0;
-      painVal.textContent = has ? String(session.pain) : "None";
+      painVal.textContent = has ? String(session.pain) : "0";
       painBtn.style.border = has ? "1px solid #d98a8a" : "1px solid rgba(29,31,32,.14)";
       painBtn.style.background = has ? "rgba(217,138,138,.14)" : "#fff";
       painBtn.style.color = has ? "#b45454" : "rgb(138,146,156)";
