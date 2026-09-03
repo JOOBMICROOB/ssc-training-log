@@ -1,6 +1,6 @@
 import { ipfGlPoints, type Sex } from "../calc/scores";
 import { fmtKg, fmtGl } from "../calc/records";
-import { getSession, type WeekTemplate, type ProgramLogs, type MainLift } from "./program";
+import { getSession, type WeekTemplate, type DayTemplate, type ProgramLogs, type MainLift } from "./program";
 
 /**
  * Personal records, best gym total and IPF GL — all derived from the training
@@ -69,6 +69,10 @@ export function deriveRecords(
   // maps onto the exercises it was actually done under. Without this, logs from
   // an earlier week get read against today's layout and their loads are missed.
   templateAt?: (date: string) => WeekTemplate,
+  // The template each date was actually LOGGED against (frozen at first log), so a
+  // logged set is read against the exercises it was done under even after the coach
+  // edits the week — otherwise loads get attributed to the wrong lift or missed.
+  frozen?: Record<string, DayTemplate>,
 ): DerivedRecords {
   const sex: Sex = sexInput === "male" ? "male" : "female"; // guard undefined/legacy data
   // Heaviest logged weight per main lift, with the date it was hit. A lift's
@@ -80,7 +84,7 @@ export function deriveRecords(
     deadlift: null,
   };
   for (const date of Object.keys(logs)) {
-    const s = getSession(templateAt ? templateAt(date) : template, logs, date);
+    const s = getSession(templateAt ? templateAt(date) : template, logs, date, "A", undefined, undefined, frozen);
     for (const ex of s.exercises) {
       const lift = ex.mainLift ?? inferLift(ex.name);
       if (!lift) continue;

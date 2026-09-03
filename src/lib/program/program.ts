@@ -160,9 +160,14 @@ function isCompLift(name: string, mainLift: MainLift | null): boolean {
 
 const round2p5 = (kg: number) => Math.round(kg / 2.5) * 2.5;
 
-export function getSession(template: WeekTemplate, logs: ProgramLogs, date: string, option: "A" | "B" = "A", prevTemplate?: WeekTemplate, oneRm?: Partial<Record<MainLift, number>>): Session {
+export function getSession(template: WeekTemplate, logs: ProgramLogs, date: string, option: "A" | "B" = "A", prevTemplate?: WeekTemplate, oneRm?: Partial<Record<MainLift, number>>, frozen?: Record<string, DayTemplate>): Session {
   const weekday = fromISO(date).getDay();
-  const day = template[weekday] ?? { rest: true, exercises: [] };
+  // Frozen day: the template the athlete actually LOGGED this date against, snapped
+  // at first log. Logs are keyed by exercise position, so reading them against a
+  // since-edited template misaligns them (sets vanish / attach to the wrong lift).
+  // Using the frozen day keeps every logged session readable no matter how the
+  // coach later edits or re-publishes the week. Unlogged dates use the live template.
+  const day = frozen?.[date] ?? template[weekday] ?? { rest: true, exercises: [] };
   const hasAlt = !!day.alt && day.alt.length > 0;
   // Option B (the injury alternative) uses its own exercises + a "B"-prefixed log
   // key namespace, so A's logs and B's logs never collide when the athlete switches.
@@ -174,7 +179,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
   // "Last week" is only trustworthy when the SAME exercise sat in this slot a week
   // ago. On a fresh block a slot's neighbour was a different movement, which is
   // what showed up as random last-week numbers — so match by exercise name.
-  const prevDay = prevTemplate?.[weekday];
+  const prevDay = frozen?.[addDays(date, -7)] ?? prevTemplate?.[weekday];
   const prevExSource = prevDay && !prevDay.rest ? (useB ? prevDay.alt : prevDay.exercises) : undefined;
   const samePrevEx = (ei: number, name: string) => {
     const p = prevExSource?.[ei];
@@ -334,11 +339,12 @@ export function getWeek(
   weekStartsOn: Weekday,
   ref: string,
   today: string,
+  frozen?: Record<string, DayTemplate>,
 ): WeekDay[] {
   const dates = weekDates(weekStartsOn, ref);
   let sIdx = 0;
   return dates.map((date) => {
-    const s = getSession(template, logs, date);
+    const s = getSession(template, logs, date, "A", undefined, undefined, frozen);
     const label = s.rest ? "REST" : `S${++sIdx}`;
     const status: WeekDay["status"] = s.rest
       ? "rest"
@@ -372,6 +378,7 @@ export function dueSoFarAdherence(
   logs: ProgramLogs,
   weekStartsOn: Weekday,
   today: string,
+  frozen?: Record<string, DayTemplate>,
 ): { setsDone: number; setsTotal: number; rpeDone: number; rpeTotal: number } {
   let d = iso(currentWeekWindow(weekStartsOn, fromISO(today)).start);
   let setsDone = 0;
@@ -380,7 +387,7 @@ export function dueSoFarAdherence(
   let rpeTotal = 0;
   // A training week is 7 days — bound the loop so a date-math slip can never hang.
   for (let i = 0; i < 7 && d <= today; i++) {
-    const s = getSession(template, logs, d);
+    const s = getSession(template, logs, d, "A", undefined, undefined, frozen);
     if (!s.rest) {
       setsTotal += s.setCount;
       setsDone += s.loggedCount;
@@ -397,6 +404,7 @@ export function fullWeekCounts(
   template: WeekTemplate,
   logs: ProgramLogs,
   weekStartISO: string,
+  frozen?: Record<string, DayTemplate>,
 ): { setsDone: number; setsTotal: number; rpeDone: number; rpeTotal: number } {
   let d = weekStartISO;
   let setsDone = 0;
@@ -404,7 +412,7 @@ export function fullWeekCounts(
   let rpeDone = 0;
   let rpeTotal = 0;
   for (let i = 0; i < 7; i++) {
-    const s = getSession(template, logs, d);
+    const s = getSession(template, logs, d, "A", undefined, undefined, frozen);
     if (!s.rest) {
       setsTotal += s.setCount;
       setsDone += s.loggedCount;
@@ -432,6 +440,7 @@ export function getMonth(
   year: number,
   month: number, // 0-11
   today: string,
+  frozen?: Record<string, DayTemplate>,
 ): MonthCell[] {
   const first = new Date(year, month, 1);
   const lead = (first.getDay() + 6) % 7; // Monday = 0
@@ -440,7 +449,7 @@ export function getMonth(
   for (let i = 0; i < lead; i++) cells.push({ date: null, day: 0, status: "rest", isToday: false });
   for (let d = 1; d <= daysInMonth; d++) {
     const date = iso(new Date(year, month, d));
-    const s = getSession(template, logs, date);
+    const s = getSession(template, logs, date, "A", undefined, undefined, frozen);
     const status: MonthCell["status"] = s.rest ? "rest" : s.finished ? "logged" : "training";
     cells.push({ date, day: d, status, isToday: date === today });
   }

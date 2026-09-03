@@ -17,7 +17,9 @@ import {
   type WeekDay,
   type MonthCell,
   type SetLog,
+  type DayLog,
   type WeekTemplate,
+  type DayTemplate,
   type MainLift,
 } from "../program/program";
 import { epleyE1rm } from "../calc/epley";
@@ -82,6 +84,12 @@ export type DashboardData = {
   optedInComps: string[];
   checkin: { weekStart: string | null; submitted: boolean; scores: CheckinScores; note: string };
   programLogs: ProgramLogs;
+  // The template each logged date was recorded against, snapshotted the first time
+  // the athlete logs that day. Logs are keyed by exercise position, so reading them
+  // against a later coach-edited week misaligns them (sessions read blank/unlogged).
+  // Rendering a logged date against its frozen day keeps every session intact for
+  // good; unlogged dates still follow the live published week. Unioned on sync.
+  loggedDays?: Record<string, DayTemplate>;
   // Weekly template published by the coach. Absent → the built-in DEFAULT_WEEK.
   // Legacy single week — kept as a fallback; publishedWeeks (dated) is preferred.
   programWeek?: WeekTemplate;
@@ -168,6 +176,7 @@ const BLANK: DashboardData = {
   lastSnapshotWeek: null,
   optedInComps: [],
   programLogs: {},
+  loggedDays: {},
   publishedWeeks: {},
   programWeek: undefined,
   notes: { ...SEED.notes, sent: [] },
@@ -397,7 +406,7 @@ export function buildDashboardModel(data: DashboardData, today = new Date()): Da
   const tpl = templateForDate(data, iso(today));
   const curMeta = weekMetaForDate(data, iso(today));
   // Sets/RPE come from the real training log — only sessions due so far this week.
-  const counts = dueSoFarAdherence(tpl, data.programLogs ?? {}, data.weekStartsOn, iso(today));
+  const counts = dueSoFarAdherence(tpl, data.programLogs ?? {}, data.weekStartsOn, iso(today), data.loggedDays);
   const adherence = computeAdherence({
     setsDone: counts.setsDone,
     setsTotal: counts.setsTotal,
@@ -411,7 +420,7 @@ export function buildDashboardModel(data: DashboardData, today = new Date()): Da
     blockStart: data.blockStart,
     today,
   });
-  const todaySession = getSession(tpl, data.programLogs ?? {}, iso(today));
+  const todaySession = getSession(tpl, data.programLogs ?? {}, iso(today), "A", undefined, undefined, data.loggedDays);
   const dueLabel = dayLabel(new Date(`${addDays(thisWeek, 6)}T00:00:00`));
   // Bodyweight tile = average of the last 4 weeks of weigh-ins.
   const bwCutoff = addDays(iso(today), -28);
@@ -439,6 +448,7 @@ export function buildDashboardModel(data: DashboardData, today = new Date()): Da
     data.bwEntries ?? [],
     data.athlete.sex,
     (d) => templateForDate(data, d), // resolve each logged date's own week template
+    data.loggedDays, // …but a logged date wins with its frozen snapshot
   );
   return {
     ...data,
@@ -543,7 +553,7 @@ export function finalizeWeeklyAdherence(athleteId: string, today = new Date()) {
   let wk = data.lastSnapshotWeek;
   for (let guard = 0; wk < currentWeekStart && guard < 60; guard++) {
     if (!history.some((h) => h.weekStart === wk)) {
-      const counts = fullWeekCounts(data.programWeek ?? DEFAULT_WEEK, data.programLogs ?? {}, wk);
+      const counts = fullWeekCounts(data.programWeek ?? DEFAULT_WEEK, data.programLogs ?? {}, wk, data.loggedDays);
       const end = addDays(wk, 7);
       const bwDays = new Set(
         (data.bwEntries ?? []).filter((e) => e.date >= wk && e.date < end).map((e) => e.date),
@@ -592,12 +602,52 @@ export function weekMetaForDate(d: DashboardData, date: string): { blockName?: s
   return { blockName: e?.blockName, weekName: e?.weekName };
 }
 
+// --- frozen logged-day snapshots --------------------------------------------
+// Logs are keyed by exercise POSITION, so a coach editing/re-publishing a week the
+// athlete already logged would misalign every set (sessions read blank/unlogged,
+// last-week loads wrong). We snapshot the day the athlete logged against the first
+// time they touch it, and render logged dates against that snapshot forever after.
+const isoWeekday = (date: string) => new Date(`${date}T00:00:00`).getDay();
+const cloneDay = (day: DayTemplate): DayTemplate => JSON.parse(JSON.stringify(day));
+
+/** True if a date holds a REAL athlete log (not just coach fixed-load prefills). */
+function hasRealLog(dayLog: DayLog | undefined): boolean {
+  if (!dayLog) return false;
+  if (dayLog.finished != null || dayLog.sessionRpe != null || dayLog.pain != null) return true;
+  return Object.values(dayLog.sets ?? {}).some((s) => (s.weightKg != null && !s.prefill) || s.failed || s.done);
+}
+
+/** Snapshot the day `date` is being logged against, if not already frozen. */
+function freezeDay(data: DashboardData, date: string): DashboardData {
+  if (data.loggedDays?.[date]) return data;
+  const day = templateForDate(data, date)[isoWeekday(date)];
+  if (!day || day.rest) return data;
+  return { ...data, loggedDays: { ...(data.loggedDays ?? {}), [date]: cloneDay(day) } };
+}
+
+/**
+ * One-time migration: freeze every already-logged date to its CURRENT template, so
+ * existing sessions are locked to what they read as now and can't be broken by a
+ * future coach edit. Non-destructive — only adds missing snapshots.
+ */
+export function freezeExistingLogs(data: DashboardData): DashboardData {
+  const logs = data.programLogs ?? {};
+  const frozen = { ...(data.loggedDays ?? {}) };
+  let changed = false;
+  for (const date of Object.keys(logs)) {
+    if (frozen[date] || !hasRealLog(logs[date])) continue;
+    const day = templateForDate(data, date)[isoWeekday(date)];
+    if (day && !day.rest) { frozen[date] = cloneDay(day); changed = true; }
+  }
+  return changed ? { ...data, loggedDays: frozen } : data;
+}
+
 export function getSessionFor(athleteId: string, date: string): Session {
   const d = getDashboard(athleteId);
   // The athlete's 1RM per lift (their recorded PRs) — feeds %1RM auto-loads.
   const pr = (k: string) => { const p = (d.prs ?? []).find((x) => x.key === k); const n = p ? parseFloat(p.value.replace(",", ".")) : 0; return isFinite(n) ? n : 0; };
   const oneRm = { squat: pr("squat"), bench: pr("bench"), deadlift: pr("deadlift") };
-  return getSession(templateForDate(d, date), d.programLogs ?? {}, date, d.sessionChoice?.[date] ?? "A", templateForDate(d, addDays(date, -7)), oneRm);
+  return getSession(templateForDate(d, date), d.programLogs ?? {}, date, d.sessionChoice?.[date] ?? "A", templateForDate(d, addDays(date, -7)), oneRm, d.loggedDays);
 }
 
 // --- per-exercise bests (all-time) -------------------------------------------
@@ -628,8 +678,7 @@ export function exerciseBests(athleteId: string): Map<string, ExBest> {
   for (const date of Object.keys(logs)) {
     const dayLog = logs[date];
     if (!dayLog?.sets) continue;
-    const tpl = templateForDate(d, date);
-    const day = tpl[new Date(`${date}T00:00:00`).getDay()];
+    const day = d.loggedDays?.[date] ?? templateForDate(d, date)[new Date(`${date}T00:00:00`).getDay()];
     if (!day || day.rest) continue;
     const scan = (list: typeof day.exercises | undefined, prefix: string) =>
       list?.forEach((ex, ei) =>
@@ -666,12 +715,12 @@ export function setSessionChoice(athleteId: string, date: string, option: "A" | 
 
 export function getWeekFor(athleteId: string, ref: string, today = todayISO()): WeekDay[] {
   const d = getDashboard(athleteId);
-  return getWeek(templateForDate(d, ref), d.programLogs ?? {}, d.weekStartsOn, ref, today);
+  return getWeek(templateForDate(d, ref), d.programLogs ?? {}, d.weekStartsOn, ref, today, d.loggedDays);
 }
 
 export function getMonthFor(athleteId: string, year: number, month: number, today = todayISO()): MonthCell[] {
   const d = getDashboard(athleteId);
-  return getMonth(templateForDate(d, today), d.programLogs ?? {}, year, month, today);
+  return getMonth(templateForDate(d, today), d.programLogs ?? {}, year, month, today, d.loggedDays);
 }
 
 /**
@@ -833,7 +882,9 @@ export function eventsByDate(events: AthleteEvent[]): Record<string, AthleteEven
 
 /** Log (or clear) one set's weight / RPE / note for a given date. */
 export function logSet(athleteId: string, date: string, key: string, patch: SetLog) {
-  const data = getDashboard(athleteId);
+  // Snapshot the template this session is being logged against (once), so the logs
+  // stay readable even if the coach later edits/re-publishes the week.
+  const data = freezeDay(getDashboard(athleteId), date);
   const logs: ProgramLogs = { ...(data.programLogs ?? {}) };
   const day = { ...(logs[date] ?? {}) };
   const merged: SetLog = { ...(day.sets?.[key] ?? {}), ...patch };
@@ -851,7 +902,7 @@ export function setSessionMeta(
   date: string,
   patch: { sessionRpe?: number; pain?: number; finished?: boolean },
 ) {
-  const data = getDashboard(athleteId);
+  const data = freezeDay(getDashboard(athleteId), date);
   const logs: ProgramLogs = { ...(data.programLogs ?? {}) };
   logs[date] = { ...(logs[date] ?? {}), ...patch };
   save(athleteId, { ...data, programLogs: logs });
@@ -1111,6 +1162,10 @@ function mergeDashboard(server: Partial<DashboardData>, incoming: DashboardData)
     checkin: obj("checkin") as DashboardData["checkin"],
     notes: mergeNotes(server.notes, incoming.notes),
     programLogs: mergeLogs(server.programLogs, incoming.programLogs),
+    // Frozen logged-day snapshots union by date — each is written once per date and
+    // is identical across devices (same published week at freeze time), so nothing
+    // logged can lose the template it was recorded against.
+    loggedDays: { ...(server.loggedDays ?? {}), ...(incoming.loggedDays ?? {}) },
     // Same epoch → union (normal publish flow). Different epoch → the newer side
     // (a "clear" bumps it) wins the whole set, so a cleared program stays cleared.
     programEpoch: Math.max(server.programEpoch ?? 0, incoming.programEpoch ?? 0),
@@ -1236,6 +1291,12 @@ export async function hydrateFromServer(athleteId: string): Promise<void> {
   const uid = userRes.user?.id ?? null;
   if (!uid) return; // no session → stay local-only
   await hydrateTarget(athleteId, uid, true, supabase);
+  // Lock every already-logged session to the template it currently reads against,
+  // so a later coach edit can't misalign its position-keyed logs. freezeExistingLogs
+  // returns the same object reference when there's nothing to add.
+  const before = getDashboard(athleteId);
+  const migrated = freezeExistingLogs(before);
+  if (migrated !== before) save(athleteId, migrated);
   flushPendingSync(); // re-push anything a previous session failed to upload
   await hydrateShared(false); // pull the shared competition list too
 }
