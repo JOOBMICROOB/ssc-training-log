@@ -549,7 +549,7 @@ const calIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padSt
  * short "next up" line for upcoming meets. Read-only; months page with ‹ ›.
  */
 function mountCalendarWidget(host: HTMLElement, athleteId: string): () => void {
-  const anchor = host.querySelector("#sentNotesWrap");
+  const anchor = host.querySelector("#calAnchor") ?? host.querySelector("#sentNotesWrap");
   if (!anchor) return () => {};
   const today = calIso(new Date());
   const now = new Date();

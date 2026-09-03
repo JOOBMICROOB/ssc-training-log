@@ -212,29 +212,42 @@
             <div style="margin-top: 7px; font: 400 10px / 1.4 Barlow, sans-serif; color: rgb(162, 169, 178);">Logged with the weekly check-in — the coach sees the same trend.</div>
           </div>
 
+          <!-- calendar widget mounts here (right under bodyweight) -->
+          <div id="calAnchor"></div>
+
+          <!-- weekly recap · full width, above the coaches -->
+          <div style="border: 1px solid rgba(29, 31, 32, 0.14); border-radius: 14px; padding: 13px 15px; background: rgba(255, 255, 255, 0.62); backdrop-filter: blur(16px); box-shadow: rgba(20, 36, 52, 0.07) 0px 4px 14px;">
+            <button style="width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; background: transparent; border: 0px; padding: 0px; cursor: pointer;" id="checkinBtn">
+              <span style="flex: 1 1 0%;">
+                <span style="display: block; font: 400 9px / 1 Barlow, sans-serif; letter-spacing: 0.14em; color: rgb(107, 116, 128);">WEEKLY CHECK-IN</span>
+                <span style="display: block; margin-top: 4px; font: 600 17px / 1 &quot;Barlow Condensed&quot;, sans-serif; letter-spacing: 0.03em; color: rgb(var(--a-navy-rgb));"><span class="sc-interp" id="checkinStatus">Seven scores · not submitted yet</span></span>
+              </span>
+              <span style="flex: 0 0 auto; font-size: 12px; color: rgb(var(--a-accent2-rgb));"><span class="sc-interp">▾</span></span>
+            </button>
+          </div>
+
+          <!-- coach + nutritionist, side by side -->
           <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: stretch;">
-          <div style="flex: 1 1 0%; min-width: 150px; display: flex; flex-direction: column;">
-  <div style="display: flex; align-items: center; gap: 11px; padding: 11px 13px; border: 1px solid rgba(255, 255, 255, 0.75); border-radius: 16px; background: rgba(255, 255, 255, 0.62); backdrop-filter: blur(16px); box-shadow: rgba(20, 36, 52, 0.07) 0px 4px 14px;">
-    <div style="flex: 0 0 auto; width: 52px; height: 52px; border-radius: 12px; overflow: hidden; border-color: rgb(var(--a-accent-rgb)); background: rgba(255, 255, 255, 0.62); backdrop-filter: blur(16px); box-shadow: rgba(20, 36, 52, 0.07) 0px 4px 14px;"><img src="/assets/coach-noa.png" alt="Noa Depaepe" style="width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%;"></div>
-    <div style="flex: 1 1 0%;">
-      <div style="font: 400 8.5px / 1 Barlow, sans-serif; letter-spacing: 0.14em; color: rgb(138, 146, 156);">YOUR COACH</div>
-      <div style="margin-top: 4px; font: 600 13px / 1.1 &quot;Barlow Condensed&quot;, sans-serif; letter-spacing: 0.01em; color: rgb(var(--a-navy-rgb));">NOA DEPAEPE</div>
-      <div style="margin-top: 3px; font: 400 10.5px / 1.3 Barlow, sans-serif; color: rgb(107, 116, 128);">Strength coach<br></div>
-    </div>
-  </div>
-          </div>
-          <div style="flex: 1 1 0%; min-width: 150px; display: flex; flex-direction: column;">
-  <div style="border: 1px solid rgba(29, 31, 32, 0.14); border-radius: 12px; padding: 11px 13px; background: rgba(255, 255, 255, 0.62); backdrop-filter: blur(16px); box-shadow: rgba(20, 36, 52, 0.07) 0px 4px 14px;">
-    <button style="width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; background: transparent; border: 0px; padding: 0px; cursor: pointer;" id="checkinBtn">
-      <span style="flex: 1 1 0%;">
-        <span style="display: block; font: 400 9px / 1 Barlow, sans-serif; letter-spacing: 0.14em; color: rgb(107, 116, 128);">WEEKLY CHECK-IN</span>
-        <span style="display: block; margin-top: 4px; font: 600 17px / 1 &quot;Barlow Condensed&quot;, sans-serif; letter-spacing: 0.03em; color: rgb(var(--a-navy-rgb));"><span class="sc-interp" id="checkinStatus">Seven scores · not submitted yet</span></span>
-      </span>
-      <span style="flex: 0 0 auto; font-size: 11px; color: rgb(var(--a-accent2-rgb));"><span class="sc-interp">▾</span></span>
-    </button>
-    
-  </div>
-          </div>
+            <div style="flex: 1 1 0%; min-width: 140px; display: flex; flex-direction: column;">
+              <div style="display: flex; align-items: center; gap: 11px; padding: 11px 13px; border: 1px solid rgba(255, 255, 255, 0.75); border-radius: 16px; background: rgba(255, 255, 255, 0.62); backdrop-filter: blur(16px); box-shadow: rgba(20, 36, 52, 0.07) 0px 4px 14px; height: 100%; box-sizing: border-box;">
+                <div style="flex: 0 0 auto; width: 52px; height: 52px; border-radius: 12px; overflow: hidden; border-color: rgb(var(--a-accent-rgb)); background: rgba(255, 255, 255, 0.62); backdrop-filter: blur(16px); box-shadow: rgba(20, 36, 52, 0.07) 0px 4px 14px;"><img src="/assets/coach-noa.png" alt="Noa Depaepe" style="width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%;"></div>
+                <div style="flex: 1 1 0%;">
+                  <div style="font: 400 8.5px / 1 Barlow, sans-serif; letter-spacing: 0.14em; color: rgb(138, 146, 156);">YOUR COACH</div>
+                  <div style="margin-top: 4px; font: 600 13px / 1.1 &quot;Barlow Condensed&quot;, sans-serif; letter-spacing: 0.01em; color: rgb(var(--a-navy-rgb));">NOA DEPAEPE</div>
+                  <div style="margin-top: 3px; font: 400 10.5px / 1.3 Barlow, sans-serif; color: rgb(107, 116, 128);">Strength coach</div>
+                </div>
+              </div>
+            </div>
+            <div style="flex: 1 1 0%; min-width: 140px; display: flex; flex-direction: column;">
+              <div style="display: flex; align-items: center; gap: 11px; padding: 11px 13px; border: 1px dashed rgba(29, 31, 32, 0.2); border-radius: 16px; background: rgba(255, 255, 255, 0.4); height: 100%; box-sizing: border-box;">
+                <div style="flex: 0 0 auto; width: 52px; height: 52px; border-radius: 12px; display: grid; place-items: center; background: rgba(var(--a-accent-rgb), 0.1); color: rgb(var(--a-accent2-rgb)); font-size: 24px;">🥗</div>
+                <div style="flex: 1 1 0%;">
+                  <div style="font: 400 8.5px / 1 Barlow, sans-serif; letter-spacing: 0.14em; color: rgb(138, 146, 156);">NUTRITIONIST</div>
+                  <div style="margin-top: 4px; font: 600 13px / 1.1 &quot;Barlow Condensed&quot;, sans-serif; letter-spacing: 0.01em; color: rgb(138, 146, 156);">Coming soon</div>
+                  <div style="margin-top: 3px; font: 400 10.5px / 1.3 Barlow, sans-serif; color: rgb(162, 169, 178);">Nutrition guidance</div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div style="display: flex; gap: 8px;">
