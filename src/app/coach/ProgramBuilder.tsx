@@ -248,6 +248,27 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
       return { ...m, weeks };
     });
 
+  // One click to start a linear block: copy this week out to N identical weeks,
+  // turn on auto-ramp, and land on the LAST week — so the coach just types the end
+  // RPE/loads and the weeks between fill in as an even ramp.
+  const startLinearBlock = () => {
+    if (meso.weeks.length > 1 && !confirm(`Build a linear block from ${week.name}?\n\nIt adds ${copyN} identical week(s) after it and turns on auto-ramp. Then edit the LAST week's RPE/loads and the weeks between fill in evenly.`)) return;
+    setLinearFill(true);
+    mutMeso((m) => {
+      const weeks = [...m.weeks];
+      let src = week;
+      let lastId = week.id;
+      for (let i = 0; i < copyN; i++) {
+        const w = progressWeek(src, `WEEK ${weeks.length + 1}`);
+        weeks.push(w);
+        src = w;
+        lastId = w.id;
+      }
+      setWeekId(lastId); // land on the final week — where the coach types the end values
+      return { ...m, weeks };
+    });
+  };
+
   // Copy another athlete's week structure into the one that's open — a fast start
   // when a proven layout beats building from zero. Days/rows are deep-cloned with
   // fresh ids; this week keeps its own name / date / published status.
@@ -967,6 +988,21 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                   </span>
                 )}
               </div>
+              {linearFill && (
+                <div
+                  style={{
+                    marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+                    padding: "9px 13px", borderRadius: 10,
+                    background: "rgba(var(--a-accent-rgb, 89 128 166), 0.1)",
+                    border: "1px solid rgb(var(--a-accent-rgb, 89 128 166))",
+                    font: "500 11.5px/1.4 var(--font-body)", color: "var(--navy)",
+                  }}
+                >
+                  <span style={{ fontWeight: 700 }}>⚡ Linear ramp is ON.</span>
+                  <span>Edit an exercise’s RPE or load here and the earlier weeks fill in as an even ramp (W1 held as the start).</span>
+                  <button className="cc-mini" style={{ padding: "6px 12px", fontSize: 10 }} onClick={() => setLinearFill(false)}>Turn off</button>
+                </div>
+              )}
               <label className="cc-week-date">
                 Week of
                 <input type="date" value={week.startDate ?? ""} onChange={(e) => setWeekDate(meso, week, e.target.value)} />
@@ -980,6 +1016,14 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <button className="cc-mini cc-mini-solid" style={{ padding: "11px 16px", fontSize: 11 }} onClick={publish}>Publish week to athlete</button>
                 <button className="cc-mini" style={{ padding: "9px 16px", fontSize: 11 }} onClick={publishBlock}>Publish full block →</button>
+                <button
+                  className="cc-mini"
+                  style={{ padding: "10px 16px", fontSize: 11, background: "rgba(var(--a-accent-rgb, 89 128 166), 0.12)", borderColor: "rgb(var(--a-accent-rgb, 89 128 166))", color: "var(--navy)", fontWeight: 700 }}
+                  title="Copies this week out to several identical weeks, then you just edit the last week's RPE/loads and the weeks in between ramp automatically."
+                  onClick={startLinearBlock}
+                >
+                  ⚡ Build linear block (×{copyN})
+                </button>
                 <button className="cc-mini" style={{ padding: "9px 16px", fontSize: 11 }} onClick={() => copyForwardMany(copyN)}>Copy week forward (×{copyN})</button>
                 <button className="cc-mini" style={{ padding: "9px 16px", fontSize: 11 }} onClick={() => setCopyFrom(true)}>Copy from another athlete →</button>
                 {live && (
