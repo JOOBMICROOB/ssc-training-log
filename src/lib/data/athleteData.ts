@@ -720,7 +720,7 @@ export function getWeekFor(athleteId: string, ref: string, today = todayISO()): 
 
 export function getMonthFor(athleteId: string, year: number, month: number, today = todayISO()): MonthCell[] {
   const d = getDashboard(athleteId);
-  return getMonth(templateForDate(d, today), d.programLogs ?? {}, year, month, today, d.loggedDays);
+  return getMonth(templateForDate(d, today), d.programLogs ?? {}, year, month, today, d.loggedDays, (date) => templateForDate(d, date));
 }
 
 /**

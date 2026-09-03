@@ -457,6 +457,9 @@ export function getMonth(
   month: number, // 0-11
   today: string,
   frozen?: Record<string, DayTemplate>,
+  // Resolve each date's OWN week template (so a month spanning different published
+  // weeks — or a future month — shows the real sessions, not one week repeated).
+  resolve?: (date: string) => WeekTemplate,
 ): MonthCell[] {
   const first = new Date(year, month, 1);
   const lead = (first.getDay() + 6) % 7; // Monday = 0
@@ -465,7 +468,7 @@ export function getMonth(
   for (let i = 0; i < lead; i++) cells.push({ date: null, day: 0, status: "rest", isToday: false });
   for (let d = 1; d <= daysInMonth; d++) {
     const date = iso(new Date(year, month, d));
-    const s = getSession(template, logs, date, "A", undefined, undefined, frozen);
+    const s = getSession(resolve ? resolve(date) : template, logs, date, "A", undefined, undefined, frozen);
     const status: MonthCell["status"] = s.rest ? "rest" : s.finished ? "logged" : "training";
     cells.push({ date, day: d, status, isToday: date === today });
   }

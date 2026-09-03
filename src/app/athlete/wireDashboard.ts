@@ -1,6 +1,7 @@
 import {
   getDashboard,
   getDashboardModel,
+  getMonthFor,
   submitCheckin,
   subscribeDashboard,
   athleteVisibleNotes,
@@ -527,13 +528,103 @@ export function wireDashboard(
   host.querySelector<HTMLElement>("#profilePic")?.addEventListener("dblclick", () => pickAvatar(athleteId));
 
   const unThemeWidget = mountThemeWidget(host);
+  const unCalWidget = mountCalendarWidget(host, athleteId);
 
   const unsub = subscribeDashboard(() => applyModel(host, getDashboardModel(athleteId)));
   return () => {
     unsub();
     modal.root.remove();
     unThemeWidget();
+    unCalWidget();
   };
+}
+
+const CAL_MONTHS = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+const calIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/**
+ * Dashboard calendar widget: a live month view of the program the coach has laid
+ * out for this athlete — training days (filled), logged days (blue), rest days
+ * (plain), today (ringed) — plus a ★ on any competition they've opted into, and a
+ * short "next up" line for upcoming meets. Read-only; months page with ‹ ›.
+ */
+function mountCalendarWidget(host: HTMLElement, athleteId: string): () => void {
+  const anchor = host.querySelector("#sentNotesWrap");
+  if (!anchor) return () => {};
+  const today = calIso(new Date());
+  const now = new Date();
+  let view = { y: now.getFullYear(), m: now.getMonth() };
+
+  const widget = document.createElement("div");
+  widget.className = "a-cal-widget";
+
+  const dayDiff = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00`) - Date.parse(`${a}T00:00:00`)) / 86400000);
+
+  const render = () => {
+    const cells = getMonthFor(athleteId, view.y, view.m, today);
+    const d = getDashboard(athleteId);
+    const comps = (d.competitions ?? []).filter((c) => (d.optedInComps ?? []).includes(c.id));
+    const compByDate: Record<string, { name: string; date: string }> = {};
+    comps.forEach((c) => { compByDate[c.date] = c; });
+    const hasTraining = cells.some((c) => c.date && (c.status === "training" || c.status === "logged"));
+
+    const grid = cells
+      .map((c) => {
+        if (!c.date) return `<div></div>`;
+        const comp = compByDate[c.date];
+        const tile =
+          c.status === "logged"
+            ? "background:rgba(var(--a-accent-rgb),.24);color:rgb(var(--a-navy-rgb));font-weight:700;"
+            : c.status === "training"
+              ? "background:#e6eaef;color:rgb(var(--a-navy-rgb));font-weight:600;"
+              : "background:transparent;color:#afb5bd;";
+        const ring = c.isToday ? "box-shadow:0 0 0 2px rgb(var(--a-accent-rgb)) inset;" : "";
+        const star = comp ? `<span style="position:absolute;top:1px;right:3px;font-size:8px;line-height:1;color:#7c6bd6;">★</span>` : "";
+        return `<div title="${comp ? comp.name.replace(/"/g, "&quot;") : ""}" style="position:relative;display:flex;align-items:center;justify-content:center;height:30px;border-radius:8px;font:600 12px/1 'Barlow Condensed',sans-serif;${tile}${ring}">${star}${Number(c.date.slice(-2))}</div>`;
+      })
+      .join("");
+
+    const upcoming = comps.filter((c) => c.date >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 2);
+    const compLine = upcoming
+      .map((c) => {
+        const dd = dayDiff(today, c.date);
+        const when = dd === 0 ? "today" : dd === 1 ? "tomorrow" : dd < 14 ? `${dd} days` : `${Math.round(dd / 7)} weeks`;
+        return `<div style="display:flex;align-items:center;gap:7px;margin-top:6px;"><span style="color:#7c6bd6;">★</span><span style="flex:1 1 0;font:600 11.5px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(var(--a-navy-rgb));">${c.name}</span><span style="font:600 10px/1 Barlow,sans-serif;color:rgb(var(--a-accent2-rgb));">${when}</span></div>`;
+      })
+      .join("");
+
+    widget.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="flex:1 1 0;font:600 10px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(107,116,128);">YOUR CALENDAR</span>
+        <button data-cw="prev" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:#fff;color:rgb(var(--a-accent2-rgb));cursor:pointer;font-size:13px;">‹</button>
+        <span style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.08em;color:rgb(var(--a-navy-rgb));min-width:96px;text-align:center;">${CAL_MONTHS[view.m]} ${view.y}</span>
+        <button data-cw="next" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:#fff;color:rgb(var(--a-accent2-rgb));cursor:pointer;font-size:13px;">›</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.08em;color:#8a929c;text-align:center;margin-bottom:4px;">
+        ${["M", "T", "W", "T", "F", "S", "S"].map((w) => `<div>${w}</div>`).join("")}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">${grid}</div>
+      ${hasTraining ? "" : `<div style="margin-top:8px;font:400 10.5px/1.4 Barlow,sans-serif;color:rgb(138,146,156);">No sessions planned this month yet.</div>`}
+      <div style="display:flex;gap:12px;margin-top:9px;font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.05em;color:#8a929c;">
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#e6eaef;margin-right:4px;vertical-align:-1px;"></span>TRAINING</span>
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:rgba(var(--a-accent-rgb),.5);margin-right:4px;vertical-align:-1px;"></span>LOGGED</span>
+        <span><span style="color:#7c6bd6;margin-right:3px;">★</span>COMP</span>
+      </div>
+      ${compLine ? `<div style="margin-top:8px;padding-top:9px;border-top:1px solid rgba(29,31,32,.08);"><div style="font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.14em;color:#8a929c;margin-bottom:2px;">NEXT UP</div>${compLine}</div>` : ""}`;
+  };
+  render();
+  anchor.insertAdjacentElement("afterend", widget);
+
+  const onClick = (e: Event) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("[data-cw]");
+    if (!b) return;
+    if (b.dataset.cw === "prev") { view.m--; if (view.m < 0) { view.m = 11; view.y--; } }
+    else { view.m++; if (view.m > 11) { view.m = 0; view.y++; } }
+    render();
+  };
+  widget.addEventListener("click", onClick);
+  const unsub = subscribeDashboard(render);
+  return () => { widget.remove(); unsub(); };
 }
 
 /** A theme card at the bottom of the dashboard + a preview popup to switch. */
