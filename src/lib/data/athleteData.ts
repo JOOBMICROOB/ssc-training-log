@@ -892,6 +892,11 @@ export function logSet(athleteId: string, date: string, key: string, patch: SetL
   // into a real log, so it now counts toward "done".
   if (patch.weightKg !== undefined || patch.failed !== undefined || patch.done !== undefined || patch.heldSeconds !== undefined) merged.prefill = false;
   day.sets = { ...(day.sets ?? {}), [key]: merged };
+  // Session clock: a real log is a touch. The clock STARTS on the 2nd logged set
+  // (one tap could be a misclick); the auto-lock counts 2h from the last touch.
+  const realLogs = Object.values(day.sets).filter((s) => (s.weightKg != null && !s.prefill) || s.failed || s.done).length;
+  day.editedAt = Date.now();
+  if (realLogs >= 2 && day.startedAt == null) day.startedAt = Date.now();
   logs[date] = day;
   save(athleteId, { ...data, programLogs: logs });
 }
@@ -904,8 +909,37 @@ export function setSessionMeta(
 ) {
   const data = freezeDay(getDashboard(athleteId), date);
   const logs: ProgramLogs = { ...(data.programLogs ?? {}) };
-  logs[date] = { ...(logs[date] ?? {}), ...patch };
+  const day = { ...(logs[date] ?? {}), ...patch };
+  // Rating session RPE / pain is a touch (resets the 2h auto-lock clock); a
+  // hand-confirm clears the auto-lock flag (it's now a deliberate lock).
+  if (patch.sessionRpe !== undefined || patch.pain !== undefined) day.editedAt = Date.now();
+  if (patch.finished === true) day.autoLocked = false;
+  logs[date] = day;
   save(athleteId, { ...data, programLogs: logs });
+}
+
+const TWO_HOURS = 2 * 60 * 60 * 1000;
+/**
+ * Auto-lock sessions the athlete started (≥2 sets logged) but left untouched for 2
+ * hours — so a session they walked away from confirms itself instead of sitting
+ * open forever. Client-side safety net; the server does the same on a schedule so
+ * it still fires when the app is closed. Never touches an already-confirmed session.
+ */
+export function autoLockStaleSessions(athleteId: string): void {
+  const data = getDashboard(athleteId);
+  const logs = data.programLogs ?? {};
+  const now = Date.now();
+  let changed = false;
+  const next: ProgramLogs = { ...logs };
+  for (const date of Object.keys(logs)) {
+    const d = logs[date];
+    if (!d || d.finished === true || d.startedAt == null || d.editedAt == null) continue;
+    if (now - d.editedAt >= TWO_HOURS) {
+      next[date] = { ...d, finished: true, autoLocked: true };
+      changed = true;
+    }
+  }
+  if (changed) save(athleteId, { ...data, programLogs: next });
 }
 
 // --- coach-side / server writes ---------------------------------------------

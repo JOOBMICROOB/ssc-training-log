@@ -63,6 +63,12 @@ export type DayLog = {
   sessionRpe?: number;
   pain?: number;
   finished?: boolean;
+  // Session timing (ms epoch), stamped by the athlete app as they log:
+  startedAt?: number; // when the 2nd set was logged — the session "starts" here (a
+  // single tap could be a misclick, two means they're really training)
+  editedAt?: number; // last time any set was touched — the auto-lock waits 2h from here
+  remindedAt?: number; // a "not everything's logged" push was sent for this session
+  autoLocked?: boolean; // locked automatically (2h untouched), not hand-confirmed
 };
 export type ProgramLogs = Record<string, DayLog>; // key = ISO date
 
@@ -104,7 +110,10 @@ export type Session = {
   rpeLogged: number;
   sessionRpe: number | null;
   pain: number | null;
-  finished: boolean;
+  finished: boolean; // "done" for display — set explicitly OR auto once ≥70% logged
+  confirmed: boolean; // hand-confirmed or auto-locked — this is what makes it READ-ONLY
+  startedAt: number | null; // ms when the 2nd set was logged (the session's clock start)
+  editedAt: number | null; // ms of the last edit (auto-lock is 2h after this)
   hasAlt: boolean; // an Option B exists for this day
   note: string; // coach's info for the day (shown above the A/B picker)
   option: "A" | "B"; // which session this is
@@ -306,8 +315,13 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
     sessionRpe: dayLog.sessionRpe ?? null,
     pain: dayLog.pain ?? null,
     // Auto-done once the athlete has logged ≥70% of the session (coach prefills
-    // don't count); an explicit "finish" always wins.
+    // don't count); an explicit "finish" always wins. This is DISPLAY only.
     finished: dayLog.finished ?? (setCount > 0 && loggedCount >= Math.ceil(setCount * 0.7)),
+    // What actually locks the session to read-only: a hand-confirm or the 2h
+    // auto-lock (both set dayLog.finished === true). Reaching 70% no longer locks.
+    confirmed: dayLog.finished === true,
+    startedAt: dayLog.startedAt ?? null,
+    editedAt: dayLog.editedAt ?? null,
     hasAlt,
     note: day.note ?? "",
     option: useB ? "B" : "A",

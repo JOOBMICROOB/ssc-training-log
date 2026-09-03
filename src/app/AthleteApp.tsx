@@ -10,7 +10,7 @@ import { wireShop } from "./athlete/wireShop";
 import { wireCompetitions } from "./athlete/wireCompetitions";
 import type { MainLift } from "../lib/program/program";
 import { getSession, signOut, subscribe, type AthleteSession } from "../lib/auth/authClient";
-import { finalizeWeeklyAdherence, hydrateFromServer } from "../lib/data/athleteData";
+import { finalizeWeeklyAdherence, hydrateFromServer, autoLockStaleSessions } from "../lib/data/athleteData";
 import { wirePullToRefresh } from "./athlete/pullToRefresh";
 import { pushSupported, pushPermission, enablePush } from "../lib/push/push";
 import { getTheme } from "./athlete/theme";
@@ -82,7 +82,10 @@ export function AthleteApp() {
   // snapshot last week's final adherence if a new week has begun.
   useEffect(() => {
     if (!session) return;
-    void hydrateFromServer(session.athleteId).finally(() => finalizeWeeklyAdherence(session.athleteId));
+    void hydrateFromServer(session.athleteId).finally(() => {
+      finalizeWeeklyAdherence(session.athleteId);
+      autoLockStaleSessions(session.athleteId); // confirm sessions left untouched ≥2h
+    });
   }, [session?.athleteId]);
 
   // Remember the current screen + day so a background reload resumes it.

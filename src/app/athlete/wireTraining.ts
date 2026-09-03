@@ -16,7 +16,7 @@ import {
   bestLabel,
   type ExBest,
 } from "../../lib/data/athleteData";
-import { addDays, type Session, type SessionExercise, type LoggedSet } from "../../lib/program/program";
+import { addDays, type Session, type SessionExercise, type LoggedSet, type SetLog } from "../../lib/program/program";
 import { fmtKg } from "../../lib/calc/records";
 import { showShareSheet } from "./shareSession";
 import { showToast } from "./toast";
@@ -43,7 +43,8 @@ const DAY2 = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
 const clampKg = (n: number) => Math.max(0, Math.min(MAX_SET_KG, Math.round(n * 2) / 2));
 const DAY_FULL = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const MONTHS = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
-const RPE_VALUES = [6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]; // the practical logging range
+const RPE_VALUES = [5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]; // 5–10 in 0.5 steps
+const fmtRpeShort = (v: number) => (Number.isInteger(v) ? String(v) : `${Math.floor(v)}½`);
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const parseKg = (s: string) => parseFloat(s.replace(",", ".").replace(/[^0-9.]/g, ""));
 
@@ -99,8 +100,7 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   // computed load). "Done" logs the prescribed load (the low end for a range) so
   // the athlete never has to retype a number that's already on screen.
   const hasFixed = !!range && isFinite(capKg);
-  const doneKg = range ? range.lo : NaN; // what DONE logs — the prescribed / low-end weight
-  const fixedDone = hasFixed && st.weightKg != null && !st.prefill; // they've confirmed a real weight
+  const doneKg = range ? range.lo : NaN; // the prescribed / low-end weight the RPE tap logs
   // Seed steppers/↺ from the logged weight, else the coach's fixed load or suggestion, else last week.
   const seed = st.weightKg ?? ex.sets[si - 1]?.weightKg ?? (isFinite(loadNum) ? loadNum : isFinite(sugNum) ? sugNum : isFinite(lwNum) ? lwNum : "");
   const val = st.weightKg != null ? fmtKg(st.weightKg) : "";
@@ -131,40 +131,61 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
     : "border:1px solid rgba(var(--a-accent-rgb),.45);background:rgba(var(--a-accent-rgb),.08);color:rgb(var(--a-navy-rgb));";
   const step = (label: string, attr: string) =>
     `<button ${attr} ${dis} style="flex:0 0 auto;width:32px;height:36px;border:1px solid rgba(29,31,32,.14);border-radius:9px;background:#fff;color:rgb(var(--a-accent2-rgb));font:600 17px/1 'Barlow Condensed',sans-serif;cursor:pointer;">${label}</button>`;
-  const failBtn = st.requiresRpe
-    ? `<button data-fail="${key}" ${dis} title="Failed rep" style="flex:0 0 auto;padding:0 9px;height:36px;border:1px solid ${st.failed ? "#d98a8a" : "rgba(29,31,32,.14)"};border-radius:9px;background:${st.failed ? "rgba(217,138,138,.15)" : "transparent"};color:${st.failed ? "#b45454" : "#8a929c"};font:600 10px/1 'Barlow Condensed',sans-serif;letter-spacing:.08em;cursor:pointer;">FAIL</button>`
-    : "";
-  // RPE picker: tappable chips (5–10 in 0.5 steps) instead of a fiddly slider —
-  // precise on mobile, and it reads clearly as "not rated yet" until one is picked.
-  const rpeRow = st.requiresRpe
-    ? `<div style="display:flex;align-items:center;gap:6px;margin-top:7px;">
-        <span style="flex:0 0 auto;width:28px;font:400 9px/1 Barlow,sans-serif;letter-spacing:.08em;color:${st.rpe == null ? "#b45454" : "rgb(138,146,156)"};">${st.rpe == null ? "RATE" : "RPE"}</span>
-        <div style="flex:1 1 0;display:flex;gap:3px;">
-          ${RPE_VALUES.map((v) => {
-            const on = st.rpe === v;
-            return `<button data-rpeset="${key}" data-v="${v}" ${dis} style="flex:1 1 0;min-width:0;height:32px;border-radius:8px;cursor:pointer;box-sizing:border-box;font:700 11px/1 'Barlow Condensed',sans-serif;border:1px solid ${on ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.3)"};background:${on ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.06)"};color:${on ? "rgb(242,242,243)" : "rgb(var(--a-accent2-rgb))"};">${Number.isInteger(v) ? v : v.toString().replace(".5", "½")}</button>`;
-          }).join("")}
-        </div>
-      </div>`
-    : "";
+  // A set reads as LOGGED (green) once its weight/fail/done is in and — if required
+  // — its RPE is rated; a weight in but RPE missing shows amber ("rate RPE").
+  const hasWeight = (st.weightKg != null && !st.prefill) || st.failed || st.done;
+  const rpeOk = !st.requiresRpe || st.rpe != null;
+  const isLogged = hasWeight && rpeOk;
+  const partial = hasWeight && !rpeOk;
+  // Fixed load / %1RM: the load is known, so RATING RPE is the main action — tapping
+  // it logs the prescribed/suggested load too. Otherwise the athlete logs their load.
+  const rpePrimary = hasFixed || !!st.percentOfMax || !!st.targetPercent;
+  const rpeFixKg = hasFixed ? doneKg : isFinite(sugNum) ? sugNum : NaN;
+  const showRpe = st.requiresRpe || rpePrimary;
+  const rpeText = st.failed ? "FAILED" : st.rpe != null ? `RPE ${fmtRpeShort(st.rpe)} ✓` : rpePrimary ? "TAP TO RATE RPE" : "RATE RPE";
+  const rpeStyle = st.failed
+    ? "border:1px solid #d98a8a;background:rgba(217,138,138,.14);color:#b45454;"
+    : st.rpe != null
+      ? "border:1px solid rgb(var(--a-navy-rgb));background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);"
+      : "border:1px solid rgb(var(--a-accent-rgb));background:rgba(var(--a-accent-rgb),.12);color:rgb(var(--a-accent2-rgb));";
+  // The RPE button opens the big slider popup. Primary (fixed/%) = full-width CTA.
+  const rpeBtn = (primary: boolean) =>
+    `<button data-rpeopen="${key}" ${isFinite(rpeFixKg) ? `data-fixkg="${rpeFixKg}"` : ""} ${dis} style="${primary ? "width:100%;height:44px;font-size:14px;" : "flex:1 1 0;height:36px;font-size:12px;"}border-radius:10px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.06em;box-sizing:border-box;${rpeStyle}">${rpeText}</button>`;
+  const badge = isLogged ? ' · <span style="color:#2e7d5a;font-weight:700;">✓ LOGGED</span>' : partial ? ' · <span style="color:#c98a1e;font-weight:700;">RATE RPE</span>' : "";
+  const rowTint = isLogged ? "border-left:2px solid #4f9d69;background:rgba(79,157,105,.05);" : partial ? "border-left:2px solid #d9a441;" : "border-left:2px solid rgba(var(--a-accent-rgb),.45);";
   const last = st.lastWeek && !hideLastWeek
     ? `<div style="margin-top:6px;font:400 10.5px/1 Barlow,sans-serif;letter-spacing:.06em;color:rgb(138,146,156);">LAST WEEK · ${st.lastWeek}</div>`
     : "";
-  return `<div style="margin-left:12px;padding:7px 10px 8px 12px;border-left:2px solid rgba(var(--a-accent-rgb),.45);">
-    <div style="display:flex;align-items:center;gap:8px;">
+  const header = `<div style="display:flex;align-items:center;gap:8px;">
       <span style="flex:0 0 auto;width:44px;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">SET ${si + 1}</span>
-      <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">${st.targetReps} reps${targetShort(st) ? ` @ ${targetShort(st)}` : ""}${st.targetSuggest && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">try ${st.targetSuggest} kg</span>` : ""}${st.backoffPct != null && si === 0 ? ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">TOP SET</span>' : ""}${st.backoffPct != null && si >= 1 && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">−${st.backoffPct}% of set 1</span>` : ""}${st.linkPct != null && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">−${st.linkPct}% linked</span>` : ""}${st.fixedLoad ? ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">FIXED</span>' : ""}${st.failed ? ' · <span style="color:#b45454;font-weight:600;">FAILED</span>' : ""}</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:5px;margin-top:5px;">
+      <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">${st.targetReps} reps${targetShort(st) ? ` @ ${targetShort(st)}` : ""}${st.targetSuggest && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">try ${st.targetSuggest} kg</span>` : ""}${st.backoffPct != null && si === 0 ? ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">TOP SET</span>' : ""}${st.backoffPct != null && si >= 1 && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">−${st.backoffPct}% of set 1</span>` : ""}${st.linkPct != null && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">−${st.linkPct}% linked</span>` : ""}${st.fixedLoad ? ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">FIXED</span>' : ""}${badge}</span>
+    </div>`;
+  const loadRow = `<div style="display:flex;align-items:center;gap:5px;">
       ${step("−", `data-dec="${key}"`)}
       <input data-wi="${key}" ${isFinite(capKg) ? `data-fixed="${capKg}"` : ""} ${isFinite(minKg) ? `data-fixmin="${minKg}"` : ""} ${ro} inputmode="decimal" placeholder="${st.targetLoad ? `${st.targetLoad} kg` : st.targetSuggest ? `${st.targetSuggest} kg` : "kg"}" value="${val}" data-seed="${seed}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 15px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;${inStyle}">
       ${step("+", `data-inc="${key}"`)}
       <button data-same="${key}" ${dis} title="Same load as the set before" style="flex:0 0 auto;width:36px;height:36px;border:1px solid rgba(29,31,32,.14);border-radius:9px;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:13px;cursor:pointer;">↺</button>
-      ${hasFixed ? `<button data-fixdone="${key}" data-fx="${doneKg}" ${dis} title="Log the prescribed load — no need to retype it" style="flex:0 0 auto;padding:0 12px;height:36px;border-radius:9px;cursor:pointer;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.05em;border:1px solid ${fixedDone ? "#4f9d69" : "rgba(var(--a-accent-rgb),.6)"};background:${fixedDone ? "rgba(79,157,105,.16)" : "rgba(var(--a-accent-rgb),.1)"};color:${fixedDone ? "#2e7d5a" : "rgb(var(--a-accent2-rgb))"};">${fixedDone ? "✓ DONE" : "DONE"}</button>` : ""}
-      ${failBtn}
-    </div>
-    ${rpeRow}
-    <input data-note="${key}" ${ro} placeholder="Notes / velocity" value="${st.note.replace(/"/g, "&quot;")}" style="width:100%;margin-top:6px;padding:7px 10px;background:rgb(242,242,243);border:1px solid rgba(29,31,32,.16);color:rgb(29,31,32);font-size:12.5px;border-radius:10px;">
+    </div>`;
+  const noteInput = `<input data-note="${key}" ${ro} placeholder="Notes / velocity" value="${st.note.replace(/"/g, "&quot;")}" style="width:100%;margin-top:6px;padding:7px 10px;background:rgb(242,242,243);border:1px solid rgba(29,31,32,.16);color:rgb(29,31,32);font-size:12.5px;border-radius:10px;">`;
+
+  if (rpePrimary) {
+    // Load is prescribed → RPE is the big main action; the load sits below, compact,
+    // for the rare "I went lighter" adjust (it still logs on change).
+    return `<div style="margin-left:12px;padding:7px 10px 8px 12px;${rowTint}">
+      ${header}
+      <div style="margin-top:7px;">${rpeBtn(true)}</div>
+      <div style="margin-top:8px;font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.12em;color:rgb(138,146,156);">LOAD${st.targetLoad ? ` · ${st.targetLoad} kg` : isFinite(rpeFixKg) ? ` · ${fmtKg(rpeFixKg)} kg` : ""} — change only if you went lighter</div>
+      <div style="margin-top:4px;">${loadRow}</div>
+      ${noteInput}
+      ${last}
+    </div>`;
+  }
+  // Athlete logs their own load → load is the main row; RPE (if any) sits below.
+  return `<div style="margin-left:12px;padding:7px 10px 8px 12px;${rowTint}">
+    ${header}
+    <div style="margin-top:5px;">${loadRow}</div>
+    ${showRpe ? `<div style="margin-top:7px;display:flex;align-items:center;gap:6px;"><span style="flex:0 0 auto;width:28px;font:400 9px/1 Barlow,sans-serif;letter-spacing:.08em;color:${st.rpe == null && st.requiresRpe ? "#b45454" : "rgb(138,146,156)"};">RPE</span>${rpeBtn(false)}</div>` : ""}
+    ${noteInput}
     ${last}
   </div>`;
 }
@@ -216,7 +237,7 @@ function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selec
     </div>
   </div>`;
   const altBlock = session.hasAlt ? altSelector(session) : "";
-  const exercises = session.exercises.map((ex, ei) => exerciseBlock(ex, ei, isOpen(ei), session.finished, bests)).join("");
+  const exercises = session.exercises.map((ex, ei) => exerciseBlock(ex, ei, isOpen(ei), session.confirmed, bests)).join("");
   return dayRow + title + altBlock + exercises;
 }
 
@@ -376,6 +397,88 @@ function firstOpenDate(athleteId: string, today: string): string {
   return today;
 }
 
+// Plain-language cue for each RPE, so the picker reads as effort, not a bare number.
+const RPE_WORD: Record<string, string> = {
+  "10": "MAX — nothing left", "9.5": "maybe ½ rep left", "9": "1 rep left", "8.5": "1–2 reps left",
+  "8": "2 reps left", "7.5": "2–3 reps left", "7": "3 reps left", "6.5": "3–4 reps left",
+  "6": "easy — 4+ left", "5.5": "very easy", "5": "warm-up easy",
+};
+
+/**
+ * The RPE picker popup — a bottom sheet with a big, accurate 5→10 scale (0.5 steps)
+ * plus FAILED at the end. Opened from a set's RPE button; `apply` logs the choice
+ * (and, for a fixed / %1RM set, the prescribed load too). Styled in our own line.
+ */
+function buildRpeSheet(apply: (key: string, rpe: number | null, failed: boolean, fixKg: number | null) => void): {
+  root: HTMLElement;
+  open: (key: string, cur: number | null, failed: boolean, fixKg: number | null) => void;
+} {
+  const root = document.createElement("div");
+  root.style.cssText =
+    "position:fixed;inset:0;z-index:210;display:none;align-items:flex-end;justify-content:center;background:rgba(20,36,52,.55);";
+  const pill = (v: number) =>
+    `<button data-rpeval="${v}" class="a-rpe-pill" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:12px;cursor:pointer;text-align:left;border:1.5px solid rgba(var(--a-accent-rgb),.28);background:rgba(var(--a-accent-rgb),.06);">
+       <span class="a-rpe-num" style="flex:0 0 auto;width:40px;text-align:center;font:700 22px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${fmtRpeShort(v)}</span>
+       <span class="a-rpe-word" style="flex:1 1 0;font:400 12px/1.2 Barlow,sans-serif;color:rgb(95,104,115);">${RPE_WORD[String(v)] ?? ""}</span>
+       <span class="a-rpe-tick" style="flex:0 0 auto;font-size:15px;color:transparent;">✓</span>
+     </button>`;
+  const pills = RPE_VALUES.slice().reverse().map(pill).join(""); // 10 at the top, 5 at the bottom
+  root.innerHTML = `
+    <div style="width:100%;max-width:440px;background:var(--a-panel-bg,#fbfdff);border-radius:22px 22px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -12px 40px rgba(20,36,52,.3);max-height:84vh;display:flex;flex-direction:column;animation:a-sheet-up .18s ease;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font:600 19px/1 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(var(--a-navy-rgb));">HOW HARD DID IT FEEL?</div>
+        <button data-rpeclose style="border:none;background:rgba(29,31,32,.06);width:31px;height:31px;border-radius:50%;font-size:13px;color:#5f6873;cursor:pointer;">✕</button>
+      </div>
+      <div style="font:400 11px/1.4 Barlow,sans-serif;color:rgb(107,116,128);margin-bottom:11px;">Tap the effort — 10 is all-out, 5 is very easy.</div>
+      <div style="overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:6px;padding-bottom:2px;">
+        ${pills}
+        <button data-rpeval="fail" class="a-rpe-fail" style="display:flex;align-items:center;gap:12px;width:100%;margin-top:4px;padding:12px 14px;border-radius:12px;cursor:pointer;text-align:left;border:1.5px solid rgba(217,138,138,.5);background:rgba(217,138,138,.1);">
+          <span style="flex:0 0 auto;width:40px;text-align:center;font:700 15px/1 'Barlow Condensed',sans-serif;color:#b45454;">✕</span>
+          <span style="flex:1 1 0;font:600 12.5px/1.2 Barlow,sans-serif;color:#b45454;">FAILED — couldn't complete the reps</span>
+          <span class="a-rpe-tick" style="flex:0 0 auto;font-size:15px;color:transparent;">✓</span>
+        </button>
+      </div>
+    </div>`;
+  const close = () => { root.style.display = "none"; };
+  const open = (key: string, cur: number | null, failed: boolean, fixKg: number | null) => {
+    root.dataset.key = key;
+    if (fixKg != null) root.dataset.fixkg = String(fixKg); else delete root.dataset.fixkg;
+    // Highlight the current pick (navy fill), or the FAIL pill.
+    root.querySelectorAll<HTMLElement>("[data-rpeval]").forEach((el) => {
+      const raw = el.dataset.rpeval!;
+      const on = raw === "fail" ? failed : !failed && cur != null && Number(raw) === cur;
+      const tick = el.querySelector<HTMLElement>(".a-rpe-tick");
+      if (raw === "fail") {
+        el.style.background = on ? "rgba(217,138,138,.22)" : "rgba(217,138,138,.1)";
+        el.style.borderColor = on ? "#d98a8a" : "rgba(217,138,138,.5)";
+        if (tick) tick.style.color = on ? "#b45454" : "transparent";
+      } else {
+        el.style.background = on ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.06)";
+        el.style.borderColor = on ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.28)";
+        const num = el.querySelector<HTMLElement>(".a-rpe-num");
+        const word = el.querySelector<HTMLElement>(".a-rpe-word");
+        if (num) num.style.color = on ? "rgb(242,242,243)" : "rgb(var(--a-navy-rgb))";
+        if (word) word.style.color = on ? "rgba(242,242,243,.85)" : "rgb(95,104,115)";
+        if (tick) tick.style.color = on ? "rgb(242,242,243)" : "transparent";
+      }
+    });
+    root.style.display = "flex";
+  };
+  root.addEventListener("click", (e) => {
+    const t = e.target as HTMLElement;
+    if (t === root || t.closest("[data-rpeclose]")) return close();
+    const p = t.closest<HTMLElement>("[data-rpeval]");
+    if (!p) return;
+    const raw = p.dataset.rpeval!;
+    const key = root.dataset.key!;
+    const fixKg = root.dataset.fixkg ? parseFloat(root.dataset.fixkg) : null;
+    if (raw === "fail") apply(key, null, true, fixKg);
+    else apply(key, Number(raw), false, fixKg);
+    close();
+  });
+  return { root, open };
+}
+
 export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   const today = iso(new Date());
   let selected = firstOpenDate(athleteId, today);
@@ -414,6 +517,20 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     render();
   });
   document.body.appendChild(calendar.root);
+
+  // RPE picker popup. Choosing a value logs it (and, for a fixed / %1RM set, the
+  // prescribed load too, so one tap completes the set).
+  const rpeSheet = buildRpeSheet((key, rpe, failed, fixKg) => {
+    if (isLocked()) return;
+    const patch: SetLog = failed ? { failed: true, rpe: null } : { rpe, failed: false };
+    if (fixKg != null && !failed) {
+      let hasReal = false;
+      getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === key) hasReal = st.weightKg != null && !st.prefill; }));
+      if (!hasReal) patch.weightKg = fixKg; // log the coach's prescribed load in the same tap
+    }
+    logSet(athleteId, selected, key, patch);
+  });
+  document.body.appendChild(rpeSheet.root);
 
   function render() {
     const session = getSessionFor(athleteId, selected);
@@ -463,10 +580,11 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     const canConfirm = !session.rest && setsLeft === 0 && rpeLeft === 0 && session.setCount > 0;
     const finishTxt = host.querySelector<HTMLElement>("#finishTxt");
     const finishNote = host.querySelector<HTMLElement>("#finishNote");
+    const locked = session.confirmed; // hand-confirmed or auto-locked (2h untouched)
     if (finishTxt)
       finishTxt.textContent = session.rest
         ? "REST DAY"
-        : session.finished
+        : locked
           ? "SESSION CONFIRMED ✓ · TAP TO UNLOCK"
           : setsLeft > 0
             ? `LOG EVERY SET TO FINISH · ${setsLeft} LEFT`
@@ -474,11 +592,11 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
               ? `RATE RPE ON EVERY SET · ${rpeLeft} LEFT`
               : "CONFIRM SESSION";
     if (finishBtn) {
-      const active = canConfirm || session.finished;
+      const active = canConfirm || locked;
       finishBtn.style.cursor = active ? "pointer" : "default";
-      finishBtn.style.background = session.finished ? "rgba(46,125,90,.14)" : canConfirm ? "rgb(var(--a-navy-rgb))" : "transparent";
-      finishBtn.style.color = session.finished ? "#2e7d5a" : canConfirm ? "rgb(242,242,243)" : "rgb(138,146,156)";
-      finishBtn.style.border = session.finished
+      finishBtn.style.background = locked ? "rgba(46,125,90,.14)" : canConfirm ? "rgb(var(--a-navy-rgb))" : "transparent";
+      finishBtn.style.color = locked ? "#2e7d5a" : canConfirm ? "rgb(242,242,243)" : "rgb(138,146,156)";
+      finishBtn.style.border = locked
         ? "1px solid rgba(46,125,90,.5)"
         : canConfirm
           ? "1px solid rgb(var(--a-navy-rgb))"
@@ -487,20 +605,22 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     if (finishNote)
       finishNote.textContent = session.rest
         ? ""
-        : session.finished
+        : locked
           ? "Confirmed — your coach can see this session."
           : setsLeft > 0
             ? `${setsLeft} set${setsLeft === 1 ? "" : "s"} still need a weight before you can confirm.`
             : rpeLeft > 0
               ? `${rpeLeft} RPE rating${rpeLeft === 1 ? "" : "s"} still to enter before you can confirm.`
               : "Everything's logged — confirm to lock the session.";
-    shareBtn.style.display = session.finished ? "block" : "none";
+    shareBtn.style.display = locked ? "block" : "none";
   }
 
-  const isFinished = () => getSessionFor(athleteId, selected).finished;
+  // Locked = read-only. Only a hand-confirm or the 2h auto-lock locks a session —
+  // reaching 70% marks it "done" for display but keeps it fully editable.
+  const isLocked = () => getSessionFor(athleteId, selected).confirmed;
   // Any edit on a confirmed session offers to unlock first.
   const unlockGate = (): boolean => {
-    if (!isFinished()) return true;
+    if (!isLocked()) return true;
     if (confirm("This session is confirmed and locked. Unlock to make changes?")) setSessionMeta(athleteId, selected, { finished: false });
     return false;
   };
@@ -565,28 +685,18 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     }
 
     // edits are gated when the session is confirmed/locked
-    if (t.closest("[data-inc],[data-dec],[data-same],[data-fail],[data-done],[data-fixdone],[data-rpeset],[data-secs],[data-wi],[data-note]") && !unlockGate()) return;
+    if (t.closest("[data-inc],[data-dec],[data-same],[data-done],[data-rpeopen],[data-secs],[data-wi],[data-note]") && !unlockGate()) return;
 
-    // RPE chip: tap to rate; tap the current value again to clear it.
-    const rpeset = t.closest<HTMLElement>("[data-rpeset]");
-    if (rpeset) {
-      const k = rpeset.dataset.rpeset!;
-      const v = Number(rpeset.dataset.v);
+    // RPE button → open the big slider popup. For a fixed / %1RM set (data-fixkg),
+    // picking an RPE also logs the prescribed load, so it's a one-tap complete.
+    const rpeOpen = t.closest<HTMLElement>("[data-rpeopen]");
+    if (rpeOpen) {
+      const k = rpeOpen.dataset.rpeopen!;
+      const fixKg = parseFloat(rpeOpen.dataset.fixkg ?? "");
       let cur: number | null = null;
-      getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === k) cur = st.rpe; }));
-      return logSet(athleteId, selected, k, { rpe: cur === v ? null : v });
-    }
-
-    // Fixed-load "DONE": confirm the prescribed load without retyping it (a plain
-    // pre-fill never counts as logged until the athlete confirms). Toggles off.
-    const fixdone = t.closest<HTMLElement>("[data-fixdone]");
-    if (fixdone) {
-      const k = fixdone.dataset.fixdone!;
-      const fx = parseFloat(fixdone.dataset.fx ?? "");
-      let already = false;
-      getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === k) already = st.weightKg != null && !st.prefill; }));
-      if (already) return logSet(athleteId, selected, k, { weightKg: null });
-      if (isFinite(fx)) { logSet(athleteId, selected, k, { weightKg: fx, failed: false }); showToast(`Logged at ${fmtKg(fx)} kg 👍 Going lighter is always fine.`); }
+      let failed = false;
+      getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === k) { cur = st.rpe; failed = st.failed; } }));
+      rpeSheet.open(k, cur, failed, isFinite(fixKg) ? fixKg : null);
       return;
     }
 
@@ -608,18 +718,11 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       if (isFinite(s) && s > 0) logSet(athleteId, selected, k, { weightKg: s, failed: false });
       return;
     }
-    const fail = t.closest<HTMLElement>("[data-fail]");
-    if (fail) {
-      const k = fail.dataset.fail!;
-      let cur = false;
-      getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === k) cur = st.failed; }));
-      return logSet(athleteId, selected, k, { failed: !cur });
-    }
   });
 
   body?.addEventListener("change", (e) => {
     const t = e.target as HTMLInputElement;
-    if (isFinished()) return;
+    if (isLocked()) return;
     if (t.matches("[data-secs]")) {
       const v = parseInt(t.value.replace(/[^0-9]/g, ""), 10);
       if (t.value.trim() === "") logSet(athleteId, selected, t.dataset.secs!, { heldSeconds: null, done: false });
@@ -663,7 +766,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   });
   body?.addEventListener("blur", (e) => {
     const t = e.target as HTMLInputElement;
-    if (!isFinished() && t.matches("[data-note]")) logSet(athleteId, selected, t.dataset.note!, { note: t.value });
+    if (!isLocked() && t.matches("[data-note]")) logSet(athleteId, selected, t.dataset.note!, { note: t.value });
   }, true);
 
   // Sliders: repaint the number live on every tick (cheap), but only PERSIST on
@@ -680,7 +783,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   finishBtn?.addEventListener("click", () => {
     const s = getSessionFor(athleteId, selected);
     if (s.rest) return;
-    if (s.finished) {
+    if (s.confirmed) {
       if (confirm("Unlock this confirmed session to make changes?")) setSessionMeta(athleteId, selected, { finished: false });
       return;
     }
@@ -698,5 +801,6 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   return () => {
     unsub();
     calendar.root.remove();
+    rpeSheet.root.remove();
   };
 }
