@@ -8,7 +8,7 @@
 
    Navigations + the app's HTML are network-first (a new deploy always wins);
    content-hashed assets are cache-first (immutable). Supabase is never cached. */
-const CACHE = "ssc-shell-v43";
+const CACHE = "ssc-shell-v44";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {

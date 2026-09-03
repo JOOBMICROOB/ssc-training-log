@@ -44,7 +44,7 @@ const clampKg = (n: number) => Math.max(0, Math.min(MAX_SET_KG, Math.round(n * 2
 const DAY_FULL = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const MONTHS = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
 const RPE_VALUES = [5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10]; // 5–10 in 0.5 steps
-const fmtRpeShort = (v: number) => (Number.isInteger(v) ? String(v) : `${Math.floor(v)}½`);
+const fmtRpeShort = (v: number) => String(v).replace(".", ","); // 8 → "8", 8.5 → "8,5"
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const parseKg = (s: string) => parseFloat(s.replace(",", ".").replace(/[^0-9.]/g, ""));
 
