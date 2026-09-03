@@ -141,15 +141,17 @@ export function AthleteApp() {
     let cleanup: (() => void) | undefined;
 
     // Pull-to-refresh on every screen → a real cloud resync (and it retries any
-    // logs that failed to upload earlier). Target the main content card (the
-    // direct flex:1 child of the navy frame) so it works on every page, whether
-    // that card scrolls or not.
+    // logs that failed to upload earlier). Target the element that ACTUALLY scrolls
+    // (its overflow-y:auto region), so PTR reads a real scroll position — otherwise,
+    // on screens where the scroller is nested (training: #trainBody inside a frost
+    // wrapper), a flex:1 wrapper reports scrollTop 0 and every pull triggers refresh.
+    // Falls back to the flex:1 card for fill screens that have no inner scroll.
     let ptrCleanup: (() => void) | undefined;
     if (session) {
       const bp = host.querySelector<HTMLElement>(".blueprint");
       const card =
-        bp?.querySelector<HTMLElement>(':scope > div[style*="flex: 1 1 0%"]') ??
-        host.querySelector<HTMLElement>('div[style*="overflow-y: auto"]');
+        host.querySelector<HTMLElement>('div[style*="overflow-y: auto"]') ??
+        bp?.querySelector<HTMLElement>(':scope > div[style*="flex: 1 1 0%"]');
       if (card) ptrCleanup = wirePullToRefresh(card, () => hydrateFromServer(session.athleteId));
     }
 
