@@ -67,7 +67,9 @@ export type DayLog = {
   startedAt?: number; // when the 2nd set was logged — the session "starts" here (a
   // single tap could be a misclick, two means they're really training)
   editedAt?: number; // last time any set was touched — the auto-lock waits 2h from here
-  remindedAt?: number; // a "not everything's logged" push was sent for this session
+  remindAt?: number; // ms when a "not everything's logged" push is due (startedAt+1h),
+  // cleared once the session is complete/confirmed. The server pushes in a short
+  // window after this time; it never writes back, so it can't clobber a log.
   autoLocked?: boolean; // locked automatically (2h untouched), not hand-confirmed
 };
 export type ProgramLogs = Record<string, DayLog>; // key = ISO date

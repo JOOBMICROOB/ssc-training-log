@@ -880,6 +880,17 @@ export function eventsByDate(events: AthleteEvent[]): Record<string, AthleteEven
   return map;
 }
 
+const ONE_HOUR = 60 * 60 * 1000;
+/** Everything logged for a date's session (all sets + every required RPE). */
+function sessionComplete(data: DashboardData, logs: ProgramLogs, date: string): boolean {
+  const s = getSession(templateForDate(data, date), logs, date, data.sessionChoice?.[date] ?? "A", undefined, undefined, data.loggedDays);
+  return !s.rest && s.setCount > 0 && s.loggedCount >= s.setCount && s.rpeLogged >= s.rpeRequired;
+}
+/** Set/clear the "remind me at startedAt+1h if still incomplete" marker the server reads. */
+function stampReminder(day: DayLog, complete: boolean): void {
+  day.remindAt = day.startedAt != null && !complete && day.finished !== true ? day.startedAt + ONE_HOUR : undefined;
+}
+
 /** Log (or clear) one set's weight / RPE / note for a given date. */
 export function logSet(athleteId: string, date: string, key: string, patch: SetLog) {
   // Snapshot the template this session is being logged against (once), so the logs
@@ -898,6 +909,9 @@ export function logSet(athleteId: string, date: string, key: string, patch: SetL
   day.editedAt = Date.now();
   if (realLogs >= 2 && day.startedAt == null) day.startedAt = Date.now();
   logs[date] = day;
+  // Arm/clear the +1h "not everything's logged" reminder (server pushes on it).
+  stampReminder(day, sessionComplete({ ...data, programLogs: logs }, logs, date));
+  logs[date] = day;
   save(athleteId, { ...data, programLogs: logs });
 }
 
@@ -913,7 +927,7 @@ export function setSessionMeta(
   // Rating session RPE / pain is a touch (resets the 2h auto-lock clock); a
   // hand-confirm clears the auto-lock flag (it's now a deliberate lock).
   if (patch.sessionRpe !== undefined || patch.pain !== undefined) day.editedAt = Date.now();
-  if (patch.finished === true) day.autoLocked = false;
+  if (patch.finished === true) { day.autoLocked = false; day.remindAt = undefined; }
   logs[date] = day;
   save(athleteId, { ...data, programLogs: logs });
 }
@@ -935,7 +949,7 @@ export function autoLockStaleSessions(athleteId: string): void {
     const d = logs[date];
     if (!d || d.finished === true || d.startedAt == null || d.editedAt == null) continue;
     if (now - d.editedAt >= TWO_HOURS) {
-      next[date] = { ...d, finished: true, autoLocked: true };
+      next[date] = { ...d, finished: true, autoLocked: true, remindAt: undefined };
       changed = true;
     }
   }

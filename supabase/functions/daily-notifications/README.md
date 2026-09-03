@@ -46,6 +46,23 @@ It reuses the same VAPID key as the publish notification. It's a system call
    $$);
    ```
 
+   **Session reminder** — runs every 15 minutes and pushes "not everything's
+   logged yet" ~1h after an athlete starts a session (their 2nd logged set) if it's
+   still incomplete. It's stateless: the app stamps `remindAt` per session and
+   clears it when the session is finished/confirmed, and the function only reads —
+   it never writes app_state, so it can't touch logged data. **The 15-minute
+   interval must match the function's WINDOW (15 min) so each reminder fires once.**
+
+   ```sql
+   select cron.schedule('ssc-session-reminder', '*/15 * * * *', $$
+     select net.http_post(
+       url := 'https://skdjpydjkqjqwrdgqpco.supabase.co/functions/v1/daily-notifications?slot=session-reminder',
+       headers := jsonb_build_object('x-cron-secret','IRNFQSfgrformQ1LGqoBEfsc0CX28CoA','Content-Type','application/json'),
+       body := '{}'::jsonb
+     );
+   $$);
+   ```
+
 ## Test it now
 
 ```bash

@@ -24,7 +24,7 @@ type AState = {
   pushSub?: unknown;
   publishedWeeks?: Record<string, { week: Day[] }>;
   programWeek?: Day[];
-  programLogs?: Record<string, { sets?: Record<string, SetLog> }>;
+  programLogs?: Record<string, { sets?: Record<string, SetLog>; remindAt?: number }>;
   optedInComps?: string[];
   competitions?: { id: string; name: string; date: string }[];
 };
@@ -77,6 +77,24 @@ Deno.serve(async (req) => {
   for (const row of rows ?? []) {
     const s = (row as { data: AState }).data;
     if (!s?.pushSub) continue;
+
+    // "Not everything's logged" nudge — 1h after the athlete started a session
+    // (their 2nd logged set) if it's still incomplete. The app stamps `remindAt`
+    // per session and clears it when the session is completed/confirmed. Stateless
+    // + read-only: fire once in the window after it's due, never write app_state.
+    if (slot === "session-reminder") {
+      const nowMs = Date.now();
+      const WINDOW = 15 * 60 * 1000; // one cron interval — fires once, no dedupe state
+      for (const dl of Object.values(s.programLogs ?? {})) {
+        const r = dl?.remindAt;
+        if (typeof r === "number" && r <= nowMs && nowMs - r < WINDOW) {
+          await send(s.pushSub, "Session not fully logged", "You started a session but haven't logged everything yet — finish it so your coach sees the full picture.");
+          break; // at most one nudge per athlete per run
+        }
+      }
+      continue;
+    }
+
     const wso = s.weekStartsOn ?? 1;
 
     if (slot === "morning") {
