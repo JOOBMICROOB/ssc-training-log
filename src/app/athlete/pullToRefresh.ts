@@ -65,18 +65,22 @@ export function wirePullToRefresh(scroll: HTMLElement, onRefresh: () => void | P
   };
 
   const onStart = (e: TouchEvent) => {
+    // Only ARM when the content is already sitting at the very top. A touch that
+    // begins mid-page (even during a scroll-up) never arms — so the refresh can't
+    // pop up while you're just scrolling back up; you have to be at the top.
     if (!refreshing && scroll.scrollTop <= 0) { startY = e.touches[0].clientY; startX = e.touches[0].clientX; pulling = true; engaged = false; pull = 0; armed = false; }
   };
   const onMove = (e: TouchEvent) => {
     if (!pulling) return;
     if (scroll.scrollTop > 0) { pulling = false; if (engaged) reset(); return; }
     pull = e.touches[0].clientY - startY;
-    // Only take over the gesture once it's a clear DOWNWARD pull (not a horizontal
-    // swipe or a scroll-up flick). Until then, native scroll runs untouched.
+    // Only take over once it's a clear, DELIBERATE downward pull from the top (not a
+    // horizontal swipe or the tail of a scroll-up flick). A larger threshold means a
+    // small settle at the top won't trigger it. Until then, native scroll runs.
     if (!engaged) {
       const dx = e.touches[0].clientX - startX;
-      if (pull > 10 && pull > Math.abs(dx) * 1.2) { engaged = true; scroll.style.willChange = "transform"; }
-      else if (pull < 0) { pulling = false; return; } // scrolling down — hand off to native
+      if (pull < 0) { pulling = false; return; } // moved up at all — hand off to native
+      if (pull > 26 && pull > Math.abs(dx) * 1.5) { engaged = true; scroll.style.willChange = "transform"; }
       else return;
     }
     if (pull <= 0) { setCard(0, false); setChip(-46, 0, false); return; }

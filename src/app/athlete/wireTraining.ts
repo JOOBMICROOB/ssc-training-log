@@ -404,50 +404,56 @@ const RPE_WORD: Record<string, string> = {
   "6": "easy — 4+ left", "5.5": "very easy", "5": "warm-up easy",
 };
 
+// Pain scale (0 = none) — optional, defaults to zero until the athlete sets it.
+const PAIN_VALUES = Array.from({ length: 11 }, (_, i) => i); // 0..10
+const painWord = (v: number) => (v === 0 ? "no pain" : v <= 3 ? "mild" : v <= 6 ? "moderate — keep an eye on it" : v <= 9 ? "high — tell your coach" : "severe — stop, message your coach");
+
+// Opaque context carried through the per-set RPE picker (which set + its fixed load).
+type PickCtx = { key: string; fixKg: number | null } | null;
+
 /**
- * The RPE picker popup — a bottom sheet with a big, accurate 5→10 scale (0.5 steps)
- * plus FAILED at the end. Opened from a set's RPE button; `apply` logs the choice
- * (and, for a fixed / %1RM set, the prescribed load too). Styled in our own line.
+ * A centered value-picker popup (same overlay as the calendar, not a full-screen
+ * sheet): a big scrollable scale of tappable pills, current pick highlighted, with
+ * an optional FAILED row. Reused for per-set RPE, session RPE and pain.
  */
-function buildRpeSheet(apply: (key: string, rpe: number | null, failed: boolean, fixKg: number | null) => void): {
-  root: HTMLElement;
-  open: (key: string, cur: number | null, failed: boolean, fixKg: number | null) => void;
-} {
+function buildPicker(
+  opts: { title: string; sub: string; values: number[]; wordOf: (v: number) => string; allowFail?: boolean; fmt?: (v: number) => string },
+  onPick: (value: number | null, failed: boolean, ctx: PickCtx) => void,
+): { root: HTMLElement; open: (current: number | null, failed: boolean, ctx?: PickCtx) => void } {
+  const fmt = opts.fmt ?? fmtRpeShort;
   const root = document.createElement("div");
   root.style.cssText =
-    "position:fixed;inset:0;z-index:210;display:none;align-items:flex-end;justify-content:center;background:rgba(20,36,52,.55);";
+    "position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(9,17,28,.55);backdrop-filter:blur(3px);z-index:1000;padding:16px;";
   const pill = (v: number) =>
-    `<button data-rpeval="${v}" class="a-rpe-pill" style="display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:12px;cursor:pointer;text-align:left;border:1.5px solid rgba(var(--a-accent-rgb),.28);background:rgba(var(--a-accent-rgb),.06);">
-       <span class="a-rpe-num" style="flex:0 0 auto;width:40px;text-align:center;font:700 22px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${fmtRpeShort(v)}</span>
-       <span class="a-rpe-word" style="flex:1 1 0;font:400 12px/1.2 Barlow,sans-serif;color:rgb(95,104,115);">${RPE_WORD[String(v)] ?? ""}</span>
-       <span class="a-rpe-tick" style="flex:0 0 auto;font-size:15px;color:transparent;">✓</span>
+    `<button data-pv="${v}" style="display:flex;align-items:center;gap:12px;width:100%;padding:11px 13px;border-radius:12px;cursor:pointer;text-align:left;border:1.5px solid rgba(var(--a-accent-rgb),.28);background:rgba(var(--a-accent-rgb),.06);">
+       <span class="a-pk-num" style="flex:0 0 auto;width:40px;text-align:center;font:700 21px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${fmt(v)}</span>
+       <span class="a-pk-word" style="flex:1 1 0;font:400 12px/1.2 Barlow,sans-serif;color:rgb(95,104,115);">${opts.wordOf(v)}</span>
+       <span class="a-pk-tick" style="flex:0 0 auto;font-size:15px;color:transparent;">✓</span>
      </button>`;
-  const pills = RPE_VALUES.slice().reverse().map(pill).join(""); // 10 at the top, 5 at the bottom
-  root.innerHTML = `
-    <div style="width:100%;max-width:440px;background:var(--a-panel-bg,#fbfdff);border-radius:22px 22px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -12px 40px rgba(20,36,52,.3);max-height:84vh;display:flex;flex-direction:column;animation:a-sheet-up .18s ease;">
+  const pills = opts.values.slice().reverse().map(pill).join(""); // highest at the top
+  const failPill = opts.allowFail
+    ? `<button data-pv="fail" style="display:flex;align-items:center;gap:12px;width:100%;margin-top:2px;padding:11px 13px;border-radius:12px;cursor:pointer;text-align:left;border:1.5px solid rgba(217,138,138,.5);background:rgba(217,138,138,.1);">
+         <span class="a-pk-num" style="flex:0 0 auto;width:40px;text-align:center;font:700 15px/1 'Barlow Condensed',sans-serif;color:#b45454;">✕</span>
+         <span style="flex:1 1 0;font:600 12.5px/1.2 Barlow,sans-serif;color:#b45454;">FAILED — couldn't complete the reps</span>
+         <span class="a-pk-tick" style="flex:0 0 auto;font-size:15px;color:transparent;">✓</span>
+       </button>`
+    : "";
+  root.innerHTML = `<div style="width:344px;max-width:96vw;max-height:calc(100dvh - 32px);overflow-y:auto;background:#f4f8fc;border:1px solid rgba(29,31,32,.12);border-radius:20px;box-shadow:0 24px 60px rgba(9,17,28,.4);padding:16px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <div style="font:600 19px/1 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(var(--a-navy-rgb));">HOW HARD DID IT FEEL?</div>
-        <button data-rpeclose style="border:none;background:rgba(29,31,32,.06);width:31px;height:31px;border-radius:50%;font-size:13px;color:#5f6873;cursor:pointer;">✕</button>
+        <div style="font:600 18px/1 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(var(--a-navy-rgb));">${opts.title}</div>
+        <button data-pk-close style="border:none;background:rgba(29,31,32,.06);width:30px;height:30px;border-radius:50%;font-size:13px;color:#5f6873;cursor:pointer;">✕</button>
       </div>
-      <div style="font:400 11px/1.4 Barlow,sans-serif;color:rgb(107,116,128);margin-bottom:11px;">Tap the effort — 10 is all-out, 5 is very easy.</div>
-      <div style="overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:6px;padding-bottom:2px;">
-        ${pills}
-        <button data-rpeval="fail" class="a-rpe-fail" style="display:flex;align-items:center;gap:12px;width:100%;margin-top:4px;padding:12px 14px;border-radius:12px;cursor:pointer;text-align:left;border:1.5px solid rgba(217,138,138,.5);background:rgba(217,138,138,.1);">
-          <span style="flex:0 0 auto;width:40px;text-align:center;font:700 15px/1 'Barlow Condensed',sans-serif;color:#b45454;">✕</span>
-          <span style="flex:1 1 0;font:600 12.5px/1.2 Barlow,sans-serif;color:#b45454;">FAILED — couldn't complete the reps</span>
-          <span class="a-rpe-tick" style="flex:0 0 auto;font-size:15px;color:transparent;">✓</span>
-        </button>
-      </div>
+      <div style="font:400 11px/1.4 Barlow,sans-serif;color:rgb(107,116,128);margin-bottom:11px;">${opts.sub}</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">${pills}${failPill}</div>
     </div>`;
   const close = () => { root.style.display = "none"; };
-  const open = (key: string, cur: number | null, failed: boolean, fixKg: number | null) => {
-    root.dataset.key = key;
-    if (fixKg != null) root.dataset.fixkg = String(fixKg); else delete root.dataset.fixkg;
-    // Highlight the current pick (navy fill), or the FAIL pill.
-    root.querySelectorAll<HTMLElement>("[data-rpeval]").forEach((el) => {
-      const raw = el.dataset.rpeval!;
-      const on = raw === "fail" ? failed : !failed && cur != null && Number(raw) === cur;
-      const tick = el.querySelector<HTMLElement>(".a-rpe-tick");
+  let ctx: PickCtx = null;
+  const open = (current: number | null, failed: boolean, c: PickCtx = null) => {
+    ctx = c;
+    root.querySelectorAll<HTMLElement>("[data-pv]").forEach((el) => {
+      const raw = el.dataset.pv!;
+      const on = raw === "fail" ? failed : !failed && current != null && Number(raw) === current;
+      const tick = el.querySelector<HTMLElement>(".a-pk-tick");
       if (raw === "fail") {
         el.style.background = on ? "rgba(217,138,138,.22)" : "rgba(217,138,138,.1)";
         el.style.borderColor = on ? "#d98a8a" : "rgba(217,138,138,.5)";
@@ -455,8 +461,8 @@ function buildRpeSheet(apply: (key: string, rpe: number | null, failed: boolean,
       } else {
         el.style.background = on ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.06)";
         el.style.borderColor = on ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.28)";
-        const num = el.querySelector<HTMLElement>(".a-rpe-num");
-        const word = el.querySelector<HTMLElement>(".a-rpe-word");
+        const num = el.querySelector<HTMLElement>(".a-pk-num");
+        const word = el.querySelector<HTMLElement>(".a-pk-word");
         if (num) num.style.color = on ? "rgb(242,242,243)" : "rgb(var(--a-navy-rgb))";
         if (word) word.style.color = on ? "rgba(242,242,243,.85)" : "rgb(95,104,115)";
         if (tick) tick.style.color = on ? "rgb(242,242,243)" : "transparent";
@@ -466,14 +472,12 @@ function buildRpeSheet(apply: (key: string, rpe: number | null, failed: boolean,
   };
   root.addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
-    if (t === root || t.closest("[data-rpeclose]")) return close();
-    const p = t.closest<HTMLElement>("[data-rpeval]");
+    if (t === root || t.closest("[data-pk-close]")) return close();
+    const p = t.closest<HTMLElement>("[data-pv]");
     if (!p) return;
-    const raw = p.dataset.rpeval!;
-    const key = root.dataset.key!;
-    const fixKg = root.dataset.fixkg ? parseFloat(root.dataset.fixkg) : null;
-    if (raw === "fail") apply(key, null, true, fixKg);
-    else apply(key, Number(raw), false, fixKg);
+    const raw = p.dataset.pv!;
+    if (raw === "fail") onPick(null, true, ctx);
+    else onPick(Number(raw), false, ctx);
     close();
   });
   return { root, open };
@@ -492,8 +496,8 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     manualOpen.has(ei) ? manualOpen.get(ei)! : !!session.exercises[ei] && inProgress(session.exercises[ei]);
 
   const body = host.querySelector<HTMLElement>("#trainBody");
-  const painSlider = host.querySelector<HTMLInputElement>("#painSlider");
-  const sessRpeSlider = host.querySelector<HTMLInputElement>("#sessRpeSlider");
+  const painBtn = host.querySelector<HTMLElement>("#painBtn");
+  const sessRpeBtn = host.querySelector<HTMLElement>("#sessRpeBtn");
   const finishBtn = host.querySelector<HTMLElement>("#finishBtn");
 
   // Share-to-story button (shown once the session is confirmed).
@@ -518,19 +522,34 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   });
   document.body.appendChild(calendar.root);
 
-  // RPE picker popup. Choosing a value logs it (and, for a fixed / %1RM set, the
+  // Per-set RPE picker. Choosing a value logs it (and, for a fixed / %1RM set, the
   // prescribed load too, so one tap completes the set).
-  const rpeSheet = buildRpeSheet((key, rpe, failed, fixKg) => {
-    if (isLocked()) return;
-    const patch: SetLog = failed ? { failed: true, rpe: null } : { rpe, failed: false };
-    if (fixKg != null && !failed) {
-      let hasReal = false;
-      getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === key) hasReal = st.weightKg != null && !st.prefill; }));
-      if (!hasReal) patch.weightKg = fixKg; // log the coach's prescribed load in the same tap
-    }
-    logSet(athleteId, selected, key, patch);
-  });
+  const rpeSheet = buildPicker(
+    { title: "HOW HARD DID IT FEEL?", sub: "Tap the effort — 10 is all-out, 5 is very easy.", values: RPE_VALUES, wordOf: (v) => RPE_WORD[String(v)] ?? "", allowFail: true },
+    (rpe, failed, ctx) => {
+      if (isLocked() || !ctx) return;
+      const patch: SetLog = failed ? { failed: true, rpe: null } : { rpe, failed: false };
+      if (ctx.fixKg != null && !failed) {
+        let hasReal = false;
+        getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === ctx.key) hasReal = st.weightKg != null && !st.prefill; }));
+        if (!hasReal) patch.weightKg = ctx.fixKg; // log the coach's prescribed load in the same tap
+      }
+      logSet(athleteId, selected, ctx.key, patch);
+    },
+  );
+  // Session-level effort — the same scale for the whole session.
+  const sessRpeSheet = buildPicker(
+    { title: "HOW HARD WAS THE SESSION?", sub: "Overall effort across the whole session.", values: RPE_VALUES, wordOf: (v) => RPE_WORD[String(v)] ?? "" },
+    (v) => { if (!isLocked() && v != null) setSessionMeta(athleteId, selected, { sessionRpe: v }); },
+  );
+  // Pain — optional, defaults to zero (None) until the athlete sets it.
+  const painSheet = buildPicker(
+    { title: "ANY PAIN TODAY?", sub: "Optional — 0 is none, 10 is severe. Leave it if you're pain-free.", values: PAIN_VALUES, wordOf: painWord, fmt: (v) => String(v) },
+    (v) => { if (!isLocked() && v != null) setSessionMeta(athleteId, selected, { pain: v }); },
+  );
   document.body.appendChild(rpeSheet.root);
+  document.body.appendChild(sessRpeSheet.root);
+  document.body.appendChild(painSheet.root);
 
   function render() {
     const session = getSessionFor(athleteId, selected);
@@ -567,10 +586,23 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
 
     if (body) body.innerHTML = bodyMarkup(week, session, selected, (ei) => isExOpen(session, ei), showBests ? exerciseBests(athleteId) : null);
 
-    if (painSlider && session.pain != null) painSlider.value = String(session.pain);
-    host.querySelector("#painVal") && (host.querySelector<HTMLElement>("#painVal")!.textContent = String(session.pain ?? painSlider?.value ?? 0));
-    if (sessRpeSlider && session.sessionRpe != null) sessRpeSlider.value = String(session.sessionRpe);
-    host.querySelector("#sessRpeVal") && (host.querySelector<HTMLElement>("#sessRpeVal")!.textContent = String(session.sessionRpe ?? sessRpeSlider?.value ?? 8));
+    // Pain (defaults to None / 0) + session RPE buttons — open the picker on tap.
+    const painVal = host.querySelector<HTMLElement>("#painVal");
+    if (painVal && painBtn) {
+      const has = session.pain != null && session.pain > 0;
+      painVal.textContent = has ? String(session.pain) : "None";
+      painBtn.style.border = has ? "1px solid #d98a8a" : "1px solid rgba(29,31,32,.14)";
+      painBtn.style.background = has ? "rgba(217,138,138,.14)" : "#fff";
+      painBtn.style.color = has ? "#b45454" : "rgb(138,146,156)";
+    }
+    const sessRpeVal = host.querySelector<HTMLElement>("#sessRpeVal");
+    if (sessRpeVal && sessRpeBtn) {
+      const has = session.sessionRpe != null;
+      sessRpeVal.textContent = has ? fmtRpeShort(session.sessionRpe!) : "RATE";
+      sessRpeBtn.style.background = has ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.08)";
+      sessRpeBtn.style.color = has ? "rgb(242,242,243)" : "rgb(var(--a-navy-rgb))";
+      sessRpeBtn.style.borderColor = has ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.45)";
+    }
 
     // Don't let a session lock until BOTH every set has a weight AND every
     // required RPE is rated — otherwise tapping finish on the last set confirms
@@ -696,7 +728,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       let cur: number | null = null;
       let failed = false;
       getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === k) { cur = st.rpe; failed = st.failed; } }));
-      rpeSheet.open(k, cur, failed, isFinite(fixKg) ? fixKg : null);
+      rpeSheet.open(cur, failed, { key: k, fixKg: isFinite(fixKg) ? fixKg : null });
       return;
     }
 
@@ -769,17 +801,15 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     if (!isLocked() && t.matches("[data-note]")) logSet(athleteId, selected, t.dataset.note!, { note: t.value });
   }, true);
 
-  // Sliders: repaint the number live on every tick (cheap), but only PERSIST on
-  // release. Saving on each input tick fired a full save + dashboard re-render per
-  // pixel, which is what made the drag stutter.
-  painSlider?.addEventListener("input", () => {
-    host.querySelector<HTMLElement>("#painVal") && (host.querySelector<HTMLElement>("#painVal")!.textContent = String(Number(painSlider.value)));
+  // Pain / session-RPE: tap opens the centered picker (guarded when locked).
+  painBtn?.addEventListener("click", () => {
+    if (!unlockGate()) return;
+    painSheet.open(getSessionFor(athleteId, selected).pain ?? 0, false);
   });
-  painSlider?.addEventListener("change", () => setSessionMeta(athleteId, selected, { pain: Number(painSlider.value) }));
-  sessRpeSlider?.addEventListener("input", () => {
-    host.querySelector<HTMLElement>("#sessRpeVal") && (host.querySelector<HTMLElement>("#sessRpeVal")!.textContent = String(Number(sessRpeSlider.value)));
+  sessRpeBtn?.addEventListener("click", () => {
+    if (!unlockGate()) return;
+    sessRpeSheet.open(getSessionFor(athleteId, selected).sessionRpe, false);
   });
-  sessRpeSlider?.addEventListener("change", () => setSessionMeta(athleteId, selected, { sessionRpe: Number(sessRpeSlider.value) }));
   finishBtn?.addEventListener("click", () => {
     const s = getSessionFor(athleteId, selected);
     if (s.rest) return;
@@ -802,5 +832,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     unsub();
     calendar.root.remove();
     rpeSheet.root.remove();
+    sessRpeSheet.root.remove();
+    painSheet.root.remove();
   };
 }
