@@ -140,14 +140,13 @@ export function AthleteApp() {
 
     let cleanup: (() => void) | undefined;
 
-    // Pull-to-refresh on every screen → a real cloud resync (and it retries any
-    // logs that failed to upload earlier). Target the element that ACTUALLY scrolls
-    // (its overflow-y:auto region), so PTR reads a real scroll position — otherwise,
-    // on screens where the scroller is nested (training: #trainBody inside a frost
-    // wrapper), a flex:1 wrapper reports scrollTop 0 and every pull triggers refresh.
-    // Falls back to the flex:1 card for fill screens that have no inner scroll.
+    // Pull-to-refresh → a real cloud resync (and it retries any logs that failed to
+    // upload earlier). Deliberately NOT on the training screen: logging a session
+    // means a lot of scrolling up and down through exercises, and any pull-to-refresh
+    // there kept fighting the scroll. Athletes refresh from the dashboard / other
+    // screens instead; the training screen is left to scroll cleanly, untouched.
     let ptrCleanup: (() => void) | undefined;
-    if (session) {
+    if (session && screen !== "training") {
       const bp = host.querySelector<HTMLElement>(".blueprint");
       const card =
         host.querySelector<HTMLElement>('div[style*="overflow-y: auto"]') ??
