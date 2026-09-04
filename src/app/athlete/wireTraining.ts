@@ -392,7 +392,10 @@ function firstOpenDate(athleteId: string, today: string): string {
   for (let i = 0; i < 14; i++) {
     const date = addDays(today, i);
     const s = getSessionFor(athleteId, date);
-    if (!s.rest && !s.finished) return date;
+    // Only skip a day the athlete has actually CONFIRMED (or that auto-locked).
+    // A day that's merely ≥70% logged is still being trained — don't jump past it
+    // to the next day while they're mid-session.
+    if (!s.rest && !s.confirmed) return date;
   }
   return today;
 }
@@ -573,7 +576,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       // unlike scanning forward, which could land on another blocked future week.
       // Prefer the first session that still needs logging, else the first training day.
       const backTo =
-        curWeek.find((d) => { const s = getSessionFor(athleteId, d.date); return !s.rest && !s.finished; })?.date ??
+        curWeek.find((d) => { const s = getSessionFor(athleteId, d.date); return !s.rest && !s.confirmed; })?.date ??
         curWeek.find((d) => !d.rest)?.date ??
         curWeekStart;
       if (body) body.innerHTML = lockMarkup(week, selected, pct, backTo);
