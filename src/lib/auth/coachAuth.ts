@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { coachSupabase } from "../supabase";
-import { hydrateAthletes, hydrateShared, stopSync, enableCoachSync } from "../data/athleteData";
+import { hydrateAthletes, hydrateAthletesReadonly, hydrateShared, stopSync, enableCoachSync } from "../data/athleteData";
 
 /**
  * Coach-side auth + roster sync for the console.
@@ -38,7 +38,7 @@ export async function signInCoach(email: string, password: string): Promise<{ ok
   return { ok: true };
 }
 
-export type CoachAthlete = { athleteId: string; userId: string; name: string; shared: boolean };
+export type CoachAthlete = { athleteId: string; userId: string; name: string; shared: boolean; owned: boolean; ownerId: string | null };
 
 // Broad, untyped view of coachSupabase for the tables the generated types predate.
 const cs = coachSupabase as unknown as {
@@ -59,21 +59,33 @@ const cs = coachSupabase as unknown as {
  */
 export async function startCoachSync(coachUserId: string): Promise<CoachAthlete[]> {
   enableCoachSync();
-  const { data, error } = await q.from("app_profiles").select("code,name,user_id").eq("coach_user_id", coachUserId);
-  const list: CoachAthlete[] = !error && data ? data.map((r) => ({ athleteId: r.code, userId: r.user_id, name: r.name, shared: false })) : [];
-  // Athletes shared to this coach to help on (defensive: the table only exists
-  // once 0016_multi_coach.sql has been run — before that this is simply skipped).
+  // Every athlete (coaches can read all profiles — 0016). Each is tagged with its
+  // owner so the Team/Clients board can show everyone while program tabs stay
+  // scoped to own + shared.
+  const { data, error } = await cs.from("app_profiles").select("code,name,user_id,coach_user_id").eq("role", "athlete");
+  const profs = !error && data ? data : [];
+  // Which of them are shared TO me (defensive — table exists only after 0016).
+  let sharedIds = new Set<string>();
   try {
     const { data: shares } = await cs.from("app_shared_athletes").select("athlete_user_id").eq("coach_user_id", coachUserId);
-    const ids = (shares ?? []).map((s) => s.athlete_user_id).filter(Boolean);
-    if (ids.length) {
-      const { data: profs } = await cs.from("app_profiles").select("code,name,user_id").in("user_id", ids);
-      for (const r of profs ?? []) if (!list.some((a) => a.userId === r.user_id)) list.push({ athleteId: r.code, userId: r.user_id, name: r.name, shared: true });
-    }
+    sharedIds = new Set((shares ?? []).map((s) => s.athlete_user_id).filter(Boolean));
   } catch {
     /* sharing not deployed yet */
   }
-  await hydrateAthletes(list);
+  const list: CoachAthlete[] = profs.map((r) => ({
+    athleteId: r.code,
+    userId: r.user_id,
+    name: r.name,
+    ownerId: r.coach_user_id ?? null,
+    owned: r.coach_user_id === coachUserId,
+    shared: sharedIds.has(r.user_id),
+  }));
+  // Own + shared connect live (editable); everyone else is a one-shot read for the
+  // board/summary only.
+  const editable = list.filter((a) => a.owned || a.shared);
+  const others = list.filter((a) => !a.owned && !a.shared);
+  await hydrateAthletes(editable);
+  await hydrateAthletesReadonly(others);
   await hydrateShared(true); // coach seeds the shared competition list if empty
   return list;
 }

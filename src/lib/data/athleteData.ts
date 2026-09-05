@@ -1365,6 +1365,27 @@ export async function hydrateAthletes(list: { athleteId: string; userId: string 
   for (const a of list) await hydrateTarget(a.athleteId, a.userId, false, coachRaw);
 }
 
+/**
+ * Coach-side, READ-ONLY: pull other coaches' athletes' state once (no live
+ * channel) so the Team + Clients pages can show everyone's scores. These rows are
+ * never edited here (RLS blocks writes to non-owned athletes anyway).
+ */
+export async function hydrateAthletesReadonly(list: { athleteId: string; userId: string }[]): Promise<void> {
+  if (!list.length) return;
+  const sb = coachRaw as unknown as { from: (t: string) => { select: (c: string) => { in: (col: string, v: string[]) => Promise<{ data: { user_id: string; data?: DashboardData }[] | null; error: unknown }> } } };
+  const byUser = new Map(list.map((a) => [a.userId, a.athleteId]));
+  try {
+    const { data } = await sb.from("app_state").select("user_id,data").in("user_id", list.map((a) => a.userId));
+    for (const row of data ?? []) {
+      const aid = byUser.get(row.user_id);
+      if (aid && row.data) { try { localStorage.setItem(key(aid), JSON.stringify(row.data)); } catch { /* storage full/unavailable */ } }
+    }
+    listeners.forEach((cb) => cb());
+  } catch {
+    /* best-effort — the board just won't show those athletes until next refresh */
+  }
+}
+
 /** Drop all cloud connections (on sign-out). */
 export function stopSync() {
   for (const id of Object.keys(syncTargets)) {

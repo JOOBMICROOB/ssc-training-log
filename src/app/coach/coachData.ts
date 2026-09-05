@@ -26,11 +26,23 @@ import { programStatus } from "./coachPlanning";
 export type Coach = { id: string; name: string; head?: boolean };
 export type Competition = DashboardData["competitions"][number];
 
-export const COACHES: Coach[] = [
+// The real coaches, loaded from Supabase on sign-in (see setCoaches). `id` is the
+// coach's code. Defaults to just the seed team until the live list arrives — kept
+// as `let` so importers see the updated list (ES module live binding).
+export let COACHES: Coach[] = [
   { id: "noa", name: "Noa Depaepe", head: true },
   { id: "mika", name: "Mika Vankerckhove" },
   { id: "maxim", name: "Maxim Stepman" },
 ];
+// user_id → coach code, so an athlete's owner (a UUID) maps to a coach column.
+let coachByUserId: Record<string, string> = {};
+/** Replace the coach list with the real coaches from Supabase. */
+export function setCoaches(list: { userId: string; code: string; name: string }[]) {
+  if (!list.length) return;
+  COACHES = list.map((c, i) => ({ id: c.code, name: c.name, head: i === 0 || /noa/i.test(c.name) }));
+  coachByUserId = Object.fromEntries(list.map((c) => [c.userId, c.code]));
+  emit();
+}
 
 export type Due = { label: string; sub: string; days: number | null; flagged?: boolean };
 export type MeetOpt = { id: string; name: string; date: string; level: "national" | "international"; opted: boolean };
@@ -64,6 +76,7 @@ export type ClientRow = {
   hideMaxes: boolean;
   disabled: boolean; // archived by the coach — hidden from board + switcher, reversible
   shared?: boolean; // in this coach's roster because another coach shared them (not owned)
+  owned?: boolean; // this coach owns the athlete (can edit their program)
   streak: number; // athlete's current logging streak (0 = none / demo)
   opts: MeetOpt[];
 };
@@ -74,7 +87,7 @@ export const LIVE_ATHLETE_ID = "RS1203";
 // Real, cloud-synced athletes the coach owns (from app_profiles). The console
 // fills this after startCoachSync so getClients can turn each into a live row —
 // this is how a newly created account appears on the board.
-export type RealAthlete = { athleteId: string; userId: string; name: string; coachId?: string; shared?: boolean };
+export type RealAthlete = { athleteId: string; userId: string; name: string; coachId?: string; shared?: boolean; owned?: boolean; ownerId?: string | null };
 let realAthletes: RealAthlete[] = [];
 export function setRealAthletes(list: RealAthlete[]) {
   realAthletes = list;
@@ -388,9 +401,12 @@ export function getClients(coachId?: string, opts?: { includeDisabled?: boolean 
       ...liveRow(getDashboardModel(a.athleteId), o, {
         athleteId: a.athleteId,
         name: a.name,
-        coachId: o.coachId ?? a.coachId ?? "noa",
+        // The athlete's column = their OWNER coach (mapped from user_id), so the
+        // Team board groups everyone under the right coach.
+        coachId: o.coachId ?? (a.ownerId ? coachByUserId[a.ownerId] : undefined) ?? a.coachId ?? "noa",
       }),
       shared: a.shared,
+      owned: a.owned,
     });
   }
 

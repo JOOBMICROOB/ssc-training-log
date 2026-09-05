@@ -20,21 +20,29 @@ import {
   toggleOpt,
   subscribeCoach,
   setRealAthletes,
+  setCoaches,
   type ClientRow,
   type Coach,
 } from "./coach/coachData";
-import { getCoachSession, signInCoach, signOutCoach, startCoachSync, type CoachSession, type CoachAthlete } from "../lib/auth/coachAuth";
+import { getCoachSession, signInCoach, signOutCoach, startCoachSync, listCoaches, type CoachSession, type CoachAthlete } from "../lib/auth/coachAuth";
 import { setAthleteCoachLabel } from "../lib/data/athleteData";
 import { enableCoachProgramSync, pullCoachPrograms, disableCoachProgramSync } from "./coach/coachProgramSync";
 
 /**
- * Apply a freshly-synced roster: register the live rows, and stamp each OWNED
- * athlete with this coach's real name so their phone's "Your coach" card shows
- * the right coach (shared athletes keep their owner's label — don't overwrite).
+ * Apply a freshly-synced roster: register the live rows (the whole team, tagged by
+ * owner) and stamp each OWNED athlete with this coach's real name for their phone's
+ * "Your coach" card. Shared/other athletes keep their owner's label.
  */
 function applyRoster(list: CoachAthlete[], coach: { code: string; name: string }) {
-  setRealAthletes(list.map((a) => ({ ...a, coachId: coach.code })));
-  for (const a of list) if (!a.shared) setAthleteCoachLabel(a.athleteId, coach.name);
+  setRealAthletes(list);
+  for (const a of list) if (a.owned) setAthleteCoachLabel(a.athleteId, coach.name);
+}
+
+/** Pull the real coach list + the full roster together, then apply both. */
+async function syncRoster(session: CoachSession): Promise<void> {
+  const [coaches, list] = await Promise.all([listCoaches(), startCoachSync(session.userId)]);
+  setCoaches(coaches);
+  applyRoster(list, session);
 }
 
 /**
@@ -77,7 +85,7 @@ export function CoachConsole() {
       await pullCoachPrograms().catch(() => {});
     }
     setSession(s);
-    if (s) void startCoachSync(s.userId).then((list) => applyRoster(list, s));
+    if (s) void syncRoster(s);
   };
   useEffect(() => { void load(); }, []);
 
@@ -144,7 +152,7 @@ function restoreNav(): { heading: Heading; sub: string } {
 
 function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut: () => void }) {
   useForceRender();
-  const [coachId, setCoachId] = useState<Coach["id"]>("noa");
+  const [coachId, setCoachId] = useState<Coach["id"]>(session.code);
   const [heading, setHeading] = useState<Heading>(() => restoreNav().heading);
   const [sub, setSub] = useState<string>(() => restoreNav().sub);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -161,8 +169,7 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
     setRefreshing(true);
     try {
       await pullCoachPrograms();
-      const list = await startCoachSync(session.userId);
-      applyRoster(list, session);
+      await syncRoster(session);
     } finally {
       setRefreshing(false);
     }
@@ -174,7 +181,7 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
   useEffect(() => {
     const resync = () => {
       void pullCoachPrograms();
-      void startCoachSync(session.userId).then((list) => applyRoster(list, session));
+      void syncRoster(session);
     };
     const onVis = () => { if (document.visibilityState === "visible") resync(); };
     document.addEventListener("visibilitychange", onVis);
@@ -195,14 +202,20 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
   // The logged-in coach's OWN athletes drive the program pages + switcher; the
   // client board can still filter to other coaches for the head-coach overview.
   const myCoach = session.code;
-  const myAthletes = allClients.filter((c) => c.coachId === myCoach);
+  // Program work (build/edit) is limited to athletes this coach OWNS or was SHARED.
+  // The Team + Clients boards, by contrast, use allClients (the whole team).
+  const myAthletes = allClients.filter((c) => c.owned || c.shared);
   // Archived athletes (hidden from the board + switcher) — surfaced only in the
   // picker footer so the coach can restore them.
-  const disabledMine = getClients(undefined, { includeDisabled: true }).filter((c) => c.coachId === myCoach && c.disabled);
+  const disabledMine = getClients(undefined, { includeDisabled: true }).filter((c) => (c.owned || c.shared) && c.disabled);
   const selected =
     allClients.find((c) => c.athleteId === selectedId) ??
     myAthletes[0] ??
     allClients[0];
+  // The program section (viewer/builder/calendar/profile) is private to the
+  // athlete's own + shared coaches. Others still see all board/Team info, just not
+  // the program itself.
+  const canEditSelected = !!selected && (selected.owned || selected.shared);
 
   const go = (h: Heading) => {
     setHeading(h);
@@ -326,7 +339,18 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
       )}
       {heading === "dashboard" && sub === "exercises" && <ExercisesView />}
       {heading === "dashboard" && sub === "shop" && <ShopView coachId={myCoach} />}
-      {heading === "program" && sub === "program" && selected && programView === "view" && (
+      {heading === "program" && selected && !canEditSelected && (
+        <div className="cc-page">
+          <div className="cc-panel cc-corner" style={{ position: "relative", padding: 28, maxWidth: 520 }}>
+            <i />
+            <div className="cc-side-k">Program is private</div>
+            <p style={{ font: "400 13px/1.6 var(--font-body)", color: "var(--muted)", margin: "10px 0 0" }}>
+              {selected.name} is another coach's athlete. You can see all their scores and info on the Team and Clients boards, but their program, weeks and planner stay with their coach. Ask that coach to <strong>share</strong> them with you if you need to help.
+            </p>
+          </div>
+        </div>
+      )}
+      {heading === "program" && sub === "program" && selected && canEditSelected && programView === "view" && (
         <ProgramViewer
           key={selected.athleteId}
           athleteId={selected.athleteId}
@@ -336,7 +360,7 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
           onOpenBuilder={() => setProgramView("build")}
         />
       )}
-      {heading === "program" && sub === "program" && selected && programView === "build" && (
+      {heading === "program" && sub === "program" && selected && canEditSelected && programView === "build" && (
         <ProgramBuilder
           key={selected.athleteId}
           athleteId={selected.athleteId}
@@ -347,7 +371,7 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
           onBack={() => setProgramView("view")}
         />
       )}
-      {heading === "program" && sub === "calendar" && selected && (
+      {heading === "program" && sub === "calendar" && selected && canEditSelected && (
         <BlockPlanView
           key={selected.athleteId}
           athleteId={selected.athleteId}
@@ -356,14 +380,14 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
           onOpenBuilder={() => { setSub("program"); setProgramView("build"); }}
         />
       )}
-      {heading === "program" && sub === "athlete" && selected && (
+      {heading === "program" && sub === "athlete" && selected && canEditSelected && (
         <AthleteProfileView
           client={selected}
           coachUserId={session.userId}
           newSignal={newAthleteSignal}
           roster={myAthletes}
           onSelect={setSelectedId}
-          onRosterChange={() => void startCoachSync(session.userId).then((list) => applyRoster(list, session))}
+          onRosterChange={() => void syncRoster(session)}
         />
       )}
       {heading === "competing" && sub === "calendar" && <CompetingView coachId={myCoach} />}
