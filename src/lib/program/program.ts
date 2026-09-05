@@ -34,6 +34,7 @@ export type ExerciseTemplate = {
   mainLift: MainLift | null; // null = accessory
   kind: "compound" | "accessory";
   scheme: string; // "Compound · log every set" or a block scheme
+  cue?: string; // coach's per-exercise note / cue, shown to the athlete
   clip: boolean; // coach attached a video clip
   video?: string; // the clip URL the athlete can open
   sets: SetTemplate[];
@@ -92,6 +93,7 @@ export type SessionExercise = {
   mainLift: MainLift | null;
   kind: "compound" | "accessory";
   scheme: string;
+  cue?: string; // coach's per-exercise note / cue
   clip: boolean;
   video?: string;
   competition: boolean;
@@ -290,6 +292,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
           mainLift: ex.mainLift,
           kind: ex.kind,
           scheme: ex.scheme,
+          cue: ex.cue,
           clip: ex.clip,
           video: ex.video,
           // The comp lift: flagged by the coach, or auto-detected from "COMP <lift>".

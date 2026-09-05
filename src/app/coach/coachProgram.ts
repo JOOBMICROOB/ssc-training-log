@@ -168,6 +168,7 @@ function rowToEx(row: ExRow): ExerciseTemplate {
     mainLift,
     kind: mainLift ? "compound" : "accessory",
     scheme: row.scheme,
+    cue: row.cue?.trim() || undefined,
     clip: !!row.video && row.video !== "https://",
     video: row.video && row.video !== "https://" ? row.video : undefined,
     sets,
