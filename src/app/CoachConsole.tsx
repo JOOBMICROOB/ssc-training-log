@@ -180,7 +180,6 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
     }
   }, [heading, sub]);
 
-  const coach = COACHES.find((c) => c.id === coachId)!;
   const allClients = getClients();
   // The logged-in coach's OWN athletes drive the program pages + switcher; the
   // client board can still filter to other coaches for the head-coach overview.
@@ -290,8 +289,8 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
           <span className="cc-refresh-txt">{refreshing ? "Refreshing…" : "Refresh"}</span>
         </button>
         <div className="cc-coach-pill">
-          <img src="/assets/coach-noa.png" alt="" onError={(e) => (e.currentTarget.style.display = "none")} />
-          <span className="cc-coach-name">{coach.name.toUpperCase()}</span>
+          <Avatar src={/^noa/i.test(session.name) ? "/assets/coach-noa.png" : undefined} name={session.name} size={26} />
+          <span className="cc-coach-name">{session.name.toUpperCase()}</span>
           <button className="cc-signout" title="Sign out" onClick={onSignOut}>⏻</button>
         </div>
       </header>
