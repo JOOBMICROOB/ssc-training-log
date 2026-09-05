@@ -38,21 +38,75 @@ export async function signInCoach(email: string, password: string): Promise<{ ok
   return { ok: true };
 }
 
-/** Connect the coach's athletes to the cloud; returns their roster mapping. */
-export async function startCoachSync(coachUserId: string): Promise<{ athleteId: string; userId: string; name: string }[]> {
+export type CoachAthlete = { athleteId: string; userId: string; name: string; shared: boolean };
+
+// Broad, untyped view of coachSupabase for the tables the generated types predate.
+const cs = coachSupabase as unknown as {
+  from: (t: string) => {
+    select: (c: string) => {
+      eq: (col: string, v: string) => Promise<{ data: Record<string, string>[] | null; error: unknown }>;
+      in: (col: string, v: string[]) => Promise<{ data: Record<string, string>[] | null; error: unknown }>;
+    };
+    upsert: (v: unknown, o?: unknown) => Promise<{ error: { message?: string } | null }>;
+    delete: () => { eq: (c: string, v: string) => { eq: (c2: string, v2: string) => Promise<{ error: { message?: string } | null }> } };
+  };
+};
+
+/**
+ * Connect the coach's athletes to the cloud and return their roster: the athletes
+ * they OWN (app_profiles.coach_user_id) plus any SHARED to them by another coach
+ * (app_shared_athletes) — the shared ones flagged so the console can badge them.
+ */
+export async function startCoachSync(coachUserId: string): Promise<CoachAthlete[]> {
   enableCoachSync();
   const { data, error } = await q.from("app_profiles").select("code,name,user_id").eq("coach_user_id", coachUserId);
-  const list = !error && data ? data.map((r) => ({ athleteId: r.code, userId: r.user_id, name: r.name })) : [];
-  // Safety net: always try to hydrate the live athlete (RS1203) even if her
-  // profile isn't linked to this coach — otherwise the coach sees her seeded
-  // program but none of her real logged sets (those live only in her cloud row).
-  if (!list.some((a) => a.athleteId === "RS1203")) {
-    const { data: renee } = await q.from("app_profiles").select("code,name,user_id").eq("code", "RS1203").maybeSingle();
-    if (renee?.user_id) list.push({ athleteId: renee.code, userId: renee.user_id, name: renee.name });
+  const list: CoachAthlete[] = !error && data ? data.map((r) => ({ athleteId: r.code, userId: r.user_id, name: r.name, shared: false })) : [];
+  // Athletes shared to this coach to help on (defensive: the table only exists
+  // once 0016_multi_coach.sql has been run — before that this is simply skipped).
+  try {
+    const { data: shares } = await cs.from("app_shared_athletes").select("athlete_user_id").eq("coach_user_id", coachUserId);
+    const ids = (shares ?? []).map((s) => s.athlete_user_id).filter(Boolean);
+    if (ids.length) {
+      const { data: profs } = await cs.from("app_profiles").select("code,name,user_id").in("user_id", ids);
+      for (const r of profs ?? []) if (!list.some((a) => a.userId === r.user_id)) list.push({ athleteId: r.code, userId: r.user_id, name: r.name, shared: true });
+    }
+  } catch {
+    /* sharing not deployed yet */
   }
   await hydrateAthletes(list);
   await hydrateShared(true); // coach seeds the shared competition list if empty
   return list;
+}
+
+/** Every coach (for the Team tab, the coach switcher, and the share picker). */
+export async function listCoaches(): Promise<{ userId: string; name: string; code: string }[]> {
+  const { data, error } = await q.from("app_profiles").select("user_id,name,code").eq("role", "coach");
+  return !error && data ? data.map((r) => ({ userId: r.user_id, name: r.name ?? "Coach", code: r.code ?? "" })) : [];
+}
+
+/** Share an athlete with another coach (they get full edit access, marked shared). */
+export async function shareAthlete(athleteUserId: string, coachUserId: string): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await cs.from("app_shared_athletes").upsert(
+    { athlete_user_id: athleteUserId, coach_user_id: coachUserId },
+    { onConflict: "athlete_user_id,coach_user_id" },
+  );
+  return error ? { ok: false, error: error.message ?? "Share failed." } : { ok: true };
+}
+
+/** Remove a share (either the owning coach or the shared coach can do this). */
+export async function unshareAthlete(athleteUserId: string, coachUserId: string): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await cs.from("app_shared_athletes").delete().eq("athlete_user_id", athleteUserId).eq("coach_user_id", coachUserId);
+  return error ? { ok: false, error: error.message ?? "Un-share failed." } : { ok: true };
+}
+
+/** Which coaches an athlete is currently shared with (their user_ids). */
+export async function sharesForAthlete(athleteUserId: string): Promise<string[]> {
+  try {
+    const { data } = await cs.from("app_shared_athletes").select("coach_user_id").eq("athlete_user_id", athleteUserId);
+    return (data ?? []).map((r) => r.coach_user_id).filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 export async function signOutCoach(): Promise<void> {

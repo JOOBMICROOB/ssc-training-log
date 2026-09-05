@@ -63,6 +63,7 @@ export type ClientRow = {
   notes: { id: string; date: string; text: string; checkedAt?: string }[];
   hideMaxes: boolean;
   disabled: boolean; // archived by the coach — hidden from board + switcher, reversible
+  shared?: boolean; // in this coach's roster because another coach shared them (not owned)
   streak: number; // athlete's current logging streak (0 = none / demo)
   opts: MeetOpt[];
 };
@@ -73,11 +74,19 @@ export const LIVE_ATHLETE_ID = "RS1203";
 // Real, cloud-synced athletes the coach owns (from app_profiles). The console
 // fills this after startCoachSync so getClients can turn each into a live row —
 // this is how a newly created account appears on the board.
-export type RealAthlete = { athleteId: string; userId: string; name: string; coachId?: string };
+export type RealAthlete = { athleteId: string; userId: string; name: string; coachId?: string; shared?: boolean };
 let realAthletes: RealAthlete[] = [];
 export function setRealAthletes(list: RealAthlete[]) {
   realAthletes = list;
   emit();
+}
+/** The Supabase user id behind an athlete code (for sharing) — null if unknown. */
+export function getAthleteUserId(athleteId: string): string | null {
+  return realAthletes.find((a) => a.athleteId === athleteId)?.userId ?? null;
+}
+/** True if this athlete is in the roster because another coach shared them. */
+export function isSharedAthlete(athleteId: string): boolean {
+  return !!realAthletes.find((a) => a.athleteId === athleteId)?.shared;
 }
 
 // --- coach-side overlay (private notes, program-due) -------------------------
@@ -368,30 +377,21 @@ export function getClients(coachId?: string, opts?: { includeDisabled?: boolean 
   const seen = new Set<string>();
   const rows: ClientRow[] = [];
 
-  // Renée — the original live athlete.
-  const reneeOverlay = overlay[LIVE_ATHLETE_ID] ?? {};
-  rows.push(
-    liveRow(getDashboardModel(LIVE_ATHLETE_ID), reneeOverlay, {
-      athleteId: LIVE_ATHLETE_ID,
-      name: "Renée Strauwen",
-      city: "Roeselare",
-      coachId: reneeOverlay.coachId ?? "noa",
-    }),
-  );
-  seen.add(LIVE_ATHLETE_ID);
-
-  // Every real account the coach created (cloud-synced live rows).
+  // Every real account this coach OWNS or has SHARED to them (cloud-synced live
+  // rows from startCoachSync). This is the whole roster — no hardcoded athletes,
+  // so each coach sees only their own people (Renée included, via her coach link).
   for (const a of realAthletes) {
     if (seen.has(a.athleteId)) continue;
     seen.add(a.athleteId);
     const o = overlay[a.athleteId] ?? {};
-    rows.push(
-      liveRow(getDashboardModel(a.athleteId), o, {
+    rows.push({
+      ...liveRow(getDashboardModel(a.athleteId), o, {
         athleteId: a.athleteId,
         name: a.name,
         coachId: o.coachId ?? a.coachId ?? "noa",
       }),
-    );
+      shared: a.shared,
+    });
   }
 
   // Demo placeholders (skip any that are now real accounts).

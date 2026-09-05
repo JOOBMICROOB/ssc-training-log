@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { getDashboardModel, getDashboard, getSessionFor, setAthleteInfo, setCompPr, setCompTotal, setPrBaseline, markNoteChecked, removeNote, clearNotes, setWeekLockOff, IPF_CLASSES } from "../../lib/data/athleteData";
-import { createAthlete, athleteLoginEmail, resetAthletePassword } from "../../lib/auth/coachAuth";
+import { createAthlete, athleteLoginEmail, resetAthletePassword, listCoaches, shareAthlete, unshareAthlete, sharesForAthlete } from "../../lib/auth/coachAuth";
 import { fmtKg } from "../../lib/calc/records";
 import { renderBwSvgInner, DASH_STYLE } from "../../lib/calc/bwChart";
 import { Avatar } from "./Avatar";
-import { COACHES, setCoach } from "./coachData";
+import { COACHES, setCoach, getAthleteUserId } from "./coachData";
 import type { ClientRow } from "./coachData";
 
 /**
@@ -73,7 +73,8 @@ export function AthleteProfileView({ client, coachUserId, newSignal, roster, onS
               <button key={c.athleteId} className={`cc-athlete-menu-item${c.athleteId === client.athleteId && mode === "edit" ? " cc-current" : ""}`} onClick={() => { setMode("edit"); onSelect(c.athleteId); }}>
                 <Avatar src={c.avatar} name={c.name} size={28} />
                 <span>{c.name}</span>
-                {c.live && <span className="cc-pr-badge" style={{ marginLeft: "auto", borderColor: "var(--good)", color: "var(--good)" }}>LIVE</span>}
+                {c.shared && <span className="cc-pr-badge" style={{ marginLeft: c.live ? 6 : "auto", borderColor: "var(--accent, #7c6bd6)", color: "#7c6bd6" }}>SHARED</span>}
+                {c.live && <span className="cc-pr-badge" style={{ marginLeft: c.shared ? 6 : "auto", borderColor: "var(--good)", color: "var(--good)" }}>LIVE</span>}
               </button>
             ))}
           </div>
@@ -81,7 +82,7 @@ export function AthleteProfileView({ client, coachUserId, newSignal, roster, onS
         </aside>
 
         <div>
-          {mode === "edit" ? <FullProfile key={client.athleteId} client={client} /> : <NewAthlete coachUserId={coachUserId} onCreated={() => { setMode("edit"); onRosterChange(); }} />}
+          {mode === "edit" ? <FullProfile key={client.athleteId} client={client} coachUserId={coachUserId} onRosterChange={onRosterChange} /> : <NewAthlete coachUserId={coachUserId} onCreated={() => { setMode("edit"); onRosterChange(); }} />}
         </div>
       </div>
     </div>
@@ -96,7 +97,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 }
 
 /* -------------------------------------------------------------- profile ----- */
-function FullProfile({ client }: { client: ClientRow }) {
+function FullProfile({ client, coachUserId, onRosterChange }: { client: ClientRow; coachUserId: string; onRosterChange: () => void }) {
   const athleteId = client.athleteId;
   const live = client.live;
   const m = getDashboardModel(athleteId);
@@ -175,11 +176,79 @@ function FullProfile({ client }: { client: ClientRow }) {
           </span>
         </label>
         <LoginAccess athleteId={athleteId} firstName={a.firstName} live={live} />
+        {live && <SharePanel client={client} coachUserId={coachUserId} onRosterChange={onRosterChange} />}
         {!live && <p className="cc-cell-s" style={{ marginTop: 12 }}>This is a demo entry — the training panels below fill in once they’re a real synced account (create one with “+ New athlete”).</p>}
       </div>
 
       <AthletePanels client={client} />
     </>
+  );
+}
+
+/* ---------------------------------------------------------- share panel ----- */
+/**
+ * Let a coach hand another coach full edit access to an athlete ("shared"). The
+ * owner ticks a coach to share; either side can un-tick. A coach who was shared
+ * this athlete sees a note + a "remove from my roster" button instead.
+ */
+function SharePanel({ client, coachUserId, onRosterChange }: { client: ClientRow; coachUserId: string; onRosterChange: () => void }) {
+  const athleteUserId = getAthleteUserId(client.athleteId);
+  const [coaches, setCoaches] = useState<{ userId: string; name: string; code: string }[]>([]);
+  const [shares, setShares] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void listCoaches().then((cs) => { if (alive) setCoaches(cs); });
+    if (athleteUserId) void sharesForAthlete(athleteUserId).then((s) => { if (alive) setShares(s); });
+    return () => { alive = false; };
+  }, [athleteUserId]);
+
+  if (!athleteUserId) return null; // not a synced account yet
+
+  const toggle = async (uid: string, on: boolean) => {
+    setBusy(true);
+    const r = on ? await shareAthlete(athleteUserId, uid) : await unshareAthlete(athleteUserId, uid);
+    setBusy(false);
+    if (!r.ok) { alert(r.error ?? "Sharing failed — has 0016_multi_coach.sql been run?"); return; }
+    setShares((prev) => (on ? [...prev, uid] : prev.filter((x) => x !== uid)));
+    onRosterChange();
+  };
+
+  // A coach viewing an athlete SHARED to them (they're not the owner).
+  if (client.shared) {
+    return (
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--divider)" }}>
+        <div className="cc-side-k">Shared with you</div>
+        <p className="cc-cell-s" style={{ margin: "6px 0 10px" }}>
+          {client.name} was shared with you by their coach — you can view and edit their program, weeks and planner just like your own athletes.
+        </p>
+        <button className="cc-mini" disabled={busy} onClick={() => void toggle(coachUserId, false)}>Remove from my roster</button>
+      </div>
+    );
+  }
+
+  const others = coaches.filter((c) => c.userId !== coachUserId);
+  return (
+    <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--divider)" }}>
+      <div className="cc-side-k">Share with a coach</div>
+      <p className="cc-cell-s" style={{ margin: "6px 0 10px" }}>
+        Give another coach full edit access to help on {client.name}’s program. They see them in their roster marked “shared”. Un-tick any time.
+      </p>
+      {others.length === 0 ? (
+        <p className="cc-cell-s">No other coaches yet.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {others.map((c) => (
+            <label key={c.userId} style={{ display: "flex", alignItems: "center", gap: 9, cursor: "pointer" }}>
+              <input type="checkbox" checked={shares.includes(c.userId)} disabled={busy} onChange={(e) => void toggle(c.userId, e.target.checked)} />
+              <span style={{ font: "500 13px/1 var(--font-body)", color: "var(--navy)" }}>{c.name}</span>
+              {shares.includes(c.userId) && <span className="cc-pr-badge" style={{ marginLeft: "auto", borderColor: "#7c6bd6", color: "#7c6bd6" }}>SHARED</span>}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
