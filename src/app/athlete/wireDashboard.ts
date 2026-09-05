@@ -208,7 +208,41 @@ function applyModel(host: HTMLElement, model: DashboardModel) {
       : (model.athlete.firstName[0] ?? "").toUpperCase();
 }
 
-function pickAvatar(athleteId: string) {
+/**
+ * Friendly one-time nudge to add a profile picture — shown when the athlete has
+ * no photo and hasn't dismissed it. They can add one right here or say "not now";
+ * either way it won't nag again (a photo, or the dismiss flag, silences it).
+ */
+function maybeAvatarPrompt(athleteId: string, hasAvatar: boolean): (() => void) | undefined {
+  const flag = `ssc.athlete.avatarPrompt.${athleteId}`;
+  let dismissed = false;
+  try { dismissed = localStorage.getItem(flag) === "1"; } catch { /* ignore */ }
+  if (hasAvatar || dismissed) return undefined;
+
+  const root = document.createElement("div");
+  root.style.cssText = "position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(9,17,28,.55);backdrop-filter:blur(3px);padding:20px;";
+  const close = (remember: boolean) => {
+    if (remember) { try { localStorage.setItem(flag, "1"); } catch { /* ignore */ } }
+    root.remove();
+  };
+  root.innerHTML = `
+    <div style="width:100%;max-width:340px;background:var(--a-panel-bg,#fbfdff);border-radius:20px;box-shadow:0 24px 60px rgba(9,17,28,.4);padding:22px 20px 18px;text-align:center;">
+      <div style="width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:rgba(var(--a-accent-rgb),.14);display:grid;place-items:center;font-size:30px;">📸</div>
+      <div style="font:600 20px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(var(--a-navy-rgb));">Add a profile picture?</div>
+      <div style="margin-top:8px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(107,116,128);">Pop a photo on your profile so your coach recognises you at a glance. Takes two seconds — totally optional.</div>
+      <button data-add style="width:100%;margin-top:16px;padding:13px;border:1px solid rgb(var(--a-navy-rgb));border-radius:12px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">ADD A PHOTO</button>
+      <button data-skip style="width:100%;margin-top:9px;padding:11px;border:none;background:transparent;color:rgb(138,146,156);font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;cursor:pointer;">NOT NOW</button>
+    </div>`;
+  root.addEventListener("click", (e) => {
+    const t = e.target as HTMLElement;
+    if (t === root || t.closest("[data-skip]")) return close(true);
+    if (t.closest("[data-add]")) { pickAvatar(athleteId, () => close(true)); return; }
+  });
+  document.body.appendChild(root);
+  return () => root.remove();
+}
+
+function pickAvatar(athleteId: string, onDone?: () => void) {
   const inp = document.createElement("input");
   inp.type = "file";
   inp.accept = "image/*";
@@ -230,6 +264,7 @@ function pickAvatar(athleteId: string) {
         const h = img.height * scale;
         ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
         setAthleteInfo(athleteId, { avatar: canvas.toDataURL("image/jpeg", 0.82) });
+        onDone?.();
       };
       img.src = reader.result as string;
     };
@@ -544,6 +579,8 @@ export function wireDashboard(
 
   const unThemeWidget = mountThemeWidget(host);
   const unCalWidget = mountCalendarWidget(host, athleteId);
+  // Friendly one-time nudge to add a profile picture (only if they have none).
+  const unAvatarPrompt = maybeAvatarPrompt(athleteId, !!getDashboardModel(athleteId).athlete.avatar);
 
   const unsub = subscribeDashboard(() => applyModel(host, getDashboardModel(athleteId)));
   return () => {
@@ -551,6 +588,7 @@ export function wireDashboard(
     modal.root.remove();
     unThemeWidget();
     unCalWidget();
+    unAvatarPrompt?.();
   };
 }
 

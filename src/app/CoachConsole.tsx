@@ -155,7 +155,14 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
   const [coachId, setCoachId] = useState<Coach["id"]>(session.code);
   const [heading, setHeading] = useState<Heading>(() => restoreNav().heading);
   const [sub, setSub] = useState<string>(() => restoreNav().sub);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Reopen the last athlete the coach was on (per device), so it's easy to pick
+  // up where they left off instead of always jumping back to the first athlete.
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    try { return localStorage.getItem("ssc.coach.lastAthlete"); } catch { return null; }
+  });
+  useEffect(() => {
+    try { if (selectedId) localStorage.setItem("ssc.coach.lastAthlete", selectedId); } catch { /* ignore */ }
+  }, [selectedId]);
   const [programView, setProgramView] = useState<"view" | "build">("view");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQ, setPickerQ] = useState("");
