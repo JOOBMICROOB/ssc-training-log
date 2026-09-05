@@ -93,6 +93,21 @@ function applyModel(host: HTMLElement, model: DashboardModel) {
   if (detail) detail.innerHTML = `${a.detailLine1}<br>${a.detailLine2}`;
   setText(host, "checkinStatus", model.checkinStatus);
 
+  // "Your coach" card — the athlete's real (owning) coach, stamped onto their data
+  // by that coach's console. Noa keeps her photo; other coaches show initials.
+  const coachName = model.coach?.name?.trim() || "Your coach";
+  setText(host, "coachName", coachName);
+  setText(host, "coachRole", model.coach?.role?.trim() || "Strength coach");
+  const coachPic = host.querySelector<HTMLElement>("#coachPic");
+  if (coachPic) {
+    if (/^noa/i.test(coachName)) {
+      coachPic.innerHTML = `<img src="/assets/coach-noa.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:50% 22%;">`;
+    } else {
+      const initials = coachName.split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "C";
+      coachPic.innerHTML = `<div style="width:100%;height:100%;display:grid;place-items:center;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:700 18px/1 'Barlow Condensed',sans-serif;">${initials}</div>`;
+    }
+  }
+
   // Bodyweight card
   const bw = model.bw;
   const svg = host.querySelector("#bwSvg");

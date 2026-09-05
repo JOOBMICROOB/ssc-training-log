@@ -23,8 +23,19 @@ import {
   type ClientRow,
   type Coach,
 } from "./coach/coachData";
-import { getCoachSession, signInCoach, signOutCoach, startCoachSync, type CoachSession } from "../lib/auth/coachAuth";
+import { getCoachSession, signInCoach, signOutCoach, startCoachSync, type CoachSession, type CoachAthlete } from "../lib/auth/coachAuth";
+import { setAthleteCoachLabel } from "../lib/data/athleteData";
 import { enableCoachProgramSync, pullCoachPrograms, disableCoachProgramSync } from "./coach/coachProgramSync";
+
+/**
+ * Apply a freshly-synced roster: register the live rows, and stamp each OWNED
+ * athlete with this coach's real name so their phone's "Your coach" card shows
+ * the right coach (shared athletes keep their owner's label — don't overwrite).
+ */
+function applyRoster(list: CoachAthlete[], coach: { code: string; name: string }) {
+  setRealAthletes(list.map((a) => ({ ...a, coachId: coach.code })));
+  for (const a of list) if (!a.shared) setAthleteCoachLabel(a.athleteId, coach.name);
+}
 
 /**
  * Coach desktop console (/coach). Rebuilt from Noa's Claude Design coach frames
@@ -66,7 +77,7 @@ export function CoachConsole() {
       await pullCoachPrograms().catch(() => {});
     }
     setSession(s);
-    if (s) void startCoachSync(s.userId).then((list) => setRealAthletes(list.map((a) => ({ ...a, coachId: s.code }))));
+    if (s) void startCoachSync(s.userId).then((list) => applyRoster(list, s));
   };
   useEffect(() => { void load(); }, []);
 
@@ -151,7 +162,7 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
     try {
       await pullCoachPrograms();
       const list = await startCoachSync(session.userId);
-      setRealAthletes(list.map((a) => ({ ...a, coachId: session.code })));
+      applyRoster(list, session);
     } finally {
       setRefreshing(false);
     }
@@ -163,7 +174,7 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
   useEffect(() => {
     const resync = () => {
       void pullCoachPrograms();
-      void startCoachSync(session.userId).then((list) => setRealAthletes(list.map((a) => ({ ...a, coachId: session.code }))));
+      void startCoachSync(session.userId).then((list) => applyRoster(list, session));
     };
     const onVis = () => { if (document.visibilityState === "visible") resync(); };
     document.addEventListener("visibilitychange", onVis);
@@ -352,7 +363,7 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
           newSignal={newAthleteSignal}
           roster={myAthletes}
           onSelect={setSelectedId}
-          onRosterChange={() => void startCoachSync(session.userId).then((list) => setRealAthletes(list.map((a) => ({ ...a, coachId: session.code }))))}
+          onRosterChange={() => void startCoachSync(session.userId).then((list) => applyRoster(list, session))}
         />
       )}
       {heading === "competing" && sub === "calendar" && <CompetingView coachId={myCoach} />}

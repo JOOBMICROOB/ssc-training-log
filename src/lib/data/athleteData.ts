@@ -969,6 +969,17 @@ export function setAthleteInfo(athleteId: string, patch: Partial<DashboardData["
   save(athleteId, { ...data, athlete: { ...data.athlete, ...patch } });
 }
 
+/**
+ * Stamp the athlete's OWNING coach onto their data so the phone's "Your coach"
+ * card shows the real coach (not a hardcoded one). Written by the coach console
+ * on sync; no-op when already correct so it doesn't churn the sync.
+ */
+export function setAthleteCoachLabel(athleteId: string, name: string, role = "Strength coach") {
+  const data = getDashboard(athleteId);
+  if (data.coach?.name === name && data.coach?.role === role) return;
+  save(athleteId, { ...data, coach: { name, role } });
+}
+
 /** Official IPF weight classes (kg), by sex — used for the goal-class dropdown. */
 export const IPF_CLASSES: Record<"male" | "female", string[]> = {
   male: ["53 KG", "59 KG", "66 KG", "74 KG", "83 KG", "93 KG", "105 KG", "120 KG", "120+ KG"],
