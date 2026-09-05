@@ -3,6 +3,11 @@ import { type ClientRow } from "./coachData";
 import { plannedWeeks, yearMondays, monthOf, weekDetailFor, weekLabel, type Coverage } from "./coachPlanning";
 import { mondayOf } from "./coachProgram";
 import { Avatar } from "./Avatar";
+import { NotesPopup } from "./NotesPopup";
+
+const CHECKS_KEY = "ssc.coach.weekChecks";
+const loadChecks = (): Set<string> => { try { return new Set(JSON.parse(localStorage.getItem(CHECKS_KEY) || "[]")); } catch { return new Set(); } };
+const saveChecks = (s: Set<string>) => { try { localStorage.setItem(CHECKS_KEY, JSON.stringify([...s])); } catch { /* ignore */ } };
 
 /** Square style for a planned week: solid, or a half square for a part-week. */
 function cellFill(state: "filled" | "avail" | "draft", coverage: Coverage, now: boolean): import("react").CSSProperties {
@@ -73,6 +78,17 @@ export function WeeksGridView({
 }) {
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [detail, setDetail] = useState<{ athleteId: string; name: string; monday: string } | null>(null);
+  const [notesFor, setNotesFor] = useState<{ athleteId: string; name: string } | null>(null);
+  const [checked, setChecked] = useState<Set<string>>(() => loadChecks());
+
+  const toggleCheck = (id: string) =>
+    setChecked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      saveChecks(next);
+      return next;
+    });
+  const clearChecks = () => { setChecked(new Set()); saveChecks(new Set()); };
 
   // Weeks is program-planning, so it's scoped to THIS coach's own + shared
   // athletes only — never other coaches' rosters.
@@ -117,6 +133,11 @@ export function WeeksGridView({
         <button className="cc-chip" onClick={() => setYear((y) => y - 1)}>◂</button>
         <button className="cc-chip" aria-current>{year}</button>
         <button className="cc-chip" onClick={() => setYear((y) => y + 1)}>▸</button>
+        {checked.size > 0 && (
+          <button className="cc-chip" title="Uncheck all selected athletes" onClick={clearChecks} style={{ borderColor: "var(--accent-700)", color: "var(--accent-700)" }}>
+            ✕ Clear checks ({checked.size})
+          </button>
+        )}
         <span style={{ flex: 1 }} />
         <span className="cc-yg-legend"><i className="cc-yg-filled" /> filled in</span>
         <span className="cc-yg-legend"><i className="cc-yg-avail" /> available</span>
@@ -146,14 +167,29 @@ export function WeeksGridView({
             const plan = plans.get(r.athleteId);
             return (
               <div key={r.athleteId} className="cc-yg-rowline" style={{ display: "contents" }}>
-                <button
-                  className="cc-yg-name"
-                  title="Open programme"
-                  onClick={() => { onSelect(r.athleteId); onOpenProgram(r.athleteId); }}
-                >
-                  <Avatar src={r.avatar} name={r.name} size={26} />
-                  <span className="cc-yg-nametxt">{r.name}</span>
-                </button>
+                <div className="cc-yg-name" style={{ display: "flex", alignItems: "center", gap: 6, cursor: "default" }}>
+                  <button
+                    onClick={() => toggleCheck(r.athleteId)}
+                    title={checked.has(r.athleteId) ? "Uncheck" : "Check for this work session"}
+                    style={{ flex: "0 0 auto", width: 18, height: 18, borderRadius: 5, cursor: "pointer",
+                      border: `1.5px solid ${checked.has(r.athleteId) ? "var(--good, #4f9d69)" : "rgba(29,31,32,.3)"}`,
+                      background: checked.has(r.athleteId) ? "var(--good, #4f9d69)" : "transparent",
+                      color: "#fff", font: "700 11px/1 var(--font-heading)", display: "grid", placeItems: "center" }}
+                  >{checked.has(r.athleteId) ? "✓" : ""}</button>
+                  <button
+                    title="Open programme"
+                    onClick={() => { onSelect(r.athleteId); onOpenProgram(r.athleteId); }}
+                    style={{ flex: "1 1 0", minWidth: 0, display: "flex", alignItems: "center", gap: 8, border: "none", background: "transparent", cursor: "pointer", padding: 0, textAlign: "left" }}
+                  >
+                    <Avatar src={r.avatar} name={r.name} size={26} />
+                    <span className="cc-yg-nametxt">{r.name}</span>
+                  </button>
+                  <button
+                    title="Notes"
+                    onClick={() => setNotesFor({ athleteId: r.athleteId, name: r.name })}
+                    style={{ flex: "0 0 auto", width: 24, height: 24, borderRadius: 7, cursor: "pointer", border: "1px solid var(--divider)", background: "transparent", display: "grid", placeItems: "center", fontSize: 13 }}
+                  >🗒️</button>
+                </div>
                 {mondays.map((mon) => {
                   const w = plan?.get(mon);
                   const isNow = mon === thisMonday;
@@ -185,6 +221,10 @@ export function WeeksGridView({
           onClose={() => setDetail(null)}
           onOpen={() => { onSelect(detail.athleteId); onOpenProgram(detail.athleteId); setDetail(null); }}
         />
+      )}
+
+      {notesFor && (
+        <NotesPopup athleteId={notesFor.athleteId} athleteName={notesFor.name} onClose={() => setNotesFor(null)} />
       )}
     </div>
   );

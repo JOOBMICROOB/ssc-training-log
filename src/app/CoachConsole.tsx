@@ -9,6 +9,7 @@ import { ExercisesView } from "./coach/ExercisesView";
 import { ShopView } from "./coach/ShopView";
 import { AttemptsView } from "./coach/AttemptsView";
 import { WeeksGridView } from "./coach/WeeksGridView";
+import { NotesPopup } from "./coach/NotesPopup";
 import { Avatar } from "./coach/Avatar";
 import {
   COACHES,
@@ -485,6 +486,7 @@ function ClientsView({
   const [dueFilter, setDueFilter] = useState<DueFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("urgent");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [notesFor, setNotesFor] = useState<{ athleteId: string; name: string } | null>(null);
 
   useEffect(() => setScope(coachId), [coachId]);
 
@@ -585,6 +587,7 @@ function ClientsView({
               </div>
               <div className="cc-row-actions" onClick={(e) => e.stopPropagation()}>
                 <button className="cc-mini cc-mini-solid" onClick={() => onOpenProgram(c.athleteId)}>Open</button>
+                <button className="cc-mini" onClick={() => setNotesFor({ athleteId: c.athleteId, name: c.name })}>🗒️ Notes</button>
                 <button className="cc-mini" onClick={() => { onSelect(c.athleteId); setExpanded(expanded === c.athleteId ? null : c.athleteId); }}>
                   {expanded === c.athleteId ? "▴ Hide" : "▾ Athlete input"}
                 </button>
@@ -594,6 +597,10 @@ function ClientsView({
           </div>
         ))}
       </div>
+
+      {notesFor && (
+        <NotesPopup athleteId={notesFor.athleteId} athleteName={notesFor.name} onClose={() => setNotesFor(null)} />
+      )}
     </div>
   );
 }

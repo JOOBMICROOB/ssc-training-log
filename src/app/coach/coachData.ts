@@ -103,7 +103,31 @@ export function isSharedAthlete(athleteId: string): boolean {
 }
 
 // --- coach-side overlay (private notes, program-due) -------------------------
-type Overlay = { note?: string; hideMaxes?: boolean; coachId?: string; disabled?: boolean };
+export type CoachTodo = { id: string; text: string; done: boolean; at: number };
+type Overlay = { note?: string; hideMaxes?: boolean; coachId?: string; disabled?: boolean; todos?: CoachTodo[] };
+
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}_${Math.random().toString(36).slice(2)}`);
+/** The coach's structured notes/to-dos for an athlete (shared across the console). */
+export function getCoachTodos(athleteId: string): CoachTodo[] {
+  return readOverlay()[athleteId]?.todos ?? [];
+}
+function mutTodos(athleteId: string, fn: (list: CoachTodo[]) => CoachTodo[]) {
+  const o = readOverlay();
+  o[athleteId] = { ...o[athleteId], todos: fn(o[athleteId]?.todos ?? []) };
+  writeOverlay(o);
+  emit();
+}
+export function addCoachTodo(athleteId: string, text: string) {
+  const t = text.trim();
+  if (!t) return;
+  mutTodos(athleteId, (list) => [...list, { id: newId(), text: t, done: false, at: Date.now() }]);
+}
+export function toggleCoachTodo(athleteId: string, id: string) {
+  mutTodos(athleteId, (list) => list.map((n) => (n.id === id ? { ...n, done: !n.done } : n)));
+}
+export function removeCoachTodo(athleteId: string, id: string) {
+  mutTodos(athleteId, (list) => list.filter((n) => n.id !== id));
+}
 const OVERLAY_KEY = "ssc.coach.overlay";
 function readOverlay(): Record<string, Overlay> {
   try {
