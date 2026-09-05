@@ -335,7 +335,7 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
         <ClientsView coachId={coachId} setCoachId={setCoachId} onOpenProgram={openProgram} onOpenAthlete={openAthlete} onSelect={setSelectedId} />
       )}
       {heading === "dashboard" && sub === "weeks" && (
-        <WeeksGridView coachId={coachId} onOpenProgram={openProgram} onSelect={setSelectedId} />
+        <WeeksGridView roster={myAthletes} onOpenProgram={openProgram} onSelect={setSelectedId} />
       )}
       {heading === "dashboard" && sub === "exercises" && <ExercisesView />}
       {heading === "dashboard" && sub === "shop" && <ShopView coachId={myCoach} />}

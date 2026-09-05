@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { getClients, COACHES, type ClientRow } from "./coachData";
+import { type ClientRow } from "./coachData";
 import { plannedWeeks, yearMondays, monthOf, weekDetailFor, weekLabel, type Coverage } from "./coachPlanning";
 import { mondayOf } from "./coachProgram";
 import { Avatar } from "./Avatar";
@@ -63,19 +63,20 @@ function hoverText(
  * are. Reads the same written weeks as the Block Plan and the Client Board.
  */
 export function WeeksGridView({
-  coachId,
+  roster,
   onOpenProgram,
   onSelect,
 }: {
-  coachId: string;
+  roster: ClientRow[];
   onOpenProgram: (athleteId: string) => void;
   onSelect: (athleteId: string) => void;
 }) {
-  const [scope, setScope] = useState<string>(coachId);
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [detail, setDetail] = useState<{ athleteId: string; name: string; monday: string } | null>(null);
 
-  const rows: ClientRow[] = getClients(scope === "all" ? undefined : scope);
+  // Weeks is program-planning, so it's scoped to THIS coach's own + shared
+  // athletes only — never other coaches' rosters.
+  const rows: ClientRow[] = roster;
   const mondays = useMemo(() => yearMondays(year), [year]);
   const thisMonday = mondayOf(
     (() => {
@@ -90,7 +91,7 @@ export function WeeksGridView({
     rows.forEach((r) => m.set(r.athleteId, plannedWeeks(r.athleteId)));
     return m;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope, year, rows.length]);
+  }, [year, rows.length]);
 
   const totalPlanned = rows.reduce((s, r) => s + (plans.get(r.athleteId)?.size ?? 0), 0);
   const covered = rows.filter((r) => (plans.get(r.athleteId)?.size ?? 0) > 0).length;
@@ -113,11 +114,6 @@ export function WeeksGridView({
       </div>
 
       <div className="cc-chips">
-        <button className="cc-chip" aria-current={scope === "all"} onClick={() => setScope("all")}>All coaches</button>
-        {COACHES.map((c) => (
-          <button key={c.id} className="cc-chip" aria-current={scope === c.id} onClick={() => setScope(c.id)}>{c.name}</button>
-        ))}
-        <span style={{ width: 1, background: "var(--divider)", margin: "0 4px" }} />
         <button className="cc-chip" onClick={() => setYear((y) => y - 1)}>◂</button>
         <button className="cc-chip" aria-current>{year}</button>
         <button className="cc-chip" onClick={() => setYear((y) => y + 1)}>▸</button>
