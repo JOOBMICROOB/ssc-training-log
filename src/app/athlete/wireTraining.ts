@@ -210,7 +210,7 @@ function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locke
       })()}
     </div>
     <div style="flex:0 0 auto;text-align:right;">
-      <div style="font:600 11.5px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.08em;color:rgb(107,116,128);">${prescription(ex)}</div>
+      <div style="font:600 16px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.02em;white-space:nowrap;color:rgb(74,84,96);">${prescription(ex)}</div>
       <div style="margin-top:2px;font:400 9.5px/1 Barlow,sans-serif;letter-spacing:.08em;color:rgb(var(--a-accent2-rgb));">${ex.loggedCount} / ${ex.setCount} LOGGED</div>
     </div>
     <span style="flex:0 0 auto;font-size:11px;color:rgb(var(--a-accent2-rgb));">${expanded ? "▴" : "▾"}</span>
