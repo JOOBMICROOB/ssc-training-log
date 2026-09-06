@@ -16,7 +16,7 @@ import liezeProgram from "./liezeProgram.json";
 import stefProgram from "./stefProgram.json";
 import zitaProgram from "./zitaProgram.json";
 
-export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure" | "seconds" | "backoff" | "linkpct";
+export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure" | "seconds" | "backoff" | "linkpct" | "amrap";
 export type ExRow = {
   id: string;
   name: string;
@@ -27,6 +27,7 @@ export type ExRow = {
   intensity: IntensityType;
   value: string;
   suggest?: string; // advisory working weight (kg) shown to the athlete as a hint
+  goalRpe?: string; // for intensity "amrap": the goal RPE at the fixed load
   linkEi?: number; // for intensity "linkpct": index (in the day) of the source exercise
   scheme: string;
   mainLift: MainLift | null;
@@ -95,7 +96,9 @@ export function weekForToday(p: Program, todayIso: string): string | undefined {
 // --- converters --------------------------------------------------------------
 function exToRow(ex: ExerciseTemplate): ExRow {
   const first = ex.sets[0];
-  const intensity: IntensityType = first?.linkPct != null
+  const intensity: IntensityType = first?.amrap
+    ? "amrap"
+    : first?.linkPct != null
     ? "linkpct"
     : first?.backoffPct != null
     ? "backoff"
@@ -109,7 +112,7 @@ function exToRow(ex: ExerciseTemplate): ExRow {
           ? "percent"
           : "rpe";
   const value =
-    intensity === "linkpct" ? String(first?.linkPct ?? "") : intensity === "backoff" ? String(first?.backoffPct ?? "") : intensity === "seconds" ? first?.holdSeconds ?? "" : intensity === "fixed" ? first?.targetLoad ?? "" : intensity === "percent" ? first?.targetPercent ?? "" : intensity === "failure" ? "" : first?.targetRpe ?? "";
+    intensity === "linkpct" ? String(first?.linkPct ?? "") : intensity === "backoff" ? String(first?.backoffPct ?? "") : intensity === "seconds" ? first?.holdSeconds ?? "" : intensity === "fixed" || intensity === "amrap" ? first?.targetLoad ?? "" : intensity === "percent" ? first?.targetPercent ?? "" : intensity === "failure" ? "" : first?.targetRpe ?? "";
   return {
     id: uid("ex"),
     name: ex.name,
@@ -120,6 +123,7 @@ function exToRow(ex: ExerciseTemplate): ExRow {
     intensity,
     value,
     suggest: first?.targetSuggest ?? "",
+    goalRpe: first?.amrap ? first?.targetRpe ?? "" : undefined,
     linkEi: first?.linkEi,
     scheme: "Top set",
     mainLift: ex.mainLift,
@@ -141,18 +145,22 @@ function rowToEx(row: ExRow): ExerciseTemplate {
   const percent = row.intensity === "percent";
   const link = row.intensity === "linkpct";
   const linkPct = link ? parseFloat(String(row.value).replace(",", ".")) : NaN;
+  const amrap = row.intensity === "amrap";
   const sets = Array.from({ length: Math.max(1, row.sets) }, () => ({
     targetReps: row.reps,
-    targetRpe: row.intensity === "rpe" ? row.value : "",
+    // AMRAP carries the goal RPE (advisory — the athlete only logs their reps).
+    targetRpe: row.intensity === "rpe" ? row.value : amrap ? row.goalRpe?.trim() ?? "" : "",
     requiresRpe,
-    // Carry the coach's prescription through to the athlete's set.
-    targetLoad: fixed ? row.value : undefined,
+    amrap: amrap || undefined,
+    // Carry the coach's prescription through to the athlete's set. AMRAP prescribes
+    // the fixed working load (entered in the Value column).
+    targetLoad: fixed || amrap ? row.value : undefined,
     targetPercent: percent ? row.value : undefined,
     // %1RM auto-shows the concrete kg (rounded to 2.5) from the athlete's 1RM.
     percentOfMax: percent || undefined,
     // Advisory suggested load — only meaningful when there isn't already a fixed
     // load (RPE / %1RM / to-failure rows). Shown to the athlete as a hint, not a cap.
-    targetSuggest: !fixed && !backoff && !link && row.suggest?.trim() ? row.suggest.trim() : undefined,
+    targetSuggest: !fixed && !backoff && !link && !amrap && row.suggest?.trim() ? row.suggest.trim() : undefined,
     // Auto-backdown: sets after set 1 are this % below the top set's logged load.
     backoffPct: backoff && isFinite(backoffPct) ? backoffPct : undefined,
     // Linked %: this exercise's load = source exercise's top logged set minus this %.

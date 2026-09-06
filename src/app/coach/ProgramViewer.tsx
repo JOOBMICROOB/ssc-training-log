@@ -19,7 +19,7 @@ import type { MainLift } from "../../lib/program/program";
 type Layout = "rows" | "cols"; // rows = weeks stacked / days across · cols = weeks across / days stacked
 const LAYOUT_KEY = "ssc.coach.viewLayout";
 
-type ViewSet = { reps: string; target: string; loggedKg: number | null; rpe: number | null; note: string };
+type ViewSet = { reps: string; target: string; loggedKg: number | null; rpe: number | null; note: string; repsDone: number | null };
 type ViewEx = { name: string; mainLift: MainLift | null; scheme: string; sets: ViewSet[] };
 type ViewDay = { weekday: number; date: string | null; rest: boolean; exercises: ViewEx[]; sessionRpe: number | null; pain: number | null; diff: DayDiff };
 
@@ -41,6 +41,7 @@ function rowTarget(r: ExRow): string {
   if (r.intensity === "backoff") return `−${r.value || "?"}% off top set`;
   if (r.intensity === "linkpct") return `−${r.value || "?"}% linked`;
   if (r.intensity === "load" || r.intensity === "fixed") return `${r.value} kg`;
+  if (r.intensity === "amrap") return `AMRAP · ${r.value || "?"} kg${r.goalRpe ? ` @RPE${r.goalRpe}` : ""}`;
   // Advisory suggested kg (RPE / % / to-failure rows) shown alongside the target.
   const sug = r.suggest?.trim() ? ` · ~${r.suggest.trim()} kg` : "";
   if (r.intensity === "failure") return `to failure${sug}`;
@@ -74,7 +75,7 @@ function buildDays(week: Week, live: boolean, athleteId: string, prevWeek: Week 
           sets: Array.from({ length: r.sets }, (_, si) => {
             const st = sEx?.sets[si];
             const real = st && !st.prefill;
-            return { reps: r.reps, target: rowTarget(r), loggedKg: real ? st!.weightKg : null, rpe: real ? st!.rpe : null, note: st?.note ?? "" };
+            return { reps: r.reps, target: rowTarget(r), loggedKg: real ? st!.weightKg : null, rpe: real ? st!.rpe : null, note: st?.note ?? "", repsDone: real ? (st!.repsDone ?? null) : null };
           }),
         };
       }),
@@ -239,7 +240,7 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
                           <div className="cc-view-set">
                             <span className="cc-vs-n">S{si + 1}</span>
                             <span className="cc-vs-target">{s.reps}{s.target ? ` @ ${s.target}` : ""}</span>
-                            <span className={`cc-vs-logged${s.loggedKg != null ? " cc-vs-hit" : ""}`}>{s.loggedKg != null ? `${fmtKg(s.loggedKg)} kg${s.rpe != null ? ` @${s.rpe}` : ""}` : "—"}</span>
+                            <span className={`cc-vs-logged${s.loggedKg != null || s.repsDone != null ? " cc-vs-hit" : ""}`}>{s.repsDone != null ? `${s.repsDone} reps` : s.loggedKg != null ? `${fmtKg(s.loggedKg)} kg${s.rpe != null ? ` @${s.rpe}` : ""}` : "—"}</span>
                           </div>
                           {s.note && <div className="cc-vs-note">“{s.note}”</div>}
                         </div>

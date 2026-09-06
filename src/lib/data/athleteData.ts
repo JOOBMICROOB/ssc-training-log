@@ -327,7 +327,7 @@ function computeStreak(data: DashboardData, today: Date): number {
     for (const ex of s.exercises) {
       for (const st of ex.sets) {
         total++;
-        if ((st.weightKg != null && !st.prefill) || st.failed || st.done) logged++;
+        if ((st.weightKg != null && !st.prefill) || st.failed || st.done || st.repsDone != null) logged++;
       }
     }
     const frac = total ? logged / total : 0;
@@ -367,7 +367,7 @@ export function weekCompletionPct(data: DashboardData, weekStartISO: string, tod
     for (const ex of s.exercises) {
       for (const st of ex.sets) {
         total++;
-        if ((st.weightKg != null && !st.prefill) || st.failed || st.done) logged++;
+        if ((st.weightKg != null && !st.prefill) || st.failed || st.done || st.repsDone != null) logged++;
       }
     }
     if (total === 0) continue;
@@ -614,7 +614,7 @@ const cloneDay = (day: DayTemplate): DayTemplate => JSON.parse(JSON.stringify(da
 function hasRealLog(dayLog: DayLog | undefined): boolean {
   if (!dayLog) return false;
   if (dayLog.finished != null || dayLog.sessionRpe != null || dayLog.pain != null) return true;
-  return Object.values(dayLog.sets ?? {}).some((s) => (s.weightKg != null && !s.prefill) || s.failed || s.done);
+  return Object.values(dayLog.sets ?? {}).some((s) => (s.weightKg != null && !s.prefill) || s.failed || s.done || s.repsDone != null);
 }
 
 /** Snapshot the day `date` is being logged against, if not already frozen. */
@@ -901,11 +901,11 @@ export function logSet(athleteId: string, date: string, key: string, patch: SetL
   const merged: SetLog = { ...(day.sets?.[key] ?? {}), ...patch };
   // The athlete confirming/entering a weight (or a fail) turns a coach prefill
   // into a real log, so it now counts toward "done".
-  if (patch.weightKg !== undefined || patch.failed !== undefined || patch.done !== undefined || patch.heldSeconds !== undefined) merged.prefill = false;
+  if (patch.weightKg !== undefined || patch.failed !== undefined || patch.done !== undefined || patch.heldSeconds !== undefined || patch.repsDone !== undefined) merged.prefill = false;
   day.sets = { ...(day.sets ?? {}), [key]: merged };
   // Session clock: a real log is a touch. The clock STARTS on the 2nd logged set
   // (one tap could be a misclick); the auto-lock counts 2h from the last touch.
-  const realLogs = Object.values(day.sets).filter((s) => (s.weightKg != null && !s.prefill) || s.failed || s.done).length;
+  const realLogs = Object.values(day.sets).filter((s) => (s.weightKg != null && !s.prefill) || s.failed || s.done || s.repsDone != null).length;
   day.editedAt = Date.now();
   if (realLogs >= 2 && day.startedAt == null) day.startedAt = Date.now();
   logs[date] = day;

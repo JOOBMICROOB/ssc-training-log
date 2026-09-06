@@ -126,6 +126,26 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
       ${st.note ? `<input data-note="${key}" ${ro} placeholder="Notes" value="${st.note.replace(/"/g, "&quot;")}" style="width:100%;margin-top:6px;padding:7px 10px;background:rgb(242,242,243);border:1px solid rgba(29,31,32,.16);color:rgb(29,31,32);font-size:12.5px;border-radius:10px;">` : ""}
     </div>`;
   }
+
+  // AMRAP set — coach fixed the load + a goal RPE; the athlete only logs the reps
+  // they hit at that weight. No RPE to rate, no load to enter.
+  if (st.amrap) {
+    const on = st.repsDone != null;
+    const repsVal = st.repsDone != null ? String(st.repsDone) : "";
+    const goal = `${st.targetLoad ? `${st.targetLoad} kg` : "fixed load"}${st.targetRpe ? ` @ RPE ${st.targetRpe}` : ""}`;
+    return `<div style="margin-left:12px;padding:7px 10px 8px 12px;${on ? "border-left:2px solid #4f9d69;background:rgba(79,157,105,.05);" : "border-left:2px solid rgba(var(--a-accent-rgb),.45);"}">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="flex:0 0 auto;width:44px;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">SET ${si + 1}</span>
+        <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">AMRAP · ${goal}${on ? ` · <span style="color:#2e7d5a;font-weight:700;">${st.repsDone} reps ✓</span>` : ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">as many reps as possible</span>'}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+        <input data-reps="${key}" ${ro} inputmode="numeric" placeholder="reps you hit" value="${repsVal}" style="flex:1 1 0;min-width:0;height:40px;padding:0 10px;text-align:center;border-radius:9px;font:600 16px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;border:1px solid ${on ? "#4f9d69" : "rgba(var(--a-accent-rgb),.45)"};background:${on ? "rgba(79,157,105,.10)" : "rgba(var(--a-accent-rgb),.08)"};color:rgb(var(--a-navy-rgb));">
+        <span style="flex:0 0 auto;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(138,146,156);">REPS</span>
+      </div>
+      <input data-note="${key}" ${ro} placeholder="Notes" value="${st.note.replace(/"/g, "&quot;")}" style="width:100%;margin-top:6px;padding:7px 10px;background:rgb(242,242,243);border:1px solid rgba(29,31,32,.16);color:rgb(29,31,32);font-size:12.5px;border-radius:10px;">
+    </div>`;
+  }
+
   const inStyle = st.failed
     ? "border:1px solid #d98a8a;background:rgba(217,138,138,.12);color:#b45454;"
     : "border:1px solid rgba(var(--a-accent-rgb),.45);background:rgba(var(--a-accent-rgb),.08);color:rgb(var(--a-navy-rgb));";
@@ -772,6 +792,12 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       const v = parseInt(t.value.replace(/[^0-9]/g, ""), 10);
       if (t.value.trim() === "") logSet(athleteId, selected, t.dataset.secs!, { heldSeconds: null, done: false });
       else if (Number.isFinite(v) && v > 0) logSet(athleteId, selected, t.dataset.secs!, { heldSeconds: v, done: true });
+    }
+    else if (t.matches("[data-reps]")) {
+      const v = parseInt(t.value.replace(/[^0-9]/g, ""), 10);
+      if (t.value.trim() === "") logSet(athleteId, selected, t.dataset.reps!, { repsDone: null });
+      else if (Number.isFinite(v) && v >= 0 && v <= 100) logSet(athleteId, selected, t.dataset.reps!, { repsDone: v });
+      else { showToast("Enter the number of reps you hit (0–100)."); render(); }
     }
     else if (t.matches("[data-wi]")) {
       const v = t.value.trim();

@@ -26,6 +26,7 @@ export type SetTemplate = {
   percentOfMax?: boolean; // %1RM whose kg (rounded to 2.5) is auto-shown from the athlete's 1RM
   fixedLoad?: boolean; // load is fixed — the athlete may only go lighter, with a warning
   toFailure?: boolean; // no target — push to failure and log what you did
+  amrap?: boolean; // fixed load + goal RPE; athlete only logs the reps they hit
   timed?: boolean; // a time-based hold — no weight, athlete just marks it done
   holdSeconds?: string; // target duration for a timed set, e.g. "40-60"
 };
@@ -55,6 +56,7 @@ export type SetLog = {
   failed?: boolean;
   done?: boolean; // a timed set the athlete marked complete (no weight)
   heldSeconds?: number | null; // for a timed set — how long the athlete actually held it
+  repsDone?: number | null; // for an AMRAP set — the reps the athlete hit at the fixed load
   // Coach-prescribed fixed load, pre-filled on publish. It shows the weight but
   // does NOT count as the athlete's logging until they confirm/edit it.
   prefill?: boolean;
@@ -85,6 +87,7 @@ export type LoggedSet = SetTemplate & {
   failed: boolean;
   done: boolean; // timed set marked complete
   heldSeconds: number | null; // logged hold duration for a timed set
+  repsDone: number | null; // reps hit on an AMRAP set
   prefill: boolean; // shown but not yet confirmed by the athlete
   lastWeek: string; // "137,5 kg @ RPE8" or ""
 };
@@ -215,12 +218,14 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
           const failed = log.failed ?? false;
           const done = log.done ?? false;
           const heldSeconds = log.heldSeconds ?? null;
+          const repsDone = log.repsDone ?? null;
           const prefill = log.prefill ?? false;
           const prev = samePrevEx(ei, ex.name) ? prevLog.sets?.[key] : undefined;
           setCount++;
           // Athlete-logged = a real weight they confirmed (not a coach prefill), a
-          // failed attempt, or a timed set marked done. Coach prefills don't count.
-          if ((weightKg != null && !prefill) || failed || done) loggedCount++;
+          // failed attempt, a timed set marked done, or an AMRAP set's reps. Coach
+          // prefills don't count.
+          if ((weightKg != null && !prefill) || failed || done || repsDone != null) loggedCount++;
           if (st.requiresRpe) {
             rpeRequired++;
             if (rpe != null) rpeLogged++;
@@ -270,7 +275,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
             const pct = parseFloat(st.targetPercent.replace(",", "."));
             if (rm > 0 && isFinite(pct)) targetSuggest = String(round2p5((rm * pct) / 100));
           }
-          return { ...st, targetLoad, fixedLoad, targetSuggest, key, weightKg, rpe, note: log.note ?? "", failed, done, heldSeconds, prefill, lastWeek: lw };
+          return { ...st, targetLoad, fixedLoad, targetSuggest, key, weightKg, rpe, note: log.note ?? "", failed, done, heldSeconds, repsDone, prefill, lastWeek: lw };
         });
         // Compact last-week summary for the collapsed header — same-exercise only.
         const prevWeights = (samePrevEx(ei, ex.name) ? ex.sets : [])
@@ -302,7 +307,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
           competition: ex.competition ?? isCompLift(ex.name, ex.mainLift),
           sets,
           setCount: sets.length,
-          loggedCount: sets.filter((s) => (s.weightKg != null && !s.prefill) || s.failed || s.done).length,
+          loggedCount: sets.filter((s) => (s.weightKg != null && !s.prefill) || s.failed || s.done || s.repsDone != null).length,
           lastWeekLabel,
         };
       });

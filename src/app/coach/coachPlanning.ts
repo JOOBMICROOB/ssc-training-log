@@ -114,7 +114,7 @@ export function weekDetailFor(athleteId: string, monday: string): WeekDetail | n
     for (const ex of s.exercises) {
       for (const st of ex.sets) {
         total++;
-        if ((st.weightKg != null && !st.prefill) || st.failed) logged++;
+        if ((st.weightKg != null && !st.prefill) || st.failed || st.done || st.repsDone != null) logged++;
       }
     }
     const lifts = Array.from(new Set(day.exercises.map((e) => e.name).filter(Boolean))).slice(0, 3).join(" · ");
