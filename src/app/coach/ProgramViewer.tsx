@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { loadProgram, weekOrder, dayDate, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, type Week, type ExRow, type DayDiff } from "./coachProgram";
+import { loadProgram, weekOrder, dayDate, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, type Week, type ExRow, type DayDiff } from "./coachProgram";
 import { DiffLine } from "./DiffLine";
 import { weekState, WEEK_STATE_LABEL } from "./coachStats";
 import { getSessionFor } from "../../lib/data/athleteData";
@@ -37,11 +37,11 @@ function fmtRange(startDate?: string) {
   return `${s.getDate()} ${MON[s.getMonth()]} – ${e.getDate()} ${MON[e.getMonth()]}`;
 }
 function rowTarget(r: ExRow): string {
+  if (isAmrapReps(r.reps)) return `AMRAP · ${r.value || "?"} kg${r.goalRpe ? ` @RPE${r.goalRpe}` : ""}`;
   if (r.intensity === "seconds") return `${r.value || "?"} s`;
   if (r.intensity === "backoff") return `−${r.value || "?"}% off top set`;
   if (r.intensity === "linkpct") return `−${r.value || "?"}% linked`;
   if (r.intensity === "load" || r.intensity === "fixed") return `${r.value} kg`;
-  if (r.intensity === "amrap") return `AMRAP · ${r.value || "?"} kg${r.goalRpe ? ` @RPE${r.goalRpe}` : ""}`;
   // Advisory suggested kg (RPE / % / to-failure rows) shown alongside the target.
   const sug = r.suggest?.trim() ? ` · ~${r.suggest.trim()} kg` : "";
   if (r.intensity === "failure") return `to failure${sug}`;

@@ -16,7 +16,11 @@ import liezeProgram from "./liezeProgram.json";
 import stefProgram from "./stefProgram.json";
 import zitaProgram from "./zitaProgram.json";
 
-export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure" | "seconds" | "backoff" | "linkpct" | "amrap";
+export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure" | "seconds" | "backoff" | "linkpct";
+
+/** The Reps-column sentinel that turns a row into an AMRAP set. */
+export const AMRAP_REPS = "AMRAP";
+export const isAmrapReps = (reps: string | undefined) => (reps ?? "").trim().toUpperCase() === AMRAP_REPS;
 export type ExRow = {
   id: string;
   name: string;
@@ -27,7 +31,7 @@ export type ExRow = {
   intensity: IntensityType;
   value: string;
   suggest?: string; // advisory working weight (kg) shown to the athlete as a hint
-  goalRpe?: string; // for intensity "amrap": the goal RPE at the fixed load
+  goalRpe?: string; // for an AMRAP row (reps === AMRAP): the goal RPE at the fixed load
   linkEi?: number; // for intensity "linkpct": index (in the day) of the source exercise
   scheme: string;
   mainLift: MainLift | null;
@@ -96,9 +100,8 @@ export function weekForToday(p: Program, todayIso: string): string | undefined {
 // --- converters --------------------------------------------------------------
 function exToRow(ex: ExerciseTemplate): ExRow {
   const first = ex.sets[0];
-  const intensity: IntensityType = first?.amrap
-    ? "amrap"
-    : first?.linkPct != null
+  const amrap = !!first?.amrap;
+  const intensity: IntensityType = first?.linkPct != null
     ? "linkpct"
     : first?.backoffPct != null
     ? "backoff"
@@ -106,24 +109,25 @@ function exToRow(ex: ExerciseTemplate): ExRow {
     ? "seconds"
     : first?.toFailure
       ? "failure"
-      : first?.fixedLoad || first?.targetLoad
+      : !amrap && (first?.fixedLoad || first?.targetLoad)
         ? "fixed"
         : first?.targetPercent
           ? "percent"
           : "rpe";
+  // AMRAP: load lives in the Value column, goal RPE in the Suggest column.
   const value =
-    intensity === "linkpct" ? String(first?.linkPct ?? "") : intensity === "backoff" ? String(first?.backoffPct ?? "") : intensity === "seconds" ? first?.holdSeconds ?? "" : intensity === "fixed" || intensity === "amrap" ? first?.targetLoad ?? "" : intensity === "percent" ? first?.targetPercent ?? "" : intensity === "failure" ? "" : first?.targetRpe ?? "";
+    amrap ? first?.targetLoad ?? "" : intensity === "linkpct" ? String(first?.linkPct ?? "") : intensity === "backoff" ? String(first?.backoffPct ?? "") : intensity === "seconds" ? first?.holdSeconds ?? "" : intensity === "fixed" ? first?.targetLoad ?? "" : intensity === "percent" ? first?.targetPercent ?? "" : intensity === "failure" ? "" : first?.targetRpe ?? "";
   return {
     id: uid("ex"),
     name: ex.name,
     cue: "",
     video: ex.video ?? (ex.clip ? "https://" : ""),
     sets: ex.sets.length || 1,
-    reps: first?.targetReps ?? "",
+    reps: amrap ? AMRAP_REPS : first?.targetReps ?? "",
     intensity,
     value,
-    suggest: first?.targetSuggest ?? "",
-    goalRpe: first?.amrap ? first?.targetRpe ?? "" : undefined,
+    suggest: amrap ? "" : first?.targetSuggest ?? "",
+    goalRpe: amrap ? first?.targetRpe ?? "" : undefined,
     linkEi: first?.linkEi,
     scheme: "Top set",
     mainLift: ex.mainLift,
@@ -135,7 +139,10 @@ function rowToEx(row: ExRow): ExerciseTemplate {
   // comp/main lift ("comp squat" / "squat"…), tag it so PRs, progress and volume
   // all attribute it correctly. Variations (paused, RDL…) stay accessories.
   const mainLift = row.mainLift ?? inferLift(row.name);
-  const requiresRpe = row.intensity === "rpe" && mainLift != null;
+  // AMRAP is chosen in the Reps column; intensity stays RPE (the goal RPE), the
+  // load is fixed (Value column), and the athlete only logs the reps they hit.
+  const amrap = isAmrapReps(row.reps);
+  const requiresRpe = !amrap && row.intensity === "rpe" && mainLift != null;
   // "load" (legacy) and "fixed" are the same now — a prescribed working weight.
   const fixed = row.intensity === "fixed" || row.intensity === "load";
   const failure = row.intensity === "failure";
@@ -145,11 +152,10 @@ function rowToEx(row: ExRow): ExerciseTemplate {
   const percent = row.intensity === "percent";
   const link = row.intensity === "linkpct";
   const linkPct = link ? parseFloat(String(row.value).replace(",", ".")) : NaN;
-  const amrap = row.intensity === "amrap";
   const sets = Array.from({ length: Math.max(1, row.sets) }, () => ({
     targetReps: row.reps,
     // AMRAP carries the goal RPE (advisory — the athlete only logs their reps).
-    targetRpe: row.intensity === "rpe" ? row.value : amrap ? row.goalRpe?.trim() ?? "" : "",
+    targetRpe: amrap ? row.goalRpe?.trim() ?? "" : row.intensity === "rpe" ? row.value : "",
     requiresRpe,
     amrap: amrap || undefined,
     // Carry the coach's prescription through to the athlete's set. AMRAP prescribes
@@ -522,6 +528,7 @@ export type DayDiff = { diffs: RowDiff[]; removed: ExRow[]; count: number };
 
 /** Human label of a row's intensity prescription (RPE7 / 120 kg / 80% / to failure / 40 s). */
 export function rowPresc(ex: ExRow): string {
+  if (isAmrapReps(ex.reps)) return `AMRAP · ${ex.value || "?"} kg${ex.goalRpe ? ` @RPE${ex.goalRpe}` : ""}`;
   switch (ex.intensity) {
     case "fixed":
     case "load": return `${ex.value || "?"} kg`;

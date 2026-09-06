@@ -34,6 +34,8 @@ import {
   type DbExercise,
   type ExGroup,
   type IntensityType,
+  AMRAP_REPS,
+  isAmrapReps,
 } from "./coachProgram";
 import { getClients } from "./coachData";
 import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel, exerciseBests, bestLabel, clearAthleteProgram } from "../../lib/data/athleteData";
@@ -135,7 +137,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   // Spread a value evenly across the block's weeks for ONE exercise slot (matched
   // by weekday + name + position-among-same-name), so a block reads as a smooth
   // ramp. Rounding suits the row's unit: RPE 0.5, load 2.5 kg, everything else 1.
-  const intensityStep = (t: IntensityType) => (t === "rpe" ? 0.5 : t === "fixed" || t === "load" || t === "amrap" ? 2.5 : 1);
+  const intensityStep = (t: IntensityType) => (t === "rpe" ? 0.5 : t === "fixed" || t === "load" ? 2.5 : 1);
   const rampable = (t: IntensityType) => t === "rpe" || t === "percent" || t === "fixed" || t === "load" || t === "seconds" || t === "backoff";
   const nthMatch = (list: ExRow[], nameKey: string, pos: number): ExRow | undefined => {
     let seen = -1;
@@ -354,13 +356,13 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     return idx > 0 ? meso.weeks[idx - 1] : null;
   }, [meso, week]);
   const prescOf = (ex: ExRow): string =>
-    ex.intensity === "fixed" ? `${ex.value || "?"} kg fixed`
+    isAmrapReps(ex.reps) ? `AMRAP · ${ex.value || "?"} kg${ex.goalRpe ? ` @RPE${ex.goalRpe}` : ""}`
+    : ex.intensity === "fixed" ? `${ex.value || "?"} kg fixed`
     : ex.intensity === "load" ? `${ex.value || "?"} kg`
     : ex.intensity === "percent" ? `${ex.value || "?"}%`
     : ex.intensity === "failure" ? "to failure"
     : ex.intensity === "seconds" ? `${ex.value || "?"} s`
     : ex.intensity === "backoff" ? `−${ex.value || "?"}% off top`
-    : ex.intensity === "amrap" ? `AMRAP · ${ex.value || "?"} kg${ex.goalRpe ? ` @RPE${ex.goalRpe}` : ""}`
     : ex.value ? `RPE${ex.value}` : "—";
   const prevByWeekday = useMemo(() => {
     const out: Record<number, Record<string, string>> = {};
@@ -939,6 +941,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
           {/* autocomplete sources — exercise names from the shared DB, RPE steps */}
           <datalist id="ex-db">{exercises.map((x) => <option key={x.id} value={x.name} />)}</datalist>
           <datalist id="rpe-opts">{RPE_OPTS.map((r) => <option key={r} value={r} />)}</datalist>
+          <datalist id="reps-opts">{REP_RANGES.map((r) => <option key={r} value={r} />)}<option value={AMRAP_REPS} /></datalist>
           <div className="cc-build-head">
             <div>
               {onBack && (
@@ -1083,6 +1086,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
 
                 {d.exercises.map((ex, exIdx) => {
                   const rdiff = showDiff && prevWeek ? diffByDay[d.id]?.diffs[exIdx] : undefined;
+                  const isAmrap = isAmrapReps(ex.reps);
                   return (
                   <div
                     key={ex.id}
@@ -1110,29 +1114,33 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                       </div>
                       <input className="cc-in" placeholder="url" value={ex.video} onChange={(e) => mutRow(d.id, ex.id, { video: e.target.value })} />
                       <input className="cc-in" type="number" min={1} value={ex.sets} onChange={(e) => mutRow(d.id, ex.id, { sets: Math.max(1, Number(e.target.value)) })} />
-                      {repRange || ex.scheme === "Accessory" ? (
-                        <select className="cc-in" value={ex.reps} onChange={(e) => mutRow(d.id, ex.id, { reps: e.target.value })}>
-                          {!REP_RANGES.includes(ex.reps) && <option value={ex.reps}>{ex.reps || "—"}</option>}
+                      {repRange || ex.scheme === "Accessory" || isAmrap ? (
+                        <select className="cc-in" value={ex.reps} onChange={(e) => mutRow(d.id, ex.id, { reps: e.target.value, ...(e.target.value === AMRAP_REPS ? { intensity: "rpe" as IntensityType } : {}) })}>
+                          {!REP_RANGES.includes(ex.reps) && ex.reps !== AMRAP_REPS && <option value={ex.reps}>{ex.reps || "—"}</option>}
                           {REP_RANGES.map((r) => <option key={r} value={r}>{r}</option>)}
+                          <option value={AMRAP_REPS}>AMRAP</option>
                         </select>
                       ) : (
-                        <input className="cc-in" value={ex.reps} onChange={(e) => mutRow(d.id, ex.id, { reps: e.target.value })} />
+                        <input className="cc-in" list="reps-opts" value={ex.reps} onChange={(e) => mutRow(d.id, ex.id, { reps: e.target.value })} />
                       )}
-                      <select
-                        className="cc-in"
-                        value={ex.intensity === "load" ? "fixed" : ex.intensity}
-                        onChange={(e) => mutRow(d.id, ex.id, { intensity: e.target.value as IntensityType, ...(e.target.value === "failure" ? { value: "" } : {}) })}
-                      >
-                        <option value="rpe">RPE</option>
-                        <option value="percent">%1RM</option>
-                        <option value="fixed">Load</option>
-                        <option value="amrap">AMRAP</option>
-                        <option value="failure">Failure</option>
-                        <option value="seconds">Seconds</option>
-                        <option value="backoff">Backoff %</option>
-                        <option value="linkpct">Link %</option>
-                      </select>
-                      {ex.intensity === "amrap" ? (
+                      {isAmrap ? (
+                        <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)", font: "500 10px/1 var(--font-body)", letterSpacing: ".05em" }} title="AMRAP is RPE-based — enter the goal RPE in the Suggest column.">RPE</div>
+                      ) : (
+                        <select
+                          className="cc-in"
+                          value={ex.intensity === "load" ? "fixed" : ex.intensity}
+                          onChange={(e) => mutRow(d.id, ex.id, { intensity: e.target.value as IntensityType, ...(e.target.value === "failure" ? { value: "" } : {}) })}
+                        >
+                          <option value="rpe">RPE</option>
+                          <option value="percent">%1RM</option>
+                          <option value="fixed">Load</option>
+                          <option value="failure">Failure</option>
+                          <option value="seconds">Seconds</option>
+                          <option value="backoff">Backoff %</option>
+                          <option value="linkpct">Link %</option>
+                        </select>
+                      )}
+                      {isAmrap ? (
                         <input className="cc-in" value={ex.value} placeholder="load kg" title="Fixed working load (kg) for the AMRAP set — the athlete logs the reps they hit at this weight." onChange={(e) => mutRow(d.id, ex.id, { value: e.target.value })} onBlur={() => linearAutoFill(d.id, ex.id, "value")} />
                       ) : ex.intensity === "failure" ? (
                         <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)", font: "500 10px/1 var(--font-body)", letterSpacing: ".05em" }} title="No target — the athlete pushes to failure.">TO FAILURE</div>
@@ -1160,7 +1168,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                             </select>
                           );
                         })()
-                      ) : ex.intensity === "amrap" ? (
+                      ) : isAmrap ? (
                         <input className="cc-in" list="rpe-opts" value={ex.goalRpe ?? ""} placeholder="goal RPE" title="Goal RPE at the fixed load — advisory. The athlete only logs the reps they hit." onChange={(e) => mutRow(d.id, ex.id, { goalRpe: e.target.value })} />
                       ) : ex.intensity === "fixed" || ex.intensity === "load" || ex.intensity === "seconds" || ex.intensity === "backoff" ? (
                         <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)" }} title="This row already shows a concrete number — no separate suggestion needed.">—</div>
@@ -1215,7 +1223,9 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                       <div className="cc-ex-cols cc-ex-colhead">
                         <span>Exercise · cue</span><span>Video</span><span>Sets</span><span>Reps</span><span>Intensity</span><span>Value</span><span>Suggest kg</span><span>Scheme</span><span style={{ textAlign: "right" }}>Move · ×</span>
                       </div>
-                      {d.alt.map((ex) => (
+                      {d.alt.map((ex) => {
+                        const isAmrap = isAmrapReps(ex.reps);
+                        return (
                         <div key={ex.id} className="cc-ex-row">
                           <div className="cc-ex-cols">
                             <div className="cc-ex-grip">
@@ -1224,27 +1234,31 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                             </div>
                             <input className="cc-in" placeholder="url" value={ex.video} onChange={(e) => altMutRow(d.id, ex.id, { video: e.target.value })} />
                             <input className="cc-in" type="number" min={1} value={ex.sets} onChange={(e) => altMutRow(d.id, ex.id, { sets: Math.max(1, Number(e.target.value)) })} />
-                            {repRange || ex.scheme === "Accessory" ? (
-                              <select className="cc-in" value={ex.reps} onChange={(e) => altMutRow(d.id, ex.id, { reps: e.target.value })}>
-                                {!REP_RANGES.includes(ex.reps) && <option value={ex.reps}>{ex.reps || "—"}</option>}
+                            {repRange || ex.scheme === "Accessory" || isAmrap ? (
+                              <select className="cc-in" value={ex.reps} onChange={(e) => altMutRow(d.id, ex.id, { reps: e.target.value, ...(e.target.value === AMRAP_REPS ? { intensity: "rpe" as IntensityType } : {}) })}>
+                                {!REP_RANGES.includes(ex.reps) && ex.reps !== AMRAP_REPS && <option value={ex.reps}>{ex.reps || "—"}</option>}
                                 {REP_RANGES.map((r) => <option key={r} value={r}>{r}</option>)}
+                                <option value={AMRAP_REPS}>AMRAP</option>
                               </select>
                             ) : (
-                              <input className="cc-in" value={ex.reps} onChange={(e) => altMutRow(d.id, ex.id, { reps: e.target.value })} />
+                              <input className="cc-in" list="reps-opts" value={ex.reps} onChange={(e) => altMutRow(d.id, ex.id, { reps: e.target.value })} />
                             )}
-                            <select
-                              className="cc-in"
-                              value={ex.intensity === "load" ? "fixed" : ex.intensity}
-                              onChange={(e) => altMutRow(d.id, ex.id, { intensity: e.target.value as IntensityType, ...(e.target.value === "failure" ? { value: "" } : {}) })}
-                            >
-                              <option value="rpe">RPE</option>
-                              <option value="percent">%1RM</option>
-                              <option value="fixed">Load</option>
-                              <option value="amrap">AMRAP</option>
-                              <option value="failure">Failure</option>
-                              <option value="seconds">Seconds</option>
-                            </select>
-                            {ex.intensity === "amrap" ? (
+                            {isAmrap ? (
+                              <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)", font: "500 10px/1 var(--font-body)", letterSpacing: ".05em" }} title="AMRAP is RPE-based — enter the goal RPE in the Suggest column.">RPE</div>
+                            ) : (
+                              <select
+                                className="cc-in"
+                                value={ex.intensity === "load" ? "fixed" : ex.intensity}
+                                onChange={(e) => altMutRow(d.id, ex.id, { intensity: e.target.value as IntensityType, ...(e.target.value === "failure" ? { value: "" } : {}) })}
+                              >
+                                <option value="rpe">RPE</option>
+                                <option value="percent">%1RM</option>
+                                <option value="fixed">Load</option>
+                                <option value="failure">Failure</option>
+                                <option value="seconds">Seconds</option>
+                              </select>
+                            )}
+                            {isAmrap ? (
                               <input className="cc-in" value={ex.value} placeholder="load kg" title="Fixed working load (kg) for the AMRAP set — the athlete logs the reps they hit." onChange={(e) => altMutRow(d.id, ex.id, { value: e.target.value })} />
                             ) : ex.intensity === "failure" ? (
                               <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)", font: "500 10px/1 var(--font-body)", letterSpacing: ".05em" }}>TO FAILURE</div>
@@ -1257,7 +1271,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                             ) : (
                               <input className="cc-in" value={ex.value} placeholder="kg" onChange={(e) => altMutRow(d.id, ex.id, { value: e.target.value })} />
                             )}
-                            {ex.intensity === "amrap" ? (
+                            {isAmrap ? (
                               <input className="cc-in" list="rpe-opts" value={ex.goalRpe ?? ""} placeholder="goal RPE" title="Goal RPE at the fixed load — advisory. The athlete only logs the reps they hit." onChange={(e) => altMutRow(d.id, ex.id, { goalRpe: e.target.value })} />
                             ) : ex.intensity === "fixed" || ex.intensity === "load" || ex.intensity === "seconds" ? (
                               <div className="cc-in" style={{ display: "grid", placeItems: "center", color: "var(--muted)" }}>—</div>
@@ -1275,7 +1289,8 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                             </div>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                       <button className="cc-add-ex" onClick={() => altAddRow(d.id)}>+ Add exercise to Option B</button>
                     </div>
                   )}

@@ -62,6 +62,11 @@ function targetShort(st: { targetRpe: string; targetLoad?: string; targetPercent
 function prescription(ex: SessionExercise): string {
   const s = ex.sets;
   if (!s.length) return "";
+  // AMRAP: no rep target — show the load + goal, not a "× reps".
+  if (s[0].amrap) {
+    const goal = `${s[0].targetLoad ? `${s[0].targetLoad} kg` : ""}${s[0].targetRpe ? ` @ RPE${s[0].targetRpe}` : ""}`.trim();
+    return `${s.length} × AMRAP${goal ? `  ·  ${goal}` : ""}`;
+  }
   const t = targetShort(s[0]);
   const same = s.every((x) => x.targetReps === s[0].targetReps && targetShort(x) === t);
   return same ? `${s.length} × ${s[0].targetReps}${t ? `  ·  ${t}` : ""}` : `${s.length} sets`;
