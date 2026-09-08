@@ -14,6 +14,7 @@ import {
   setSessionChoice,
   exerciseBests,
   bestLabel,
+  athleteHasProgramOn,
   type ExBest,
 } from "../../lib/data/athleteData";
 import { addDays, type Session, type SessionExercise, type LoggedSet, type SetLog } from "../../lib/program/program";
@@ -245,8 +246,14 @@ function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locke
   return `<div>${header}${body}</div>`;
 }
 
-function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selected: string, isOpen: (ei: number) => boolean, bests: Map<string, ExBest> | null): string {
+function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selected: string, isOpen: (ei: number) => boolean, bests: Map<string, ExBest> | null, noProgram = false): string {
   const dayRow = `<div style="flex:0 0 auto;display:flex;gap:5px;padding:14px 0 12px;">${dayButtons(week, selected)}</div>`;
+  if (noProgram) {
+    return `${dayRow}<div style="flex:0 0 auto;padding:40px 20px;text-align:center;">
+      <div style="font:600 20px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(107,116,128);">NO PROGRAM THIS WEEK</div>
+      <div style="margin-top:8px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(138,146,156);">Your coach hasn't assigned training for these dates yet.<br>Your past weeks are still here — swipe back to review them.</div>
+    </div>`;
+  }
   if (session.rest) {
     return `${dayRow}<div style="flex:0 0 auto;padding:24px 0;text-align:center;font:600 20px/1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(107,116,128);">REST DAY</div>`;
   }
@@ -610,6 +617,24 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       const finishNote = host.querySelector<HTMLElement>("#finishNote");
       if (finishTxt) finishTxt.textContent = "LOCKED";
       if (finishNote) finishNote.textContent = "Log this week to unlock the next one.";
+      if (finishBtn) {
+        finishBtn.style.cursor = "default";
+        finishBtn.style.background = "transparent";
+        finishBtn.style.color = "rgb(138,146,156)";
+        finishBtn.style.border = "1px solid rgba(29,31,32,.16)";
+      }
+      shareBtn.style.display = "none";
+      return;
+    }
+
+    // No published week covers this date → show a clear "no program" state instead
+    // of a session (a week no longer bleeds onto dates it wasn't assigned to).
+    if (!athleteHasProgramOn(athleteId, selected)) {
+      if (body) body.innerHTML = bodyMarkup(week, session, selected, () => false, null, true);
+      const finishTxt = host.querySelector<HTMLElement>("#finishTxt");
+      const finishNote = host.querySelector<HTMLElement>("#finishNote");
+      if (finishTxt) finishTxt.textContent = "NO PROGRAM";
+      if (finishNote) finishNote.textContent = "Nothing scheduled for this week.";
       if (finishBtn) {
         finishBtn.style.cursor = "default";
         finishBtn.style.background = "transparent";

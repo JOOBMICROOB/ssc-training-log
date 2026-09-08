@@ -461,17 +461,22 @@ export function buildDashboardModel(data: DashboardData, today = new Date()): Da
     checkinStatus: weeklySubmitted ? "Submitted ✓" : `Due · ${dueLabel}`,
     bw,
     bwLoggedToday: bw.loggedToday,
-    todayCard: {
-      label: `TODAY · ${dayLabel(today)}`,
-      title: todaySession.rest ? "Rest day" : todaySession.finished ? "Session done for the day" : todaySession.name,
-      sub: todaySession.rest
-        ? "Recovery — nothing programmed today"
-        : todaySession.finished
-          ? "All sets logged — nice work"
-          : "Tap to open today's session",
-      done: todaySession.finished,
-      rest: todaySession.rest,
-    },
+    todayCard: (() => {
+      const noProgToday = !hasProgramForDate(data, iso(today));
+      return {
+        label: `TODAY · ${dayLabel(today)}`,
+        title: noProgToday ? "No program" : todaySession.rest ? "Rest day" : todaySession.finished ? "Session done for the day" : todaySession.name,
+        sub: noProgToday
+          ? "No training assigned this week"
+          : todaySession.rest
+            ? "Recovery — nothing programmed today"
+            : todaySession.finished
+              ? "All sets logged — nice work"
+              : "Tap to open today's session",
+        done: todaySession.finished,
+        rest: todaySession.rest || noProgToday,
+      };
+    })(),
     // The dated week's own labels win, then the coach-set names, then "WEEK n".
     // Blank until there's an actual block (a new athlete shows nothing here).
     blockLabel: blockLabelOf(curMeta.blockName ?? data.program.blockName, curMeta.weekName ?? data.program.weekName, weekNum, tpl),
@@ -577,7 +582,13 @@ export function finalizeWeeklyAdherence(athleteId: string, today = new Date()) {
 
 const todayISO = () => iso(new Date());
 
-/** The published week whose start is on/before `date` (the latest such). */
+/**
+ * The published week that actually COVERS `date`, i.e. the latest week whose start
+ * is on/before the date AND whose 7-day window (start … start+6) still contains it.
+ * A week no longer bleeds past its own dates: outside every week's window there is
+ * simply no program (returns null), so the athlete never sees a session on a week
+ * that wasn't assigned to them, and a finished block doesn't repeat forever.
+ */
 function weekKeyForDate(d: DashboardData, date: string): string | null {
   const keys = Object.keys(d.publishedWeeks ?? {}).sort();
   let chosen: string | null = null;
@@ -585,14 +596,31 @@ function weekKeyForDate(d: DashboardData, date: string): string | null {
     if (k <= date) chosen = k;
     else break;
   }
+  if (chosen && date > addDays(chosen, 6)) return null; // past this week's 7 days → no program
   return chosen;
+}
+
+/** True if a dated program week actually covers this date (there IS training to show). */
+export function hasProgramForDate(d: DashboardData, date: string): boolean {
+  if (weekKeyForDate(d, date) != null) return true;
+  // Legacy athletes with only a single `programWeek` (no dated weeks) always have it.
+  return !(d.publishedWeeks && Object.keys(d.publishedWeeks).length > 0);
 }
 
 /** The template that drives this athlete's sessions on a given date. */
 export function templateForDate(d: DashboardData, date: string): WeekTemplate {
   const k = weekKeyForDate(d, date);
   if (k && d.publishedWeeks?.[k]) return d.publishedWeeks[k].week;
+  // No dated week covers this date. If the athlete has dated weeks at all, this date
+  // is simply outside their program → an empty (all-rest) week. Only the legacy
+  // single-week path falls back to `programWeek`.
+  if (d.publishedWeeks && Object.keys(d.publishedWeeks).length > 0) return DEFAULT_WEEK;
   return d.programWeek ?? DEFAULT_WEEK;
+}
+
+/** Convenience for the athlete UI: is there a program covering `date`? */
+export function athleteHasProgramOn(athleteId: string, date: string): boolean {
+  return hasProgramForDate(getDashboard(athleteId), date);
 }
 
 /** The block / week label for a given date, from the dated week it falls in. */
