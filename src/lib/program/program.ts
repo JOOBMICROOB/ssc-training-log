@@ -364,11 +364,16 @@ export function getWeek(
   ref: string,
   today: string,
   frozen?: Record<string, DayTemplate>,
+  // Resolve each date's OWN week template. A displayed week (Mon–Sun) can straddle
+  // two program weeks when a block starts mid-week, so each day must read the week
+  // that actually covers it — otherwise one week's sessions/logs bleed onto the
+  // other's dates. Falls back to the single `template` when not provided.
+  resolve?: (date: string) => WeekTemplate,
 ): WeekDay[] {
   const dates = weekDates(weekStartsOn, ref);
   let sIdx = 0;
   return dates.map((date) => {
-    const s = getSession(template, logs, date, "A", undefined, undefined, frozen);
+    const s = getSession(resolve ? resolve(date) : template, logs, date, "A", undefined, undefined, frozen);
     const label = s.rest ? "REST" : `S${++sIdx}`;
     const status: WeekDay["status"] = s.rest
       ? "rest"

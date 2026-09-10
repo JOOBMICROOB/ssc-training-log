@@ -743,7 +743,7 @@ export function setSessionChoice(athleteId: string, date: string, option: "A" | 
 
 export function getWeekFor(athleteId: string, ref: string, today = todayISO()): WeekDay[] {
   const d = getDashboard(athleteId);
-  return getWeek(templateForDate(d, ref), d.programLogs ?? {}, d.weekStartsOn, ref, today, d.loggedDays);
+  return getWeek(templateForDate(d, ref), d.programLogs ?? {}, d.weekStartsOn, ref, today, d.loggedDays, (date) => templateForDate(d, date));
 }
 
 export function getMonthFor(athleteId: string, year: number, month: number, today = todayISO()): MonthCell[] {
