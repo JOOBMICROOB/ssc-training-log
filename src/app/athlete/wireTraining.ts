@@ -251,11 +251,14 @@ function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selec
   // on rest days and weeks with no program — letting the athlete jump to any past
   // (or future) week even when the current one has nothing scheduled.
   const calBtn = `<button id="calOpen" title="Open calendar — jump to any week" style="flex:0 0 auto;width:38px;display:grid;place-items:center;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:rgba(var(--a-accent-rgb),.10);color:rgb(var(--a-navy-rgb));cursor:pointer;font-size:16px;line-height:1;">📅</button>`;
-  const dayRow = `<div style="flex:0 0 auto;display:flex;align-items:stretch;gap:5px;padding:14px 0 12px;">${dayButtons(week, selected)}${calBtn}</div>`;
+  // Step a whole week back / forward — the direct way to reach last week's session
+  // (the calendar is still there for jumping further). Always present, every state.
+  const wkBtn = (dir: number, glyph: string) => `<button data-week="${dir}" title="${dir < 0 ? "Previous" : "Next"} week" style="flex:0 0 auto;width:26px;display:grid;place-items:center;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:transparent;color:rgb(var(--a-accent2-rgb));cursor:pointer;font:600 15px/1 'Barlow Condensed',sans-serif;">${glyph}</button>`;
+  const dayRow = `<div style="flex:0 0 auto;display:flex;align-items:stretch;gap:4px;padding:14px 0 12px;">${wkBtn(-1, "‹")}${dayButtons(week, selected)}${wkBtn(1, "›")}${calBtn}</div>`;
   if (noProgram) {
     return `${dayRow}<div style="flex:0 0 auto;padding:40px 20px;text-align:center;">
       <div style="font:600 20px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(107,116,128);">NO PROGRAM THIS WEEK</div>
-      <div style="margin-top:8px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(138,146,156);">Your coach hasn't assigned training for these dates yet.<br>Your past weeks are still here — swipe back to review them.</div>
+      <div style="margin-top:8px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(138,146,156);">Your coach hasn't assigned training for these dates yet.<br>Use ‹ › or the calendar to review your past weeks.</div>
     </div>`;
   }
   if (session.rest) {
@@ -768,6 +771,8 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       return render();
     }
     if (t.closest("#dayPickBtn") || t.closest("#calOpen")) return calendar.open();
+    const wkNav = t.closest<HTMLElement>("[data-week]");
+    if (wkNav) { selected = addDays(selected, Number(wkNav.dataset.week) * 7); manualOpen.clear(); return render(); }
     if (t.closest("#refToggle")) { showBests = !showBests; return render(); }
     const vid = t.closest<HTMLElement>("[data-video]");
     if (vid?.dataset.video) { window.open(vid.dataset.video, "_blank", "noopener"); return; }

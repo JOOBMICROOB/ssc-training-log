@@ -47,7 +47,7 @@ function pickPhoto(athleteId: string) {
   inp.click();
 }
 
-export function AthleteProfileView({ client, coachUserId, newSignal, roster, onSelect, onRosterChange }: { client: ClientRow; coachUserId: string; newSignal?: number; roster: ClientRow[]; onSelect: (id: string) => void; onRosterChange: () => void }) {
+export function AthleteProfileView({ client, canEdit = true, coachUserId, newSignal, roster, onSelect, onRosterChange }: { client: ClientRow; canEdit?: boolean; coachUserId: string; newSignal?: number; roster: ClientRow[]; onSelect: (id: string) => void; onRosterChange: () => void }) {
   const [mode, setMode] = useState<"edit" | "new">("edit");
   useEffect(() => { if (newSignal) setMode("new"); }, [newSignal]);
 
@@ -82,7 +82,22 @@ export function AthleteProfileView({ client, coachUserId, newSignal, roster, onS
         </aside>
 
         <div>
-          {mode === "edit" ? <FullProfile key={client.athleteId} client={client} coachUserId={coachUserId} onRosterChange={onRosterChange} /> : <NewAthlete coachUserId={coachUserId} onCreated={() => { setMode("edit"); onRosterChange(); }} />}
+          {mode === "new" ? (
+            // Keep the form + its one-time ID/password message visible after creating
+            // (don't auto-switch away); just refresh the roster so the new athlete
+            // appears in the sidebar to open when the coach is ready.
+            <NewAthlete coachUserId={coachUserId} onCreated={() => onRosterChange()} />
+          ) : canEdit ? (
+            <FullProfile key={client.athleteId} client={client} coachUserId={coachUserId} onRosterChange={onRosterChange} />
+          ) : (
+            <div className="cc-panel cc-corner" style={{ position: "relative", padding: 28 }}>
+              <i />
+              <div className="cc-side-k">Athlete is private</div>
+              <p style={{ font: "400 13px/1.6 var(--font-body)", color: "var(--muted)", margin: "10px 0 0" }}>
+                {client.name} is another coach's athlete. You can see their scores and info on the Team and Clients boards, but their profile stays with their coach. Use <strong>+ New athlete</strong> to add one of your own.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -429,7 +444,7 @@ function latestSession(athleteId: string) {
 }
 
 /* ----------------------------------------------------------------- new ----- */
-function NewAthlete({ coachUserId, onCreated }: { coachUserId: string; onCreated: () => void }) {
+function NewAthlete({ coachUserId, onCreated }: { coachUserId: string; onCreated: (newId?: string) => void }) {
   const [first, setFirst] = useState("");
   const [last, setLast] = useState("");
   const [sex, setSex] = useState<Sex>("female");
@@ -481,7 +496,7 @@ function NewAthlete({ coachUserId, onCreated }: { coachUserId: string; onCreated
     setBusy(false);
     if (res.ok) {
       setMsg({ ok: true, text: `${name} is set up. Hand them ID “${id.trim().toUpperCase()}” and password “${password}”. They can log in now.` });
-      onCreated();
+      onCreated(id.trim().toUpperCase());
     } else {
       setMsg({ ok: false, text: res.error ?? "Could not create the account." });
     }

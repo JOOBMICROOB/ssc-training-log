@@ -347,7 +347,7 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
       )}
       {heading === "dashboard" && sub === "exercises" && <ExercisesView />}
       {heading === "dashboard" && sub === "shop" && <ShopView coachId={myCoach} />}
-      {heading === "program" && selected && !canEditSelected && (
+      {heading === "program" && sub !== "athlete" && selected && !canEditSelected && (
         <div className="cc-page">
           <div className="cc-panel cc-corner" style={{ position: "relative", padding: 28, maxWidth: 520 }}>
             <i />
@@ -388,9 +388,10 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
           onOpenBuilder={() => { setSub("program"); setProgramView("build"); }}
         />
       )}
-      {heading === "program" && sub === "athlete" && selected && canEditSelected && (
+      {heading === "program" && sub === "athlete" && selected && (
         <AthleteProfileView
           client={selected}
+          canEdit={canEditSelected}
           coachUserId={session.userId}
           newSignal={newAthleteSignal}
           roster={myAthletes}
