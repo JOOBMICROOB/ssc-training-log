@@ -188,7 +188,7 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
     </div>`;
   const loadRow = `<div style="display:flex;align-items:center;gap:5px;">
       ${step("−", `data-dec="${key}"`)}
-      <input data-wi="${key}" ${isFinite(capKg) ? `data-fixed="${capKg}"` : ""} ${isFinite(minKg) ? `data-fixmin="${minKg}"` : ""} ${ro} inputmode="decimal" placeholder="${st.targetLoad ? `${st.targetLoad} kg` : st.targetSuggest ? `${st.targetSuggest} kg` : "kg"}" value="${val}" data-seed="${seed}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 15px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;${inStyle}">
+      <input data-wi="${key}" ${isFinite(capKg) ? `data-fixed="${capKg}"` : ""} ${isFinite(minKg) ? `data-fixmin="${minKg}"` : ""} ${ro} inputmode="decimal" enterkeyhint="next" placeholder="${st.targetLoad ? `${st.targetLoad} kg` : st.targetSuggest ? `${st.targetSuggest} kg` : "kg"}" value="${val}" data-seed="${seed}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 15px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;${inStyle}">
       ${step("+", `data-inc="${key}"`)}
       <button data-same="${key}" ${dis} title="Same load as the set before" style="flex:0 0 auto;width:36px;height:36px;border:1px solid rgba(29,31,32,.14);border-radius:9px;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:13px;cursor:pointer;">↺</button>
     </div>`;
@@ -873,6 +873,22 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
         }
       }
     }
+  });
+  // Enter / the keyboard's "Next" on a weight field logs it (via the blur→change
+  // above) and jumps straight to the NEXT SET of the same exercise — never the next
+  // exercise — so logging set after set is one keypress. Only on Enter, so tapping
+  // away to the RPE button or another field is never hijacked. Stops on the last set.
+  body?.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const t = e.target as HTMLInputElement;
+    if (isLocked() || !t.matches("[data-wi]")) return;
+    e.preventDefault();
+    const key = t.dataset.wi!;
+    t.blur(); // fires change → logs the weight → re-renders synchronously
+    const parts = key.split("_");
+    const si = Number(parts.pop());
+    const nextEl = body?.querySelector<HTMLInputElement>(`[data-wi="${parts.join("_")}_${si + 1}"]`);
+    if (nextEl) { nextEl.focus(); nextEl.select(); }
   });
   body?.addEventListener("blur", (e) => {
     const t = e.target as HTMLInputElement;
