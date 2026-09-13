@@ -15,6 +15,7 @@ import reneeProgram from "./reneeProgram.json";
 import liezeProgram from "./liezeProgram.json";
 import stefProgram from "./stefProgram.json";
 import zitaProgram from "./zitaProgram.json";
+import merelProgram from "./merelProgram.json";
 
 export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure" | "seconds" | "backoff" | "linkpct";
 
@@ -226,6 +227,10 @@ function seedProgram(athleteId: string): Program {
   if (athleteId === "LV222") return structuredClone(liezeProgram) as Program;
   if (athleteId === "SB428") return structuredClone(stefProgram) as Program;
   if (athleteId === "ZITA") return structuredClone(zitaProgram) as Program;
+  // Merel's Block 1 (Week 1, 5 sessions) — a coach draft ready to publish. Matched
+  // case-insensitively and stamped with her real code so it loads whatever the
+  // profile stores ("Merel" / "MEREL").
+  if (athleteId.toUpperCase() === "MEREL") return { ...(structuredClone(merelProgram) as Program), athleteId };
   // Everyone else: a blank Week 1 dated to THIS week, so the moment the coach
   // adds sessions they land on the calendar / grid for that athlete. It only
   // counts as "planned" once it has real training days (no dummy content).
@@ -327,7 +332,7 @@ export function loadProgram(athleteId: string): Program {
       const parsed = JSON.parse(raw) as Program;
       // A blank cached program (e.g. from opening a seeded athlete on an older
       // build) must not shadow their real backfilled block — fall back to the seed.
-      if (!programHasTraining(parsed) && (athleteId === "RS1203" || athleteId === "LV222" || athleteId === "SB428" || athleteId === "ZITA")) {
+      if (!programHasTraining(parsed) && (athleteId === "RS1203" || athleteId === "LV222" || athleteId === "SB428" || athleteId === "ZITA" || athleteId.toUpperCase() === "MEREL")) {
         const seed = seedProgram(athleteId);
         saveProgramLocalOnly(seed);
         return seed;
@@ -358,6 +363,7 @@ export function peekProgram(athleteId: string): Program | null {
   if (athleteId === "LV222") return structuredClone(liezeProgram) as Program;
   if (athleteId === "SB428") return structuredClone(stefProgram) as Program;
   if (athleteId === "ZITA") return structuredClone(zitaProgram) as Program;
+  if (athleteId.toUpperCase() === "MEREL") return { ...(structuredClone(merelProgram) as Program), athleteId };
   return null;
 }
 // A save hook lets the cloud-sync layer mirror every real edit to Supabase
