@@ -765,6 +765,24 @@ export function getMonthFor(athleteId: string, year: number, month: number, toda
 function prelogFixedLoads(logs: ProgramLogs, week: WeekTemplate, weekStart: string): ProgramLogs {
   const sw = new Date(`${weekStart}T00:00:00`).getDay();
   const out: ProgramLogs = { ...logs };
+  // First, wipe stale COACH PREFILLS (prefill:true, never confirmed by the athlete)
+  // on every date this week covers. Without this, a week that reuses dates — a new
+  // week started mid-block, or the same week re-published with edited loads — would
+  // keep the previous week's prefilled loads (so a fresh week shows "already logged"
+  // and edited fixed loads never update). Real athlete logs (confirmed weights,
+  // fails, done, reps, held seconds, notes) are prefill:false, so they're untouched.
+  for (let i = 0; i < 7; i++) {
+    const date = addDays(weekStart, i);
+    const day = out[date];
+    if (!day?.sets) continue;
+    let changed = false;
+    const sets: Record<string, SetLog> = {};
+    for (const [k, s] of Object.entries(day.sets)) {
+      if (s?.prefill === true) { changed = true; continue; } // drop untouched prefill
+      sets[k] = s;
+    }
+    if (changed) out[date] = { ...day, sets };
+  }
   week.forEach((day, wd) => {
     if (day.rest) return;
     const date = addDays(weekStart, (wd - sw + 7) % 7);
