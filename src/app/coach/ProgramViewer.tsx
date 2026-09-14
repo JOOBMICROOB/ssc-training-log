@@ -60,13 +60,29 @@ const SYNC_META: Record<SyncStatus, { label: string; color: string; bg: string }
   stale: { label: "⚠ Aangepast — publiceer opnieuw", color: "#b26a00", bg: "rgba(217,164,65,.20)" },
   unsent: { label: "Nog niet gepubliceerd", color: "var(--muted)", bg: "color-mix(in srgb, var(--muted) 14%, transparent)" },
 };
+// Canonical, athlete-facing projection of a week's template so the comparison sees
+// only what actually reaches the athlete (exercise, sets, reps, target load/%, RPE,
+// scheme flags) — not incidental format drift (fields added to the model over time,
+// undefined-vs-absent, number-vs-string). This keeps already-published weeks GREEN
+// and only flags a REAL content change made since the last publish.
+type CanonSet = Record<string, string | number | boolean | null>;
+const canonSet = (s: { targetReps?: string; targetRpe?: string; targetLoad?: string; targetPercent?: string; targetSuggest?: string; fixedLoad?: boolean; backoffPct?: number; linkPct?: number; linkEi?: number; percentOfMax?: boolean; toFailure?: boolean; amrap?: boolean; timed?: boolean; holdSeconds?: string; requiresRpe?: boolean }): CanonSet => ({
+  r: String(s.targetReps ?? ""), rpe: String(s.targetRpe ?? ""), load: String(s.targetLoad ?? ""),
+  pct: String(s.targetPercent ?? ""), sug: String(s.targetSuggest ?? ""), hs: String(s.holdSeconds ?? ""),
+  bo: s.backoffPct ?? null, lp: s.linkPct ?? null, le: s.linkEi ?? null,
+  fixed: !!s.fixedLoad, pm: !!s.percentOfMax, tf: !!s.toFailure, am: !!s.amrap, tm: !!s.timed, req: !!s.requiresRpe,
+});
+const canonEx = (e: { name: string; sets: Parameters<typeof canonSet>[0][] }) => ({ n: e.name.trim().toLowerCase(), s: e.sets.map(canonSet) });
+const canonWeek = (t: ReturnType<typeof toTemplate>): string =>
+  JSON.stringify(t.map((d) => (d.rest ? { rest: true } : { ex: d.exercises.map(canonEx), alt: d.alt?.map(canonEx) ?? null, note: (d.note ?? "").trim() })));
+
 function weekSyncStatus(athleteId: string, week: Week): SyncStatus | null {
   if (!week.startDate) return null;
   const hasTraining = week.days.some((d) => !d.rest && d.exercises.length > 0);
   if (!hasTraining) return null; // rest-only / empty week — nothing to confirm
   const published = getDashboard(athleteId).publishedWeeks?.[week.startDate]?.week;
   if (!published) return "unsent";
-  return JSON.stringify(toTemplate(week)) === JSON.stringify(published) ? "synced" : "stale";
+  return canonWeek(toTemplate(week)) === canonWeek(published) ? "synced" : "stale";
 }
 
 function buildDays(week: Week, live: boolean, athleteId: string, prevWeek: Week | null): ViewDay[] {
