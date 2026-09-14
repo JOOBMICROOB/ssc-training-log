@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { loadProgram, weekOrder, dayDate, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, type Week, type ExRow, type DayDiff } from "./coachProgram";
+import { loadProgram, weekOrder, dayDate, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, toTemplate, type Week, type ExRow, type DayDiff } from "./coachProgram";
 import { DiffLine } from "./DiffLine";
 import { weekState, WEEK_STATE_LABEL } from "./coachStats";
-import { getSessionFor } from "../../lib/data/athleteData";
+import { getSessionFor, getDashboard } from "../../lib/data/athleteData";
 import { epleyE1rm } from "../../lib/calc/epley";
 import { fmtKg } from "../../lib/calc/records";
 import { Avatar } from "./Avatar";
@@ -47,6 +47,26 @@ function rowTarget(r: ExRow): string {
   if (r.intensity === "failure") return `to failure${sug}`;
   if (r.intensity === "percent") return `${r.value}%${sug}`;
   return (r.value ? `RPE${r.value}` : "") + sug;
+}
+
+// Confirmation that what the coach built for a week is exactly what the athlete
+// has in their app: compare the built week's template against the athlete's live
+// published week (the coach console keeps every live athlete's real app_state in
+// sync). "synced" = identical to their app; "stale" = edited since last publish
+// (needs a re-publish); "unsent" = never published to them yet.
+type SyncStatus = "synced" | "stale" | "unsent";
+const SYNC_META: Record<SyncStatus, { label: string; color: string; bg: string }> = {
+  synced: { label: "✓ In sync met app", color: "var(--good, #2e7d5a)", bg: "color-mix(in srgb, var(--good, #4f9d69) 16%, transparent)" },
+  stale: { label: "⚠ Aangepast — publiceer opnieuw", color: "#b26a00", bg: "rgba(217,164,65,.20)" },
+  unsent: { label: "Nog niet gepubliceerd", color: "var(--muted)", bg: "color-mix(in srgb, var(--muted) 14%, transparent)" },
+};
+function weekSyncStatus(athleteId: string, week: Week): SyncStatus | null {
+  if (!week.startDate) return null;
+  const hasTraining = week.days.some((d) => !d.rest && d.exercises.length > 0);
+  if (!hasTraining) return null; // rest-only / empty week — nothing to confirm
+  const published = getDashboard(athleteId).publishedWeeks?.[week.startDate]?.week;
+  if (!published) return "unsent";
+  return JSON.stringify(toTemplate(week)) === JSON.stringify(published) ? "synced" : "stale";
 }
 
 function buildDays(week: Week, live: boolean, athleteId: string, prevWeek: Week | null): ViewDay[] {
@@ -173,6 +193,7 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
   const state = weekState(athleteId, week, live);
   const totalChanges = days.reduce((s, dv) => s + dv.diff.count, 0);
   const todayIso = localIso(new Date());
+  const sync = live ? weekSyncStatus(athleteId, week) : null;
 
   return (
     <div className={`cc-wk-block${current ? " cc-wk-current" : ""}${cols ? " cc-wk-block-col" : ""}`}>
@@ -180,6 +201,12 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
         <div className="cc-wk-id">
           <div className="cc-wk-title">{week.name}
             {current && <span className="cc-now-badge" style={{ marginLeft: 8 }}><span className="cc-now-dot" style={{ boxShadow: "none" }} />ON NOW</span>}
+            {sync && (
+              <span
+                title={sync === "synced" ? "Wat je hier ziet komt exact overeen met wat de atleet in hun app heeft." : sync === "stale" ? "Je hebt deze week aangepast sinds de laatste publicatie — publiceer opnieuw zodat de atleet het ook ziet." : "Deze week staat nog niet in de app van de atleet — publiceer om te versturen."}
+                style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 999, font: "700 9.5px/1.4 var(--font-body)", letterSpacing: ".02em", color: SYNC_META[sync].color, background: SYNC_META[sync].bg, whiteSpace: "nowrap" }}
+              >{SYNC_META[sync].label}</span>
+            )}
           </div>
           <div className="cc-wk-dates">{fmtRange(week.startDate)} · <span className={`cc-wk-status cc-st-${state}`}>{WEEK_STATE_LABEL[state]}</span>
             {prevWeek && <span className={`cc-diff-count${totalChanges ? "" : " cc-diff-count-zero"}`} style={{ marginLeft: 8 }}>{totalChanges ? `${totalChanges} change${totalChanges === 1 ? "" : "s"} vs ${prevWeek.name}` : `no changes vs ${prevWeek.name}`}</span>}
