@@ -65,7 +65,7 @@ function prescription(ex: SessionExercise): string {
   if (!s.length) return "";
   // AMRAP: no rep target — show the load + goal, not a "× reps".
   if (s[0].amrap) {
-    const goal = `${s[0].targetLoad ? `${s[0].targetLoad} kg` : ""}${s[0].targetRpe ? ` @ RPE${s[0].targetRpe}` : ""}`.trim();
+    const goal = [s[0].targetLoad ? `${s[0].targetLoad} kg` : "", s[0].targetRpe ? `RPE${s[0].targetRpe}` : ""].filter(Boolean).join(" @ ");
     return `${s.length} × AMRAP${goal ? `  ·  ${goal}` : ""}`;
   }
   const t = targetShort(s[0]);
@@ -138,11 +138,12 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   if (st.amrap) {
     const on = st.repsDone != null;
     const repsVal = st.repsDone != null ? String(st.repsDone) : "";
-    const goal = `${st.targetLoad ? `${st.targetLoad} kg` : "fixed load"}${st.targetRpe ? ` @ RPE ${st.targetRpe}` : ""}`;
+    // Load is optional — a bodyweight AMRAP (e.g. pull-ups) just has a goal RPE.
+    const goal = [st.targetLoad ? `${st.targetLoad} kg` : "", st.targetRpe ? `RPE ${st.targetRpe}` : ""].filter(Boolean).join(" @ ");
     return `<div style="margin-left:12px;padding:7px 10px 8px 12px;${on ? "border-left:2px solid #4f9d69;background:rgba(79,157,105,.05);" : "border-left:2px solid rgba(var(--a-accent-rgb),.45);"}">
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="flex:0 0 auto;width:44px;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">SET ${si + 1}</span>
-        <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">AMRAP · ${goal}${on ? ` · <span style="color:#2e7d5a;font-weight:700;">${st.repsDone} reps ✓</span>` : ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">as many reps as possible</span>'}</span>
+        <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">AMRAP${goal ? ` · ${goal}` : ""}${on ? ` · <span style="color:#2e7d5a;font-weight:700;">${st.repsDone} reps ✓</span>` : ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">as many reps as possible</span>'}</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
         <input data-reps="${key}" ${ro} inputmode="numeric" placeholder="reps you hit" value="${repsVal}" style="flex:1 1 0;min-width:0;height:40px;padding:0 10px;text-align:center;border-radius:9px;font:600 16px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;border:1px solid ${on ? "#4f9d69" : "rgba(var(--a-accent-rgb),.45)"};background:${on ? "rgba(79,157,105,.10)" : "rgba(var(--a-accent-rgb),.08)"};color:rgb(var(--a-navy-rgb));">

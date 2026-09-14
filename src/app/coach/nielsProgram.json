@@ -1,0 +1,478 @@
+{
+  "athleteId": "NIELSV",
+  "seedVersion": 1,
+  "currentWeekId": "wk_niels_1",
+  "mesocycles": [
+    {
+      "id": "meso_niels",
+      "name": "BLOCK 1",
+      "color": "#5980a6",
+      "weeks": [
+        {
+          "id": "wk_niels_1",
+          "name": "WEEK 1",
+          "status": "draft",
+          "startDate": "2026-09-14",
+          "days": [
+            {
+              "id": "day_niels_1",
+              "weekday": 1,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_n1_0",
+                  "name": "Comp squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "6,5",
+                  "scheme": "Top set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_n1_1",
+                  "name": "Comp squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "3",
+                  "intensity": "rpe",
+                  "value": "6,5",
+                  "scheme": "Working set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_n1_2",
+                  "name": "Belt squat",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n1_3",
+                  "name": "Glute hyper extension",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n1_4",
+                  "name": "Leg extension",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n1_5",
+                  "name": "Seated row unilateral",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n1_6",
+                  "name": "Abs of choice",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_niels_2",
+              "weekday": 2,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_n2_0",
+                  "name": "2CT paused benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "2",
+                  "intensity": "rpe",
+                  "value": "6,5",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n2_1",
+                  "name": "Paused benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n2_2",
+                  "name": "Chest press of choice",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n2_3",
+                  "name": "Unilateral pulldown",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "8-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n2_4",
+                  "name": "Cable lateral raises",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n2_5",
+                  "name": "Bicep curls of choice",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n2_6",
+                  "name": "DB rolling tricep extension",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Working set",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_niels_3",
+              "weekday": 3,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_n3_0",
+                  "name": "Comp deadlift",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "deadlift"
+                },
+                {
+                  "id": "ex_n3_1",
+                  "name": "Stiff legged deadlift blocks",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "6",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n3_2",
+                  "name": "Larsen benchpress long paused",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n3_3",
+                  "name": "Bulgarian split squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "7",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n3_4",
+                  "name": "Hamstring curls",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n3_5",
+                  "name": "External rotations shoulder",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "12-15",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n3_6",
+                  "name": "Calve raises",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_niels_4",
+              "weekday": 4,
+              "rest": true,
+              "exercises": []
+            },
+            {
+              "id": "day_niels_5",
+              "weekday": 5,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_n5_0",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "6,5",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_n5_1",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "3",
+                  "intensity": "rpe",
+                  "value": "6,5",
+                  "scheme": "Working set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_n5_2",
+                  "name": "Pull ups",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "AMRAP",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Working set",
+                  "mainLift": null,
+                  "goalRpe": "7"
+                },
+                {
+                  "id": "ex_n5_3",
+                  "name": "Chest pressaround",
+                  "cue": "",
+                  "video": "https://www.youtube.com/watch?v=4UZM4hyibmg",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n5_4",
+                  "name": "Upright row",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "12-15",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n5_5",
+                  "name": "Seated row of choice",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n5_6",
+                  "name": "cable bicep curl",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_niels_6",
+              "weekday": 6,
+              "rest": false,
+              "exercises": [
+                {
+                  "id": "ex_n6_0",
+                  "name": "Comp squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_n6_1",
+                  "name": "Comp squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "5",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": "squat"
+                },
+                {
+                  "id": "ex_n6_2",
+                  "name": "Close grip benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "7",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n6_3",
+                  "name": "Arnold presses",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "8",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n6_4",
+                  "name": "Abductor machine",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_n6_5",
+                  "name": "Triceps of choice",
+                  "cue": "",
+                  "video": "",
+                  "sets": 2,
+                  "reps": "8-10",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Accessory",
+                  "mainLift": null
+                }
+              ]
+            },
+            {
+              "id": "day_niels_0",
+              "weekday": 0,
+              "rest": true,
+              "exercises": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
