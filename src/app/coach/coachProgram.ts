@@ -40,7 +40,7 @@ export type ExRow = {
 export type Day = { id: string; weekday: number; rest: boolean; exercises: ExRow[]; alt?: ExRow[]; note?: string };
 export type Week = { id: string; name: string; status: "draft" | "published"; days: Day[]; startDate?: string; hidden?: boolean };
 export type Mesocycle = { id: string; name: string; color: string; weeks: Week[]; hidden?: boolean };
-export type Program = { athleteId: string; mesocycles: Mesocycle[]; currentWeekId?: string };
+export type Program = { athleteId: string; mesocycles: Mesocycle[]; currentWeekId?: string; seedVersion?: number };
 
 export type ExGroup = "squat" | "bench" | "deadlift" | "pull" | "accessory";
 export type DbExercise = { id: string; name: string; group: ExGroup; video?: string };
@@ -330,6 +330,13 @@ export function loadProgram(athleteId: string): Program {
     const raw = localStorage.getItem(progKey(athleteId));
     if (raw) {
       const parsed = JSON.parse(raw) as Program;
+      // Merel's program was revised — force the newer seed to replace a cached older
+      // one (v1) exactly once, so opening her builder before the update doesn't shadow it.
+      if (athleteId.toUpperCase() === "MEREL" && (parsed.seedVersion ?? 0) < 2) {
+        const fresh = seedProgram(athleteId);
+        saveProgramLocalOnly(fresh);
+        return fresh;
+      }
       // A blank cached program (e.g. from opening a seeded athlete on an older
       // build) must not shadow their real backfilled block — fall back to the seed.
       if (!programHasTraining(parsed) && (athleteId === "RS1203" || athleteId === "LV222" || athleteId === "SB428" || athleteId === "ZITA" || athleteId.toUpperCase() === "MEREL")) {

@@ -1,6 +1,7 @@
 {
   "athleteId": "MEREL",
-  "currentWeekId": "wk_merel_1",
+  "seedVersion": 2,
+  "currentWeekId": "wk_merel_v2",
   "mesocycles": [
     {
       "id": "meso_merel",
@@ -8,54 +9,54 @@
       "color": "#5980a6",
       "weeks": [
         {
-          "id": "wk_merel_1",
+          "id": "wk_merel_v2",
           "name": "WEEK 1",
           "status": "draft",
           "startDate": "2026-09-14",
           "days": [
             {
-              "id": "day_merel_1",
+              "id": "day_merel2_1",
               "weekday": 1,
               "rest": false,
               "exercises": [
                 {
-                  "id": "ex_m1_0",
+                  "id": "ex_m21_0",
                   "name": "2CT paused benchpress",
                   "cue": "",
                   "video": "",
-                  "sets": 1,
-                  "reps": "1",
+                  "sets": 2,
+                  "reps": "2",
                   "intensity": "rpe",
-                  "value": "9",
-                  "scheme": "Top set",
+                  "value": "6",
+                  "scheme": "Working set",
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m1_1",
+                  "id": "ex_m21_1",
                   "name": "Comp benchpress",
                   "cue": "",
                   "video": "",
-                  "sets": 4,
-                  "reps": "4",
+                  "sets": 2,
+                  "reps": "6",
                   "intensity": "rpe",
-                  "value": "8-9",
+                  "value": "6",
                   "scheme": "Working set",
                   "mainLift": "bench"
                 },
                 {
-                  "id": "ex_m1_2",
+                  "id": "ex_m21_2",
                   "name": "Dips paused",
                   "cue": "",
                   "video": "",
                   "sets": 3,
-                  "reps": "6-8",
+                  "reps": "6",
                   "intensity": "rpe",
-                  "value": "8",
+                  "value": "5",
                   "scheme": "Working set",
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m1_3",
+                  "id": "ex_m21_3",
                   "name": "Lateral raises",
                   "cue": "",
                   "video": "",
@@ -67,7 +68,7 @@
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m1_4",
+                  "id": "ex_m21_4",
                   "name": "Chest flies",
                   "cue": "",
                   "video": "",
@@ -79,7 +80,7 @@
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m1_5",
+                  "id": "ex_m21_5",
                   "name": "Tricep single arm pushdown (d-handle)",
                   "cue": "",
                   "video": "",
@@ -93,72 +94,49 @@
               ]
             },
             {
-              "id": "day_merel_2",
+              "id": "day_merel2_2",
               "weekday": 2,
               "rest": false,
               "exercises": [
                 {
-                  "id": "ex_m2_0",
-                  "name": "2CT paused squats",
+                  "id": "ex_m22_0",
+                  "name": "Comp squats",
                   "cue": "",
                   "video": "",
                   "sets": 1,
                   "reps": "1",
                   "intensity": "rpe",
-                  "value": "9",
+                  "value": "6",
                   "scheme": "Top set",
-                  "mainLift": null
-                },
-                {
-                  "id": "ex_m2_1",
-                  "name": "Comp squats",
-                  "cue": "",
-                  "video": "",
-                  "sets": 1,
-                  "reps": "4",
-                  "intensity": "rpe",
-                  "value": "7",
-                  "scheme": "Working set",
                   "mainLift": "squat"
                 },
                 {
-                  "id": "ex_m2_2",
+                  "id": "ex_m22_1",
                   "name": "Comp squats",
                   "cue": "",
                   "video": "",
-                  "sets": 1,
-                  "reps": "4",
+                  "sets": 4,
+                  "reps": "5",
                   "intensity": "rpe",
-                  "value": "8",
+                  "value": "6",
                   "scheme": "Working set",
-                  "mainLift": "squat"
+                  "mainLift": "squat",
+                  "suggest": "90"
                 },
                 {
-                  "id": "ex_m2_3",
-                  "name": "Comp squats",
-                  "cue": "",
-                  "video": "",
-                  "sets": 1,
-                  "reps": "4",
-                  "intensity": "rpe",
-                  "value": "9",
-                  "scheme": "Working set",
-                  "mainLift": "squat"
-                },
-                {
-                  "id": "ex_m2_4",
+                  "id": "ex_m22_2",
                   "name": "Legpress",
                   "cue": "",
                   "video": "",
                   "sets": 3,
-                  "reps": "8-10",
+                  "reps": "10-12",
                   "intensity": "rpe",
-                  "value": "8",
+                  "value": "6",
                   "scheme": "Working set",
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m2_5",
+                  "id": "ex_m22_3",
                   "name": "Adduction of choice",
                   "cue": "",
                   "video": "",
@@ -170,7 +148,7 @@
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m2_6",
+                  "id": "ex_m22_4",
                   "name": "Leg extension",
                   "cue": "",
                   "video": "",
@@ -182,7 +160,7 @@
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m2_7",
+                  "id": "ex_m22_5",
                   "name": "Hollow hold plank",
                   "cue": "",
                   "video": "",
@@ -196,60 +174,36 @@
               ]
             },
             {
-              "id": "day_merel_3",
+              "id": "day_merel2_3",
               "weekday": 3,
               "rest": false,
               "exercises": [
                 {
-                  "id": "ex_m3_0",
-                  "name": "Deficit deadlift",
+                  "id": "ex_m23_0",
+                  "name": "Block pulls",
                   "cue": "",
                   "video": "",
-                  "sets": 1,
-                  "reps": "4",
+                  "sets": 3,
+                  "reps": "6",
                   "intensity": "rpe",
-                  "value": "7",
+                  "value": "6",
                   "scheme": "Working set",
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m3_1",
-                  "name": "Deficit deadlift",
-                  "cue": "",
-                  "video": "",
-                  "sets": 1,
-                  "reps": "4",
-                  "intensity": "rpe",
-                  "value": "7,5",
-                  "scheme": "Working set",
-                  "mainLift": null
-                },
-                {
-                  "id": "ex_m3_2",
-                  "name": "Deficit deadlift",
-                  "cue": "",
-                  "video": "",
-                  "sets": 1,
-                  "reps": "4",
-                  "intensity": "rpe",
-                  "value": "8",
-                  "scheme": "Working set",
-                  "mainLift": null
-                },
-                {
-                  "id": "ex_m3_3",
+                  "id": "ex_m23_1",
                   "name": "Larsen benchpress paused",
                   "cue": "",
                   "video": "",
-                  "sets": 4,
-                  "reps": "2",
+                  "sets": 3,
+                  "reps": "5",
                   "intensity": "rpe",
-                  "value": "7-8",
+                  "value": "6",
                   "scheme": "Working set",
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m3_4",
+                  "id": "ex_m23_2",
                   "name": "Feet up db benchpress",
                   "cue": "",
                   "video": "",
@@ -261,7 +215,7 @@
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m3_5",
+                  "id": "ex_m23_3",
                   "name": "Lat pulldown (grip of choice)",
                   "cue": "",
                   "video": "",
@@ -273,7 +227,7 @@
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m3_6",
+                  "id": "ex_m23_4",
                   "name": "Seated row machine",
                   "cue": "",
                   "video": "",
@@ -285,7 +239,7 @@
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m3_7",
+                  "id": "ex_m23_5",
                   "name": "Cable high row",
                   "cue": "",
                   "video": "",
@@ -297,7 +251,7 @@
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m3_8",
+                  "id": "ex_m23_6",
                   "name": "Curls of choice",
                   "cue": "",
                   "video": "",
@@ -311,84 +265,84 @@
               ]
             },
             {
-              "id": "day_merel_4",
+              "id": "day_merel2_4",
               "weekday": 4,
               "rest": true,
               "exercises": []
             },
             {
-              "id": "day_merel_5",
+              "id": "day_merel2_5",
               "weekday": 5,
               "rest": true,
               "exercises": []
             },
             {
-              "id": "day_merel_6",
+              "id": "day_merel2_6",
               "weekday": 6,
               "rest": false,
               "exercises": [
                 {
-                  "id": "ex_m6_0",
-                  "name": "Tempo squats",
-                  "cue": "Tempo 310",
-                  "video": "",
-                  "sets": 3,
-                  "reps": "3",
-                  "intensity": "rpe",
-                  "value": "",
-                  "scheme": "Accessory",
-                  "mainLift": null
-                },
-                {
-                  "id": "ex_m6_1",
-                  "name": "Pendulum squats/true squat",
+                  "id": "ex_m26_0",
+                  "name": "Paused squats",
                   "cue": "",
                   "video": "",
                   "sets": 3,
-                  "reps": "8-12",
+                  "reps": "4",
                   "intensity": "rpe",
-                  "value": "8",
+                  "value": "6",
                   "scheme": "Working set",
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m6_2",
+                  "id": "ex_m26_1",
+                  "name": "Belt squats",
+                  "cue": "",
+                  "video": "",
+                  "sets": 3,
+                  "reps": "10-12",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Working set",
+                  "mainLift": null
+                },
+                {
+                  "id": "ex_m26_2",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 1,
+                  "reps": "1",
+                  "intensity": "rpe",
+                  "value": "6",
+                  "scheme": "Top set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_m26_3",
+                  "name": "Comp benchpress",
+                  "cue": "",
+                  "video": "",
+                  "sets": 4,
+                  "reps": "4",
+                  "intensity": "rpe",
+                  "value": "",
+                  "scheme": "Working set",
+                  "mainLift": "bench"
+                },
+                {
+                  "id": "ex_m26_4",
                   "name": "Machine chest press of choice",
                   "cue": "",
                   "video": "",
                   "sets": 3,
                   "reps": "8-10",
                   "intensity": "rpe",
-                  "value": "8",
+                  "value": "7",
                   "scheme": "Working set",
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m6_3",
-                  "name": "Seated row of choice",
-                  "cue": "",
-                  "video": "",
-                  "sets": 3,
-                  "reps": "10-12",
-                  "intensity": "rpe",
-                  "value": "8",
-                  "scheme": "Working set",
-                  "mainLift": null
-                },
-                {
-                  "id": "ex_m6_4",
-                  "name": "Unilateral row",
-                  "cue": "",
-                  "video": "",
-                  "sets": 3,
-                  "reps": "10-12",
-                  "intensity": "rpe",
-                  "value": "",
-                  "scheme": "Accessory",
-                  "mainLift": null
-                },
-                {
-                  "id": "ex_m6_5",
+                  "id": "ex_m26_5",
                   "name": "Pulldowns of choice",
                   "cue": "",
                   "video": "",
@@ -400,7 +354,7 @@
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m6_6",
+                  "id": "ex_m26_6",
                   "name": "Abductie machine",
                   "cue": "",
                   "video": "",
@@ -412,7 +366,7 @@
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m6_7",
+                  "id": "ex_m26_7",
                   "name": "Side planks",
                   "cue": "",
                   "video": "",
@@ -426,76 +380,64 @@
               ]
             },
             {
-              "id": "day_merel_0",
+              "id": "day_merel2_0",
               "weekday": 0,
               "rest": false,
               "exercises": [
                 {
-                  "id": "ex_m0_0",
-                  "name": "2CT paused deadlift",
+                  "id": "ex_m20_0",
+                  "name": "Comp deadlifts",
                   "cue": "",
                   "video": "",
                   "sets": 1,
                   "reps": "1",
                   "intensity": "rpe",
-                  "value": "",
+                  "value": "6",
                   "scheme": "Top set",
-                  "mainLift": null
+                  "mainLift": "deadlift"
                 },
                 {
-                  "id": "ex_m0_1",
-                  "name": "RDL",
+                  "id": "ex_m20_1",
+                  "name": "Comp deadlifts",
                   "cue": "",
                   "video": "",
-                  "sets": 1,
-                  "reps": "8",
+                  "sets": 2,
+                  "reps": "4",
                   "intensity": "rpe",
-                  "value": "7",
+                  "value": "5,5",
                   "scheme": "Working set",
-                  "mainLift": null
+                  "mainLift": "deadlift"
                 },
                 {
-                  "id": "ex_m0_2",
-                  "name": "RDL",
+                  "id": "ex_m20_2",
+                  "name": "B-stance RDL",
                   "cue": "",
                   "video": "",
-                  "sets": 1,
-                  "reps": "8",
+                  "sets": 2,
+                  "reps": "8-10",
                   "intensity": "rpe",
                   "value": "8",
                   "scheme": "Working set",
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m0_3",
-                  "name": "Comp benchpress",
-                  "cue": "",
-                  "video": "",
-                  "sets": 1,
-                  "reps": "2",
-                  "intensity": "rpe",
-                  "value": "9",
-                  "scheme": "Working set",
-                  "mainLift": "bench"
-                },
-                {
-                  "id": "ex_m0_4",
-                  "name": "Comp benchpress",
+                  "id": "ex_m20_3",
+                  "name": "Seated row of choice",
                   "cue": "",
                   "video": "",
                   "sets": 3,
-                  "reps": "5",
+                  "reps": "10-12",
                   "intensity": "rpe",
-                  "value": "",
+                  "value": "8",
                   "scheme": "Working set",
-                  "mainLift": "bench"
+                  "mainLift": null
                 },
                 {
-                  "id": "ex_m0_5",
-                  "name": "Incline chest press dumbells",
+                  "id": "ex_m20_4",
+                  "name": "Dumbell press paused",
                   "cue": "",
                   "video": "",
-                  "sets": 2,
+                  "sets": 3,
                   "reps": "8-10",
                   "intensity": "rpe",
                   "value": "6",
@@ -503,7 +445,7 @@
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m0_6",
+                  "id": "ex_m20_5",
                   "name": "Pulldown machine of choice",
                   "cue": "",
                   "video": "",
@@ -515,7 +457,7 @@
                   "mainLift": null
                 },
                 {
-                  "id": "ex_m0_7",
+                  "id": "ex_m20_6",
                   "name": "Lateral raises",
                   "cue": "",
                   "video": "",
