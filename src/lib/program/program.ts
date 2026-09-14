@@ -176,14 +176,21 @@ function isCompLift(name: string, mainLift: MainLift | null): boolean {
 
 const round2p5 = (kg: number) => Math.round(kg / 2.5) * 2.5;
 
-export function getSession(template: WeekTemplate, logs: ProgramLogs, date: string, option: "A" | "B" = "A", prevTemplate?: WeekTemplate, oneRm?: Partial<Record<MainLift, number>>, frozen?: Record<string, DayTemplate>): Session {
+export function getSession(template: WeekTemplate, logs: ProgramLogs, date: string, option: "A" | "B" = "A", prevTemplate?: WeekTemplate, oneRm?: Partial<Record<MainLift, number>>, frozen?: Record<string, DayTemplate>, todayISO?: string): Session {
   const weekday = fromISO(date).getDay();
   // Frozen day: the template the athlete actually LOGGED this date against, snapped
   // at first log. Logs are keyed by exercise position, so reading them against a
   // since-edited template misaligns them (sets vanish / attach to the wrong lift).
   // Using the frozen day keeps every logged session readable no matter how the
-  // coach later edits or re-publishes the week. Unlogged dates use the live template.
-  const day = frozen?.[date] ?? template[weekday] ?? { rest: true, exercises: [] };
+  // coach later edits or re-publishes the week.
+  //
+  // BUT only for PAST dates. Today and the future always use the live (freshly
+  // published) template: publishing a week must overwrite those days, and an
+  // athlete can't legitimately have logged a session before its full program
+  // existed — so a frozen snapshot on today/future is stale (a leftover from an
+  // earlier/overlapping week) and is ignored. `todayISO` omitted → old behaviour.
+  const useFrozen = !!frozen?.[date] && (!todayISO || date < todayISO);
+  const day = (useFrozen ? frozen![date] : template[weekday]) ?? { rest: true, exercises: [] };
   const hasAlt = !!day.alt && day.alt.length > 0;
   // Option B (the injury alternative) uses its own exercises + a "B"-prefixed log
   // key namespace, so A's logs and B's logs never collide when the athlete switches.
@@ -373,7 +380,7 @@ export function getWeek(
   const dates = weekDates(weekStartsOn, ref);
   let sIdx = 0;
   return dates.map((date) => {
-    const s = getSession(resolve ? resolve(date) : template, logs, date, "A", undefined, undefined, frozen);
+    const s = getSession(resolve ? resolve(date) : template, logs, date, "A", undefined, undefined, frozen, today);
     const label = s.rest ? "REST" : `S${++sIdx}`;
     const status: WeekDay["status"] = s.rest
       ? "rest"
@@ -481,7 +488,7 @@ export function getMonth(
   for (let i = 0; i < lead; i++) cells.push({ date: null, day: 0, status: "rest", isToday: false });
   for (let d = 1; d <= daysInMonth; d++) {
     const date = iso(new Date(year, month, d));
-    const s = getSession(resolve ? resolve(date) : template, logs, date, "A", undefined, undefined, frozen);
+    const s = getSession(resolve ? resolve(date) : template, logs, date, "A", undefined, undefined, frozen, today);
     const status: MonthCell["status"] = s.rest ? "rest" : s.finished ? "logged" : "training";
     cells.push({ date, day: d, status, isToday: date === today });
   }

@@ -420,7 +420,7 @@ export function buildDashboardModel(data: DashboardData, today = new Date()): Da
     blockStart: data.blockStart,
     today,
   });
-  const todaySession = getSession(tpl, data.programLogs ?? {}, iso(today), "A", undefined, undefined, data.loggedDays);
+  const todaySession = getSession(tpl, data.programLogs ?? {}, iso(today), "A", undefined, undefined, data.loggedDays, iso(today));
   const dueLabel = dayLabel(new Date(`${addDays(thisWeek, 6)}T00:00:00`));
   // Bodyweight tile = average of the last 4 weeks of weigh-ins.
   const bwCutoff = addDays(iso(today), -28);
@@ -647,7 +647,12 @@ function hasRealLog(dayLog: DayLog | undefined): boolean {
 
 /** Snapshot the day `date` is being logged against, if not already frozen. */
 function freezeDay(data: DashboardData, date: string): DashboardData {
-  if (data.loggedDays?.[date]) return data;
+  // Past dates keep their original snapshot (real history, never re-touched). Today
+  // and the future re-snapshot against the CURRENT template even if a stale snapshot
+  // exists — the session only trusts frozen days for the past, so a fresh publish must
+  // be captured when the athlete logs today (otherwise yesterday's leftover snapshot
+  // would resurface tomorrow and misalign today's new logs).
+  if (data.loggedDays?.[date] && date < todayISO()) return data;
   const day = templateForDate(data, date)[isoWeekday(date)];
   if (!day || day.rest) return data;
   return { ...data, loggedDays: { ...(data.loggedDays ?? {}), [date]: cloneDay(day) } };
@@ -675,7 +680,7 @@ export function getSessionFor(athleteId: string, date: string): Session {
   // The athlete's 1RM per lift (their recorded PRs) — feeds %1RM auto-loads.
   const pr = (k: string) => { const p = (d.prs ?? []).find((x) => x.key === k); const n = p ? parseFloat(p.value.replace(",", ".")) : 0; return isFinite(n) ? n : 0; };
   const oneRm = { squat: pr("squat"), bench: pr("bench"), deadlift: pr("deadlift") };
-  return getSession(templateForDate(d, date), d.programLogs ?? {}, date, d.sessionChoice?.[date] ?? "A", templateForDate(d, addDays(date, -7)), oneRm, d.loggedDays);
+  return getSession(templateForDate(d, date), d.programLogs ?? {}, date, d.sessionChoice?.[date] ?? "A", templateForDate(d, addDays(date, -7)), oneRm, d.loggedDays, todayISO());
 }
 
 // --- per-exercise bests (all-time) -------------------------------------------
@@ -929,7 +934,7 @@ export function eventsByDate(events: AthleteEvent[]): Record<string, AthleteEven
 const ONE_HOUR = 60 * 60 * 1000;
 /** Everything logged for a date's session (all sets + every required RPE). */
 function sessionComplete(data: DashboardData, logs: ProgramLogs, date: string): boolean {
-  const s = getSession(templateForDate(data, date), logs, date, data.sessionChoice?.[date] ?? "A", undefined, undefined, data.loggedDays);
+  const s = getSession(templateForDate(data, date), logs, date, data.sessionChoice?.[date] ?? "A", undefined, undefined, data.loggedDays, todayISO());
   return !s.rest && s.setCount > 0 && s.loggedCount >= s.setCount && s.rpeLogged >= s.rpeRequired;
 }
 /** Set/clear the "remind me at startedAt+1h if still incomplete" marker the server reads. */
