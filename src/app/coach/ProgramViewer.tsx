@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { loadProgram, weekOrder, dayDate, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, toTemplate, type Week, type ExRow, type DayDiff } from "./coachProgram";
 import { DiffLine } from "./DiffLine";
 import { weekState, WEEK_STATE_LABEL } from "./coachStats";
-import { getSessionFor, getDashboard } from "../../lib/data/athleteData";
+import { getSessionFor, getDashboard, loggedDatesForWeek } from "../../lib/data/athleteData";
 import { epleyE1rm } from "../../lib/calc/epley";
 import { fmtKg } from "../../lib/calc/records";
 import { Avatar } from "./Avatar";
@@ -73,8 +73,10 @@ const canonSet = (s: { targetReps?: string; targetRpe?: string; targetLoad?: str
   fixed: !!s.fixedLoad, pm: !!s.percentOfMax, tf: !!s.toFailure, am: !!s.amrap, tm: !!s.timed, req: !!s.requiresRpe,
 });
 const canonEx = (e: { name: string; sets: Parameters<typeof canonSet>[0][] }) => ({ n: e.name.trim().toLowerCase(), s: e.sets.map(canonSet) });
-const canonWeek = (t: ReturnType<typeof toTemplate>): string =>
-  JSON.stringify(t.map((d) => (d.rest ? { rest: true } : { ex: d.exercises.map(canonEx), alt: d.alt?.map(canonEx) ?? null, note: (d.note ?? "").trim() })));
+type CanonDayIn = { rest: boolean; exercises: { name: string; sets: Parameters<typeof canonSet>[0][] }[]; alt?: { name: string; sets: Parameters<typeof canonSet>[0][] }[]; note?: string };
+const REST_DAY: CanonDayIn = { rest: true, exercises: [] };
+const canonDay = (d: CanonDayIn): string =>
+  JSON.stringify(d.rest ? { rest: true } : { ex: d.exercises.map(canonEx), alt: d.alt?.map(canonEx) ?? null, note: (d.note ?? "").trim() });
 
 function weekSyncStatus(athleteId: string, week: Week): SyncStatus | null {
   if (!week.startDate) return null;
@@ -82,7 +84,18 @@ function weekSyncStatus(athleteId: string, week: Week): SyncStatus | null {
   if (!hasTraining) return null; // rest-only / empty week — nothing to confirm
   const published = getDashboard(athleteId).publishedWeeks?.[week.startDate]?.week;
   if (!published) return "unsent";
-  return canonWeek(toTemplate(week)) === canonWeek(published) ? "synced" : "stale";
+  const built = toTemplate(week);
+  // Already-logged days are intentionally preserved on publish (they keep the
+  // athlete's session), so they're excluded from the match — otherwise choosing
+  // "update upcoming days only" would forever read "edited". Compare only the
+  // still-open days: if every open day matches what the athlete has, it's in sync.
+  const logged = new Set(loggedDatesForWeek(athleteId, week.startDate));
+  for (let wd = 0; wd < 7; wd++) {
+    const date = dayDate(week, wd);
+    if (date && logged.has(date)) continue;
+    if (canonDay(built[wd] ?? REST_DAY) !== canonDay(published[wd] ?? REST_DAY)) return "stale";
+  }
+  return "synced";
 }
 
 function buildDays(week: Week, live: boolean, athleteId: string, prevWeek: Week | null): ViewDay[] {
