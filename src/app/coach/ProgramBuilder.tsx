@@ -38,7 +38,7 @@ import {
   isAmrapReps,
 } from "./coachProgram";
 import { getClients } from "./coachData";
-import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel, exerciseBests, bestLabel, clearAthleteProgram } from "../../lib/data/athleteData";
+import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel, exerciseBests, bestLabel, clearAthleteProgram, loggedDatesForWeek } from "../../lib/data/athleteData";
 import { notifyAthletePublished } from "../../lib/auth/coachAuth";
 import { DiffLine } from "./DiffLine";
 import { fmtKg } from "../../lib/calc/records";
@@ -93,6 +93,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   const [repRange, setRepRange] = useState(false);
   const [showDiff, setShowDiff] = useState(true);
   const [progress, setProgress] = useState<{ dayId: string; exId: string } | null>(null);
+  const [pubPrompt, setPubPrompt] = useState<string[] | null>(null); // logged dates when a re-publish needs the coach's choice
   const [copyFrom, setCopyFrom] = useState(false);
   const [showMaxes, setShowMaxes] = useState(false);
   const [linearFill, setLinearFill] = useState(false);
@@ -654,9 +655,11 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     setWeekId(rest[0].weeks[rest[0].weeks.length - 1].id);
   };
 
-  const publish = () => {
-    if (!confirm(`Publish ${meso.name} · ${week.name} to ${athleteName}?\n\nIt becomes their current block — visible only to them, replacing the week in their app.`)) return;
-    if (live) publishProgramWeek(athleteId, toTemplate(week), { blockStart: week.startDate, weekStartsOn: startWeekday(week) ?? undefined, blockName: meso.name, weekName: week.name });
+  // The actual write. `onlyUpcoming` keeps the athlete's already-logged days exactly
+  // as they are and applies the new plan only to the still-open days.
+  const doPublish = (onlyUpcoming: boolean) => {
+    setPubPrompt(null);
+    if (live) publishProgramWeek(athleteId, toTemplate(week), { blockStart: week.startDate, weekStartsOn: startWeekday(week) ?? undefined, blockName: meso.name, weekName: week.name, onlyUpcoming });
     // any exercises typed here should exist in the shared database (batched)
     ensureManyInDb(week.days.flatMap((d) => d.exercises.map((ex) => ({ name: ex.name, mainLift: ex.mainLift }))));
     mutProgram((p) => {
@@ -673,6 +676,15 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     alert(live ? `Published to ${athleteName} — it’s live in their app now, and only they can see it.` : `Marked published. ${athleteName} is a demo athlete, so nothing is sent.`);
   };
 
+  const publish = () => {
+    // If the athlete has already logged sessions this week, don't blow them away —
+    // let the coach choose how the changes land.
+    const logged = live && week.startDate ? loggedDatesForWeek(athleteId, week.startDate) : [];
+    if (logged.length) { setPubPrompt(logged); return; }
+    if (!confirm(`Publish ${meso.name} · ${week.name} to ${athleteName}?\n\nIt becomes their current block — visible only to them, replacing the week in their app.`)) return;
+    doPublish(false);
+  };
+
   // Publish every dated, training-bearing week of the block at once — each week
   // lands on its own start date so the whole block rolls out in one action.
   const publishBlock = () => {
@@ -683,8 +695,9 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     }
     if (!confirm(`Publish all ${weeks.length} week(s) of ${meso.name} to ${athleteName}?\n\nEach week goes live on its own start date.`)) return;
     if (live) {
+      // Bulk publish always preserves already-logged days (the recommended, safe path).
       for (const w of weeks) {
-        publishProgramWeek(athleteId, toTemplate(w), { blockStart: w.startDate, weekStartsOn: startWeekday(w) ?? undefined, blockName: meso.name, weekName: w.name });
+        publishProgramWeek(athleteId, toTemplate(w), { blockStart: w.startDate, weekStartsOn: startWeekday(w) ?? undefined, blockName: meso.name, weekName: w.name, onlyUpcoming: true });
       }
     }
     ensureManyInDb(weeks.flatMap((w) => w.days.flatMap((d) => d.exercises.map((ex) => ({ name: ex.name, mainLift: ex.mainLift })))));
@@ -1354,6 +1367,32 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
 
       {copyFrom && (
         <CopyWeekModal currentAthleteId={athleteId} onCopy={copyWeekInto} onClose={() => setCopyFrom(false)} />
+      )}
+
+      {pubPrompt && (
+        <div className="cc-modal-scrim" onClick={() => setPubPrompt(null)}>
+          <div className="cc-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 470 }}>
+            <div className="cc-modal-title">This week already has logged sessions</div>
+            <div className="cc-modal-sub">
+              {athleteName} has already trained {pubPrompt.length} day{pubPrompt.length === 1 ? "" : "s"} this week
+              ({pubPrompt.map((d) => new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })).join(", ")}).
+              How should the changes be applied? Their logged data is never deleted.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
+              <button className="cc-mini cc-mini-solid" style={{ padding: "12px 14px", textAlign: "left", height: "auto", display: "block" }} onClick={() => doPublish(true)}>
+                <div style={{ font: "700 13px/1.25 var(--font-heading)", letterSpacing: ".01em" }}>Update upcoming days only<span style={{ marginLeft: 8, opacity: .85, fontWeight: 600 }}>· Recommended</span></div>
+                <div style={{ font: "400 11px/1.45 var(--font-body)", opacity: .82, marginTop: 4 }}>Days they've already logged stay exactly as they did them; only the days still to come get the new plan.</div>
+              </button>
+              <button className="cc-mini" style={{ padding: "12px 14px", textAlign: "left", height: "auto", display: "block" }} onClick={() => doPublish(false)}>
+                <div style={{ font: "700 13px/1.25 var(--font-heading)", letterSpacing: ".01em" }}>Overwrite the whole week</div>
+                <div style={{ font: "400 11px/1.45 var(--font-body)", opacity: .82, marginTop: 4 }}>Apply the new plan to every day. Their logged numbers are kept, but sessions they've already done get re-arranged to match the new plan.</div>
+              </button>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+              <button className="cc-mini" onClick={() => setPubPrompt(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

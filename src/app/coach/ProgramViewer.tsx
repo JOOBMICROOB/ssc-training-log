@@ -56,9 +56,9 @@ function rowTarget(r: ExRow): string {
 // (needs a re-publish); "unsent" = never published to them yet.
 type SyncStatus = "synced" | "stale" | "unsent";
 const SYNC_META: Record<SyncStatus, { label: string; color: string; bg: string }> = {
-  synced: { label: "✓ In sync met app", color: "var(--good, #2e7d5a)", bg: "color-mix(in srgb, var(--good, #4f9d69) 16%, transparent)" },
-  stale: { label: "⚠ Aangepast — publiceer opnieuw", color: "#b26a00", bg: "rgba(217,164,65,.20)" },
-  unsent: { label: "Nog niet gepubliceerd", color: "var(--muted)", bg: "color-mix(in srgb, var(--muted) 14%, transparent)" },
+  synced: { label: "✓ In sync with app", color: "var(--good, #2e7d5a)", bg: "color-mix(in srgb, var(--good, #4f9d69) 16%, transparent)" },
+  stale: { label: "⚠ Edited — re-publish", color: "#b26a00", bg: "rgba(217,164,65,.20)" },
+  unsent: { label: "Not published yet", color: "var(--muted)", bg: "color-mix(in srgb, var(--muted) 14%, transparent)" },
 };
 // Canonical, athlete-facing projection of a week's template so the comparison sees
 // only what actually reaches the athlete (exercise, sets, reps, target load/%, RPE,
@@ -219,7 +219,7 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
             {current && <span className="cc-now-badge" style={{ marginLeft: 8 }}><span className="cc-now-dot" style={{ boxShadow: "none" }} />ON NOW</span>}
             {sync && (
               <span
-                title={sync === "synced" ? "Wat je hier ziet komt exact overeen met wat de atleet in hun app heeft." : sync === "stale" ? "Je hebt deze week aangepast sinds de laatste publicatie — publiceer opnieuw zodat de atleet het ook ziet." : "Deze week staat nog niet in de app van de atleet — publiceer om te versturen."}
+                title={sync === "synced" ? "What you see here matches exactly what the athlete has in their app." : sync === "stale" ? "You've edited this week since it was last published — re-publish so the athlete sees it too." : "This week isn't in the athlete's app yet — publish to send it."}
                 style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 999, font: "700 9.5px/1.4 var(--font-body)", letterSpacing: ".02em", color: SYNC_META[sync].color, background: SYNC_META[sync].bg, whiteSpace: "nowrap" }}
               >{SYNC_META[sync].label}</span>
             )}

@@ -807,18 +807,42 @@ function prelogFixedLoads(logs: ProgramLogs, week: WeekTemplate, weekStart: stri
   return out;
 }
 
+/** Dates within a week's window that already hold a REAL athlete log. */
+export function loggedDatesForWeek(athleteId: string, weekStart: string): string[] {
+  const logs = getDashboard(athleteId).programLogs ?? {};
+  const out: string[] = [];
+  for (let i = 0; i < 7; i++) { const dt = addDays(weekStart, i); if (hasRealLog(logs[dt])) out.push(dt); }
+  return out;
+}
+
 export function publishProgramWeek(
   athleteId: string,
   week: WeekTemplate,
   // `blockStart` here is THIS week's start date — the date it's placed on.
-  opts: { blockStart?: string; weekStartsOn?: number; blockName?: string; weekName?: string } = {},
+  // `onlyUpcoming`: when re-publishing a week the athlete has partly logged, keep the
+  // days they already logged exactly as published and only apply the new plan to the
+  // still-open days — so nothing they've done is touched.
+  opts: { blockStart?: string; weekStartsOn?: number; blockName?: string; weekName?: string; onlyUpcoming?: boolean } = {},
 ) {
   const d = getDashboard(athleteId);
   const weekStart = opts.blockStart;
   const published = { ...(d.publishedWeeks ?? {}) };
-  if (weekStart) published[weekStart] = { week, blockName: opts.blockName, weekName: opts.weekName };
+  // Only-upcoming: for each weekday whose date already has a real log, keep the
+  // currently-published day (untouched); every other weekday gets the new plan.
+  let toStore = week;
+  if (weekStart && opts.onlyUpcoming) {
+    const oldWeek = d.publishedWeeks?.[weekStart]?.week;
+    if (oldWeek) {
+      const sw = new Date(`${weekStart}T00:00:00`).getDay();
+      toStore = week.map((newDay, wd) => {
+        const date = addDays(weekStart, (wd - sw + 7) % 7);
+        return hasRealLog((d.programLogs ?? {})[date]) ? (oldWeek[wd] ?? newDay) : newDay;
+      });
+    }
+  }
+  if (weekStart) published[weekStart] = { week: toStore, blockName: opts.blockName, weekName: opts.weekName };
   // Fixed loads are logged on publish so they show + count on both apps.
-  const programLogs = weekStart ? prelogFixedLoads(d.programLogs ?? {}, week, weekStart) : d.programLogs;
+  const programLogs = weekStart ? prelogFixedLoads(d.programLogs ?? {}, toStore, weekStart) : d.programLogs;
 
   const weekStartsOn = (opts.weekStartsOn ?? d.weekStartsOn) as Weekday;
   const keys = Object.keys(published).sort();
@@ -832,7 +856,7 @@ export function publishProgramWeek(
   save(athleteId, {
     ...d,
     publishedWeeks: published,
-    programWeek: cur?.week ?? week,
+    programWeek: cur?.week ?? toStore,
     programLogs: programLogs ?? d.programLogs,
     blockStart,
     weekStartsOn,
