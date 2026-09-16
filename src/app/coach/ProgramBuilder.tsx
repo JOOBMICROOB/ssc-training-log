@@ -1379,17 +1379,23 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
               How should the changes be applied? Their logged data is never deleted.
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
-              <button className="cc-mini cc-mini-solid" style={{ padding: "12px 14px", textAlign: "left", height: "auto", display: "block" }} onClick={() => doPublish(true)}>
-                <div style={{ font: "700 13px/1.25 var(--font-heading)", letterSpacing: ".01em" }}>Update upcoming days only<span style={{ marginLeft: 8, opacity: .85, fontWeight: 600 }}>· Recommended</span></div>
-                <div style={{ font: "400 11px/1.45 var(--font-body)", opacity: .82, marginTop: 4 }}>Days they've already logged stay exactly as they did them; only the days still to come get the new plan.</div>
+              <button
+                onClick={() => doPublish(true)}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "13px 15px", borderRadius: 12, cursor: "pointer", border: "1px solid var(--navy, #1d2b3a)", background: "var(--navy, #1d2b3a)", color: "#fff", whiteSpace: "normal", textTransform: "none", letterSpacing: "normal" }}
+              >
+                <div style={{ font: "700 13.5px/1.3 var(--font-body, inherit)" }}>Update upcoming days only <span style={{ fontWeight: 600, opacity: .8 }}>· Recommended</span></div>
+                <div style={{ font: "400 12px/1.5 var(--font-body, inherit)", opacity: .85, marginTop: 4 }}>Days they've already logged stay exactly as they did them; only the days still to come get the new plan.</div>
               </button>
-              <button className="cc-mini" style={{ padding: "12px 14px", textAlign: "left", height: "auto", display: "block" }} onClick={() => doPublish(false)}>
-                <div style={{ font: "700 13px/1.25 var(--font-heading)", letterSpacing: ".01em" }}>Overwrite the whole week</div>
-                <div style={{ font: "400 11px/1.45 var(--font-body)", opacity: .82, marginTop: 4 }}>Apply the new plan to every day. Their logged numbers are kept, but sessions they've already done get re-arranged to match the new plan.</div>
+              <button
+                onClick={() => doPublish(false)}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "13px 15px", borderRadius: 12, cursor: "pointer", border: "1px solid var(--divider, rgba(29,31,32,.16))", background: "transparent", color: "var(--navy, #1d2b3a)", whiteSpace: "normal", textTransform: "none", letterSpacing: "normal" }}
+              >
+                <div style={{ font: "700 13.5px/1.3 var(--font-body, inherit)" }}>Overwrite the whole week</div>
+                <div style={{ font: "400 12px/1.5 var(--font-body, inherit)", color: "var(--muted)", marginTop: 4 }}>Applies the new plan to every day. Their logged numbers are kept, but sessions they've already done get re-arranged to fit the new plan.</div>
               </button>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
-              <button className="cc-mini" onClick={() => setPubPrompt(null)}>Cancel</button>
+              <button onClick={() => setPubPrompt(null)} style={{ border: "none", background: "transparent", color: "var(--muted)", cursor: "pointer", font: "600 12px/1 var(--font-body, inherit)", padding: "6px 8px" }}>Cancel</button>
             </div>
           </div>
         </div>
