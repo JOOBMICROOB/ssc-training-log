@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { loadProgram, weekOrder, dayDate, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, toTemplate, type Week, type ExRow, type DayDiff } from "./coachProgram";
 import { DiffLine } from "./DiffLine";
 import { weekState, WEEK_STATE_LABEL } from "./coachStats";
-import { getSessionFor, getDashboard, loggedDatesForWeek } from "../../lib/data/athleteData";
+import { getSessionFor, getDashboard, loggedDatesForWeek, clearWeekLogs } from "../../lib/data/athleteData";
 import { epleyE1rm } from "../../lib/calc/epley";
 import { fmtKg } from "../../lib/calc/records";
 import { Avatar } from "./Avatar";
@@ -217,12 +217,21 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
 
 function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layout, open, onToggle }: { week: Week; prevWeek: Week | null; live: boolean; athleteId: string; current: boolean; athleteName: string; layout: Layout; open: boolean; onToggle: () => void }) {
   const cols = layout === "cols";
-  const days = useMemo(() => buildDays(week, live, athleteId, prevWeek), [week, live, athleteId, prevWeek]);
+  const [refresh, setRefresh] = useState(0);
+  const days = useMemo(() => buildDays(week, live, athleteId, prevWeek), [week, live, athleteId, prevWeek, refresh]);
   const { base, totalVol, anyLogged } = useMemo(() => computeStats(days), [days]);
   const state = weekState(athleteId, week, live);
   const totalChanges = days.reduce((s, dv) => s + dv.diff.count, 0);
   const todayIso = localIso(new Date());
   const sync = live ? weekSyncStatus(athleteId, week) : null;
+  const hasLogged = live && !!week.startDate && loggedDatesForWeek(athleteId, week.startDate).length > 0;
+  const canClear = live && !!week.startDate && (hasLogged || sync === "synced" || sync === "stale");
+  const clearWeek = () => {
+    if (!week.startDate) return;
+    if (!confirm(`Clear all logged data for ${week.name} (${fmtRange(week.startDate)})?\n\nThis permanently wipes ${athleteName}'s logged numbers for this week on both apps so it's completely loggable again. The programme itself stays. This can't be undone.`)) return;
+    clearWeekLogs(athleteId, week.startDate);
+    setRefresh((n) => n + 1);
+  };
 
   return (
     <div className={`cc-wk-block${current ? " cc-wk-current" : ""}${cols ? " cc-wk-block-col" : ""}`}>
@@ -255,7 +264,16 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
           </div>
         </div>
 
-        {!cols && <button className="cc-wk-toggle" onClick={onToggle}>{open ? "▴ Hide" : "▾ Sessions"}</button>}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+          {!cols && <button className="cc-wk-toggle" onClick={onToggle}>{open ? "▴ Hide" : "▾ Sessions"}</button>}
+          {canClear && (
+            <button
+              title="Delete every logged number for this week on both apps, so it's completely loggable again. The plan stays; only the logged data is wiped. Use it if a session bugs out."
+              onClick={clearWeek}
+              style={{ border: "1px solid rgba(217,138,138,.5)", background: "transparent", color: "#b45454", borderRadius: 8, padding: "5px 10px", font: "600 10px/1.2 var(--font-body)", cursor: "pointer", whiteSpace: "nowrap" }}
+            >Clear logged data</button>
+          )}
+        </div>
       </div>
 
       {open && (

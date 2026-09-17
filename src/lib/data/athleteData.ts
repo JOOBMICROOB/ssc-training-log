@@ -90,6 +90,11 @@ export type DashboardData = {
   // Rendering a logged date against its frozen day keeps every session intact for
   // good; unlogged dates still follow the live published week. Unioned on sync.
   loggedDays?: Record<string, DayTemplate>;
+  // Per-date "clear" tombstones (date → ms when the coach wiped that day's logs).
+  // On sync the higher clear wins for that date: any log/frozen snapshot older than
+  // it is dropped, so a "clear this week" can't be resurrected by a stale device.
+  // A fresh log written after the clear still survives (it carries the same clear).
+  logClears?: Record<string, number>;
   // Weekly template published by the coach. Absent → the built-in DEFAULT_WEEK.
   // Legacy single week — kept as a fallback; publishedWeeks (dated) is preferred.
   programWeek?: WeekTemplate;
@@ -807,6 +812,28 @@ function prelogFixedLoads(logs: ProgramLogs, week: WeekTemplate, weekStart: stri
   return out;
 }
 
+/**
+ * Wipe every logged number for a week so it's completely loggable again — for when
+ * a session bugs out. Deletes the athlete's logs AND the frozen snapshots for the
+ * week's 7 dates, and stamps a per-date clear tombstone so the wipe survives the
+ * cloud union-merge (a stale device can't resurrect the old numbers). The published
+ * plan is untouched — the week just reads as fresh/unlogged on both apps.
+ */
+export function clearWeekLogs(athleteId: string, weekStart: string): void {
+  const d = getDashboard(athleteId);
+  const now = Date.now();
+  const logs = { ...(d.programLogs ?? {}) };
+  const frozen = { ...(d.loggedDays ?? {}) };
+  const clears = { ...(d.logClears ?? {}) };
+  for (let i = 0; i < 7; i++) {
+    const date = addDays(weekStart, i);
+    delete logs[date];
+    delete frozen[date];
+    clears[date] = now;
+  }
+  save(athleteId, { ...d, programLogs: logs, loggedDays: frozen, logClears: clears });
+}
+
 /** Dates within a week's window that already hold a REAL athlete log. */
 export function loggedDatesForWeek(athleteId: string, weekStart: string): string[] {
   const logs = getDashboard(athleteId).programLogs ?? {};
@@ -1242,10 +1269,40 @@ export function enableCoachSync() {
 }
 
 /** Union two program-log maps: keep every date + set, incoming wins per set key. */
-function mergeLogs(a: ProgramLogs = {}, b: ProgramLogs = {}): ProgramLogs {
-  const out: ProgramLogs = { ...a };
-  for (const date of Object.keys(b)) {
-    out[date] = { ...(a[date] ?? {}), ...b[date], sets: { ...(a[date]?.sets ?? {}), ...(b[date]?.sets ?? {}) } };
+type Clears = Record<string, number>;
+const mergeClears = (a: Clears = {}, b: Clears = {}): Clears => {
+  const out: Clears = { ...a };
+  for (const d of Object.keys(b)) out[d] = Math.max(out[d] ?? 0, b[d]);
+  return out;
+};
+// Union logs by date + set, but honour per-date "clear" tombstones: if one side's
+// clear for a date is strictly newer, the other side's entry for that date predates
+// the clear and is dropped (so a "clear this week" survives a stale device); a log
+// re-written after the clear carries the same clear level and is kept.
+function mergeLogs(a: ProgramLogs = {}, b: ProgramLogs = {}, aC: Clears = {}, bC: Clears = {}): ProgramLogs {
+  const out: ProgramLogs = {};
+  for (const date of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const ca = aC[date] ?? 0, cb = bC[date] ?? 0;
+    let da: DayLog | undefined = a[date];
+    let db: DayLog | undefined = b[date];
+    if (ca > cb) db = undefined; else if (cb > ca) da = undefined;
+    if (!da && !db) continue;
+    if (!da) { out[date] = db!; continue; }
+    if (!db) { out[date] = da; continue; }
+    out[date] = { ...da, ...db, sets: { ...(da.sets ?? {}), ...(db.sets ?? {}) } };
+  }
+  return out;
+}
+// Same tombstone logic for the frozen day snapshots.
+function mergeLoggedDays(a: Record<string, DayTemplate> = {}, b: Record<string, DayTemplate> = {}, aC: Clears = {}, bC: Clears = {}): Record<string, DayTemplate> {
+  const out: Record<string, DayTemplate> = {};
+  for (const date of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const ca = aC[date] ?? 0, cb = bC[date] ?? 0;
+    let va: DayTemplate | undefined = a[date];
+    let vb: DayTemplate | undefined = b[date];
+    if (ca > cb) vb = undefined; else if (cb > ca) va = undefined;
+    const v = vb ?? va;
+    if (v) out[date] = v;
   }
   return out;
 }
@@ -1295,11 +1352,11 @@ function mergeDashboard(server: Partial<DashboardData>, incoming: DashboardData)
     bodyweight: obj("bodyweight") as DashboardData["bodyweight"],
     checkin: obj("checkin") as DashboardData["checkin"],
     notes: mergeNotes(server.notes, incoming.notes),
-    programLogs: mergeLogs(server.programLogs, incoming.programLogs),
-    // Frozen logged-day snapshots union by date — each is written once per date and
-    // is identical across devices (same published week at freeze time), so nothing
-    // logged can lose the template it was recorded against.
-    loggedDays: { ...(server.loggedDays ?? {}), ...(incoming.loggedDays ?? {}) },
+    programLogs: mergeLogs(server.programLogs, incoming.programLogs, server.logClears, incoming.logClears),
+    // Frozen logged-day snapshots union by date (each is written once per date and is
+    // identical across devices), minus any dropped by a newer per-date clear.
+    loggedDays: mergeLoggedDays(server.loggedDays, incoming.loggedDays, server.logClears, incoming.logClears),
+    logClears: mergeClears(server.logClears, incoming.logClears),
     // Same epoch → union (normal publish flow). Different epoch → the newer side
     // (a "clear" bumps it) wins the whole set, so a cleared program stays cleared.
     programEpoch: Math.max(server.programEpoch ?? 0, incoming.programEpoch ?? 0),
