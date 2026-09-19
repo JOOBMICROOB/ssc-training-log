@@ -39,6 +39,8 @@ import {
   isAmrapReps,
   RPE_MODES,
   RPE_MODE_LABEL,
+  rpeSummary,
+  setExerciseRpe,
 } from "./coachProgram";
 import { getClients } from "./coachData";
 import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel, exerciseBests, bestLabel, clearAthleteProgram, loggedDatesForWeek } from "../../lib/data/athleteData";
@@ -52,8 +54,6 @@ const LIFT_LABEL: Record<"squat" | "bench" | "deadlift", string> = { squat: "SQU
 const tons = (kg: number) => (kg >= 1000 ? `${(kg / 1000).toFixed(1)} t` : `${Math.round(kg)} kg`);
 const REP_RANGES = ["2-4", "4-6", "6-8", "8-10", "8-12", "10-12", "12-15", "15-20"];
 const RPE_OPTS = ["5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
-const RPE_ABBR: Record<RpeMode, string> = { auto: "auto", each: "all", last: "last", off: "off" };
-const nextRpe = (m?: RpeMode): RpeMode => RPE_MODES[(RPE_MODES.indexOf(m ?? "auto") + 1) % RPE_MODES.length];
 
 /**
  * Program builder (Program & Planner → 3 · Program). Three columns: mesocycles /
@@ -99,6 +99,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   const [showDiff, setShowDiff] = useState(true);
   const [progress, setProgress] = useState<{ dayId: string; exId: string } | null>(null);
   const [pubPrompt, setPubPrompt] = useState<string[] | null>(null); // logged dates when a re-publish needs the coach's choice
+  const [rpePrompt, setRpePrompt] = useState<{ dayId: string; exId: string; name: string; mode: RpeMode } | null>(null); // RPE change awaiting a scope choice
   const [copyFrom, setCopyFrom] = useState(false);
   const [showMaxes, setShowMaxes] = useState(false);
   const [linearFill, setLinearFill] = useState(false);
@@ -138,6 +139,30 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     mutWeek((w) => ({ ...w, days: w.days.map((d) => (d.id === dayId ? fn(d) : d)) }));
   const mutRow = (dayId: string, exId: string, patch: Partial<ExRow>) =>
     mutDay(dayId, (d) => ({ ...d, exercises: d.exercises.map((e) => (e.id === exId ? { ...e, ...patch } : e)) }));
+
+  // Apply an RPE-mode change at the chosen scope. "session" = just this row; "block"
+  // = every instance of this exercise across the block; "always" = save it as the
+  // exercise's default (used whenever it's on auto) and set this row back to auto.
+  const applyRpe = (scope: "session" | "block" | "always") => {
+    if (!rpePrompt) return;
+    const { dayId, exId, name, mode } = rpePrompt;
+    const key = name.trim().toLowerCase();
+    if (scope === "session") mutRow(dayId, exId, { rpeMode: mode });
+    else if (scope === "block")
+      mutMeso((m) => ({
+        ...m,
+        weeks: m.weeks.map((w) => ({
+          ...w,
+          days: w.days.map((dd) => ({
+            ...dd,
+            exercises: dd.exercises.map((e) => (e.name.trim().toLowerCase() === key ? { ...e, rpeMode: mode } : e)),
+            alt: dd.alt?.map((e) => (e.name.trim().toLowerCase() === key ? { ...e, rpeMode: mode } : e)),
+          })),
+        })),
+      }));
+    else { setExerciseRpe(name, mode); setExercises(loadExercises()); mutRow(dayId, exId, { rpeMode: "auto" }); }
+    setRpePrompt(null);
+  };
 
   // --- linear block build ----------------------------------------------------
   // Spread a value evenly across the block's weeks for ONE exercise slot (matched
@@ -1098,6 +1123,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                   </div>
                 </div>
 
+                <div className="cc-ex-scroll">
                 <div className="cc-ex-cols cc-ex-colhead">
                   <span>Exercise · cue</span><span>Video</span><span>Sets</span><span>Reps</span><span>Intensity</span><span>Value</span><span>Suggest kg</span><span>Scheme</span><span style={{ textAlign: "right" }}>Move · copy · ×</span>
                 </div>
@@ -1119,12 +1145,17 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                       <div className="cc-ex-grip">
                         <input className="cc-ex-name" list="ex-db" value={ex.name} onChange={(e) => mutRow(d.id, ex.id, { name: e.target.value.toUpperCase() })} onBlur={(e) => { ensureInDb(e.target.value, ex.mainLift); applySmartScheme(d.id, ex.id, e.target.value); }} />
                         <input className="cc-ex-cue" placeholder="coach cue" value={ex.cue} onChange={(e) => mutRow(d.id, ex.id, { cue: e.target.value })} />
-                        <button
+                        <select
                           className="cc-rpe-chip"
                           data-rpe={ex.rpeMode ?? "auto"}
-                          title={`Perceived RPE on the athlete's app — ${RPE_MODE_LABEL[ex.rpeMode ?? "auto"]}. Tap to cycle: auto (on for SBD lifts + variations) → every set → last set only → off.`}
-                          onClick={() => mutRow(d.id, ex.id, { rpeMode: nextRpe(ex.rpeMode) })}
-                        >RPE · {RPE_ABBR[ex.rpeMode ?? "auto"]}</button>
+                          title="Perceived RPE the athlete logs on their app. Auto = on for SBD lifts + variations."
+                          value={ex.rpeMode ?? "auto"}
+                          onChange={(e) => setRpePrompt({ dayId: d.id, exId: ex.id, name: ex.name, mode: e.target.value as RpeMode })}
+                        >
+                          {RPE_MODES.map((m) => (
+                            <option key={m} value={m}>RPE · {m === "auto" ? `auto (${rpeSummary(ex)})` : RPE_MODE_LABEL[m].toLowerCase()}</option>
+                          ))}
+                        </select>
                         {loggedByWeekday[d.weekday]?.[ex.name.toLowerCase()] && (
                           <div className="cc-ex-logged">{loggedByWeekday[d.weekday][ex.name.toLowerCase()]}</div>
                         )}
@@ -1226,6 +1257,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                 <button className={`cc-add-ex${isDropEnd(d.id) ? " cc-drop-before" : ""}`} onClick={() => addRow(d.id, blankRow())}>
                   + Add exercise · or drag one from the database
                 </button>
+                </div>
 
                 {/* ---- per-day note + Option B (alternate session) ---- */}
                 <div className="cc-altwrap">
@@ -1244,6 +1276,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         <span className="cc-day-sub">the athlete can pick this instead of A · {d.alt.length} exercises</span>
                         <button className="cc-xbtn" onClick={() => removeAlt(d.id)}>Remove Option B</button>
                       </div>
+                      <div className="cc-ex-scroll">
                       <div className="cc-ex-cols cc-ex-colhead">
                         <span>Exercise · cue</span><span>Video</span><span>Sets</span><span>Reps</span><span>Intensity</span><span>Value</span><span>Suggest kg</span><span>Scheme</span><span style={{ textAlign: "right" }}>Move · ×</span>
                       </div>
@@ -1316,6 +1349,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         );
                       })}
                       <button className="cc-add-ex" onClick={() => altAddRow(d.id)}>+ Add exercise to Option B</button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1378,6 +1412,34 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
 
       {copyFrom && (
         <CopyWeekModal currentAthleteId={athleteId} onCopy={copyWeekInto} onClose={() => setCopyFrom(false)} />
+      )}
+
+      {rpePrompt && (
+        <div className="cc-modal-scrim" onClick={() => setRpePrompt(null)}>
+          <div className="cc-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <div className="cc-modal-title">RPE · {RPE_MODE_LABEL[rpePrompt.mode].toLowerCase()} — apply where?</div>
+            <div className="cc-modal-sub">Set “{rpePrompt.name || "this exercise"}” to log perceived RPE {rpePrompt.mode === "auto" ? "automatically" : RPE_MODE_LABEL[rpePrompt.mode].toLowerCase()}. Choose how far it reaches.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
+              {([
+                ["session", "Only this session", "Just this day's exercise."],
+                ["block", "This whole block", "Every time this exercise appears in this block."],
+                ["always", "Always for this exercise", "Saved as the default so it applies whenever you use this exercise, in any block."],
+              ] as const).map(([scope, title, desc], i) => (
+                <button
+                  key={scope}
+                  onClick={() => applyRpe(scope)}
+                  style={{ display: "block", width: "100%", textAlign: "left", padding: "13px 15px", borderRadius: 12, cursor: "pointer", whiteSpace: "normal", textTransform: "none", letterSpacing: "normal", border: i === 0 ? "1px solid var(--navy, #1d2b3a)" : "1px solid var(--divider, rgba(29,31,32,.16))", background: i === 0 ? "var(--navy, #1d2b3a)" : "transparent", color: i === 0 ? "#fff" : "var(--navy, #1d2b3a)" }}
+                >
+                  <div style={{ font: "700 13.5px/1.3 var(--font-body, inherit)" }}>{title}{i === 0 ? <span style={{ fontWeight: 600, opacity: .8 }}> · Recommended</span> : ""}</div>
+                  <div style={{ font: "400 12px/1.5 var(--font-body, inherit)", opacity: i === 0 ? .85 : 1, color: i === 0 ? undefined : "var(--muted)", marginTop: 4 }}>{desc}</div>
+                </button>
+              ))}
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+              <button onClick={() => setRpePrompt(null)} style={{ border: "none", background: "transparent", color: "var(--muted)", cursor: "pointer", font: "600 12px/1 var(--font-body, inherit)", padding: "6px 8px" }}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {pubPrompt && (

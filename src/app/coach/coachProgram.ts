@@ -44,14 +44,40 @@ export type ExRow = {
 };
 export type RpeMode = "auto" | "each" | "last" | "off";
 export const RPE_MODES: RpeMode[] = ["auto", "each", "last", "off"];
-export const RPE_MODE_LABEL: Record<RpeMode, string> = { auto: "RPE · auto", each: "RPE · every set", last: "RPE · last set", off: "RPE · off" };
-/** Resolve a row's perceived-RPE settings. */
-export function resolveRpe(row: ExRow): { ask: boolean; once: boolean } {
-  const mode = row.rpeMode ?? "auto";
+export const RPE_MODE_LABEL: Record<RpeMode, string> = { auto: "Auto", each: "Every set", last: "Last set", off: "Off" };
+/**
+ * The RPE mode that actually applies to a row: an explicit per-instance choice wins,
+ * else this exercise's saved default (set via "always for this exercise"), else auto.
+ */
+export function effectiveRpeMode(row: { name: string; rpeMode?: RpeMode }): RpeMode {
+  if (row.rpeMode && row.rpeMode !== "auto") return row.rpeMode;
+  const db = getExerciseRpe(row.name);
+  return db && db !== "auto" ? db : "auto";
+}
+/** Resolve a row's perceived-RPE behaviour (whether to ask, and once vs every set). */
+export function resolveRpe(row: { name: string; rpeMode?: RpeMode }): { ask: boolean; once: boolean } {
+  const mode = effectiveRpeMode(row);
   if (mode === "off") return { ask: false, once: false };
   if (mode === "each") return { ask: true, once: false };
   if (mode === "last") return { ask: true, once: true };
   return { ask: looseLift(row.name) != null, once: false }; // auto: SBD + variations
+}
+/** Human summary of what a row's RPE will do — used to show the resolved "auto" value. */
+export function rpeSummary(row: { name: string; rpeMode?: RpeMode }): string {
+  const { ask, once } = resolveRpe(row);
+  return ask ? (once ? "last set" : "every set") : "off";
+}
+/** This exercise's saved global RPE default (by name), if any. */
+export function getExerciseRpe(name: string): RpeMode | undefined {
+  return loadExercises().find((x) => x.name.trim().toLowerCase() === name.trim().toLowerCase())?.rpe;
+}
+/** Save "always for this exercise" — the default used whenever this exercise is on auto. */
+export function setExerciseRpe(name: string, mode: RpeMode) {
+  const key = name.trim().toLowerCase();
+  const list = loadExercises();
+  const i = list.findIndex((x) => x.name.trim().toLowerCase() === key);
+  if (i >= 0) { const next = [...list]; next[i] = { ...next[i], rpe: mode }; saveExercises(next); }
+  else saveExercises([{ id: uid("ex"), name: name.trim(), group: inferGroup(inferLift(name)), rpe: mode }, ...list]);
 }
 export type Day = { id: string; weekday: number; rest: boolean; exercises: ExRow[]; alt?: ExRow[]; note?: string };
 export type Week = { id: string; name: string; status: "draft" | "published"; days: Day[]; startDate?: string; hidden?: boolean };
@@ -59,7 +85,7 @@ export type Mesocycle = { id: string; name: string; color: string; weeks: Week[]
 export type Program = { athleteId: string; mesocycles: Mesocycle[]; currentWeekId?: string; seedVersion?: number };
 
 export type ExGroup = "squat" | "bench" | "deadlift" | "pull" | "accessory";
-export type DbExercise = { id: string; name: string; group: ExGroup; video?: string };
+export type DbExercise = { id: string; name: string; group: ExGroup; video?: string; rpe?: RpeMode };
 
 /** Which database column an exercise belongs to, inferred from its main lift. */
 export function inferGroup(mainLift: MainLift | null): ExGroup {

@@ -1288,6 +1288,13 @@
   align-items: center;
   padding: 6px 14px;
 }
+/* On narrow screens the fixed columns would squash into each other (hint text
+   overlapping the inputs), so the whole exercise grid scrolls sideways instead,
+   keeping every column at a usable width. */
+.cc-ex-scroll { overflow-x: auto; }
+.cc-ex-scroll .cc-ex-cols,
+.cc-ex-scroll > .cc-add-ex,
+.cc-ex-scroll > .cc-ex-removed { min-width: 760px; }
 .cc-ex-colhead {
   font: 400 8px/1 var(--font-body);
   letter-spacing: 0.1em;
@@ -1357,15 +1364,15 @@
    cluster stays uncrowded. Tap to cycle auto → every set → last set → off. */
 .cc-rpe-chip {
   display: inline-block;
+  max-width: 100%;
   margin: 3px 0 1px 5px;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border: 1px solid var(--divider);
   border-radius: 999px;
   background: var(--surface);
   color: var(--muted);
-  font: 700 8px/1.5 var(--font-body);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font: 600 9px/1.5 var(--font-body);
+  letter-spacing: 0.02em;
   white-space: nowrap;
   cursor: pointer;
 }
