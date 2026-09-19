@@ -168,7 +168,12 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   // it logs the prescribed/suggested load too. Otherwise the athlete logs their load.
   const rpePrimary = hasFixed || !!st.percentOfMax || !!st.targetPercent;
   const rpeFixKg = hasFixed ? doneKg : isFinite(sugNum) ? sugNum : NaN;
-  const showRpe = st.requiresRpe || rpePrimary;
+  // The coach controls whether this set asks perceived RPE (st.requiresRpe). A fixed/%
+  // set that ISN'T asking RPE still needs a one-tap "done" to confirm the prescribed
+  // load, so it gets a plain DONE button instead of the RPE button.
+  const showRpe = st.requiresRpe;
+  const doneFixBtn = () =>
+    `<button data-donefix="${key}" ${isFinite(rpeFixKg) ? `data-fixkg="${rpeFixKg}"` : ""} ${dis} style="width:100%;height:44px;font-size:14px;border-radius:10px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.06em;box-sizing:border-box;${hasWeight ? "border:1px solid #4f9d69;background:rgba(79,157,105,.16);color:#2e7d5a;" : "border:1px solid rgb(var(--a-accent-rgb));background:rgba(var(--a-accent-rgb),.12);color:rgb(var(--a-accent2-rgb));"}">${hasWeight ? "DONE ✓" : "TAP WHEN DONE"}</button>`;
   const rpeText = st.failed ? "FAILED" : st.rpe != null ? `RPE ${fmtRpeShort(st.rpe)} ✓` : rpePrimary ? "TAP TO RATE RPE" : "RATE RPE";
   const rpeStyle = st.failed
     ? "border:1px solid #d98a8a;background:rgba(217,138,138,.14);color:#b45454;"
@@ -196,11 +201,12 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
   const noteInput = `<input data-note="${key}" ${ro} placeholder="Notes / velocity" value="${st.note.replace(/"/g, "&quot;")}" style="width:100%;margin-top:6px;padding:7px 10px;background:rgb(242,242,243);border:1px solid rgba(29,31,32,.16);color:rgb(29,31,32);font-size:12.5px;border-radius:10px;">`;
 
   if (rpePrimary) {
-    // Load is prescribed → RPE is the big main action; the load sits below, compact,
-    // for the rare "I went lighter" adjust (it still logs on change).
+    // Load is prescribed → the big main action confirms it: rate RPE (if the coach
+    // asks for it on this set) or a plain DONE. The load sits below, compact, for the
+    // rare "I went lighter" adjust (it still logs on change).
     return `<div style="margin-left:12px;padding:7px 10px 8px 12px;${rowTint}">
       ${header}
-      <div style="margin-top:7px;">${rpeBtn(true)}</div>
+      <div style="margin-top:7px;">${st.requiresRpe ? rpeBtn(true) : doneFixBtn()}</div>
       <div style="margin-top:8px;font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.12em;color:rgb(138,146,156);">LOAD${st.targetLoad ? ` · ${st.targetLoad} kg` : isFinite(rpeFixKg) ? ` · ${fmtKg(rpeFixKg)} kg` : ""} — change only if you went lighter</div>
       <div style="margin-top:4px;">${loadRow}</div>
       ${noteInput}
@@ -790,7 +796,18 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     }
 
     // edits are gated when the session is confirmed/locked
-    if (t.closest("[data-inc],[data-dec],[data-same],[data-done],[data-rpeopen],[data-secs],[data-wi],[data-note]") && !unlockGate()) return;
+    if (t.closest("[data-inc],[data-dec],[data-same],[data-done],[data-donefix],[data-rpeopen],[data-secs],[data-wi],[data-note]") && !unlockGate()) return;
+
+    // Plain DONE for a fixed/%1RM set the coach isn't asking RPE for: confirm the
+    // prescribed load in one tap (tap again to un-confirm).
+    const doneFix = t.closest<HTMLElement>("[data-donefix]");
+    if (doneFix) {
+      const k = doneFix.dataset.donefix!;
+      const kg = parseFloat(doneFix.dataset.fixkg ?? "");
+      let has = false;
+      getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === k) has = (st.weightKg != null && !st.prefill); }));
+      return logSet(athleteId, selected, k, has ? { weightKg: null } : { weightKg: isFinite(kg) ? clampKg(kg) : null, failed: false });
+    }
 
     // RPE button → open the big slider popup. For a fixed / %1RM set (data-fixkg),
     // picking an RPE also logs the prescribed load, so it's a one-tap complete.

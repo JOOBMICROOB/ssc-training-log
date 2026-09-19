@@ -34,8 +34,11 @@ import {
   type DbExercise,
   type ExGroup,
   type IntensityType,
+  type RpeMode,
   AMRAP_REPS,
   isAmrapReps,
+  RPE_MODES,
+  RPE_MODE_LABEL,
 } from "./coachProgram";
 import { getClients } from "./coachData";
 import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel, exerciseBests, bestLabel, clearAthleteProgram, loggedDatesForWeek } from "../../lib/data/athleteData";
@@ -49,6 +52,8 @@ const LIFT_LABEL: Record<"squat" | "bench" | "deadlift", string> = { squat: "SQU
 const tons = (kg: number) => (kg >= 1000 ? `${(kg / 1000).toFixed(1)} t` : `${Math.round(kg)} kg`);
 const REP_RANGES = ["2-4", "4-6", "6-8", "8-10", "8-12", "10-12", "12-15", "15-20"];
 const RPE_OPTS = ["5", "5.5", "6", "6.5", "7", "7.5", "8", "8.5", "9", "9.5", "10"];
+const RPE_ABBR: Record<RpeMode, string> = { auto: "auto", each: "all", last: "last", off: "off" };
+const nextRpe = (m?: RpeMode): RpeMode => RPE_MODES[(RPE_MODES.indexOf(m ?? "auto") + 1) % RPE_MODES.length];
 
 /**
  * Program builder (Program & Planner → 3 · Program). Three columns: mesocycles /
@@ -1193,6 +1198,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         {SCHEMES.map((s) => <option key={s} value={s}>{s}</option>)}
                       </select>
                       <div className="cc-row-ctl">
+                        <button title={`Perceived RPE on the athlete's app — ${RPE_MODE_LABEL[ex.rpeMode ?? "auto"]}. Tap to cycle: auto (on for SBD lifts + variations) → every set → last set only → off.`} onClick={() => mutRow(d.id, ex.id, { rpeMode: nextRpe(ex.rpeMode) })} style={{ fontSize: 8.5, padding: "0 5px", whiteSpace: "nowrap", letterSpacing: ".02em", color: (ex.rpeMode ?? "auto") === "off" ? "var(--muted)" : undefined }}>RPE·{RPE_ABBR[ex.rpeMode ?? "auto"]}</button>
                         <button title="Across the block — ramp this number W1→last, or push this exercise to every later week" onClick={() => setProgress({ dayId: d.id, exId: ex.id })}>⋯</button>
                         <button title="Up" onClick={() => nudge(d.id, ex.id, -1)}>↑</button>
                         <button title="Down" onClick={() => nudge(d.id, ex.id, 1)}>↓</button>

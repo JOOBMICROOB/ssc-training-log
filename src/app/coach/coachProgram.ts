@@ -35,9 +35,24 @@ export type ExRow = {
   suggest?: string; // advisory working weight (kg) shown to the athlete as a hint
   goalRpe?: string; // for an AMRAP row (reps === AMRAP): the goal RPE at the fixed load
   linkEi?: number; // for intensity "linkpct": index (in the day) of the source exercise
+  // Perceived-RPE prompt on the athlete's app. "auto" = on for SBD lifts + their
+  // variations (tempo/paused/RDL…), off for isolation; "each" = every set; "last" =
+  // one RPE for the whole exercise (rated on the last set); "off" = never ask.
+  rpeMode?: RpeMode;
   scheme: string;
   mainLift: MainLift | null;
 };
+export type RpeMode = "auto" | "each" | "last" | "off";
+export const RPE_MODES: RpeMode[] = ["auto", "each", "last", "off"];
+export const RPE_MODE_LABEL: Record<RpeMode, string> = { auto: "RPE · auto", each: "RPE · every set", last: "RPE · last set", off: "RPE · off" };
+/** Resolve a row's perceived-RPE settings. */
+export function resolveRpe(row: ExRow): { ask: boolean; once: boolean } {
+  const mode = row.rpeMode ?? "auto";
+  if (mode === "off") return { ask: false, once: false };
+  if (mode === "each") return { ask: true, once: false };
+  if (mode === "last") return { ask: true, once: true };
+  return { ask: looseLift(row.name) != null, once: false }; // auto: SBD + variations
+}
 export type Day = { id: string; weekday: number; rest: boolean; exercises: ExRow[]; alt?: ExRow[]; note?: string };
 export type Week = { id: string; name: string; status: "draft" | "published"; days: Day[]; startDate?: string; hidden?: boolean };
 export type Mesocycle = { id: string; name: string; color: string; weeks: Week[]; hidden?: boolean };
@@ -144,7 +159,11 @@ function rowToEx(row: ExRow): ExerciseTemplate {
   // AMRAP is chosen in the Reps column; intensity stays RPE (the goal RPE), the
   // load is fixed (Value column), and the athlete only logs the reps they hit.
   const amrap = isAmrapReps(row.reps);
-  const requiresRpe = !amrap && row.intensity === "rpe" && mainLift != null;
+  // Perceived RPE: coach-controlled per exercise (see resolveRpe). "last" mode asks
+  // once, on the final set of the exercise, instead of every set.
+  const rpe = resolveRpe(row);
+  const nSets = Math.max(1, row.sets);
+  const rpeForSet = (si: number) => !amrap && rpe.ask && (!rpe.once || si === nSets - 1);
   // "load" (legacy) and "fixed" are the same now — a prescribed working weight.
   const fixed = row.intensity === "fixed" || row.intensity === "load";
   const failure = row.intensity === "failure";
@@ -154,11 +173,11 @@ function rowToEx(row: ExRow): ExerciseTemplate {
   const percent = row.intensity === "percent";
   const link = row.intensity === "linkpct";
   const linkPct = link ? parseFloat(String(row.value).replace(",", ".")) : NaN;
-  const sets = Array.from({ length: Math.max(1, row.sets) }, () => ({
+  const sets = Array.from({ length: nSets }, (_, si) => ({
     targetReps: row.reps,
     // AMRAP carries the goal RPE (advisory — the athlete only logs their reps).
     targetRpe: amrap ? row.goalRpe?.trim() ?? "" : row.intensity === "rpe" ? row.value : "",
-    requiresRpe,
+    requiresRpe: rpeForSet(si),
     amrap: amrap || undefined,
     // Carry the coach's prescription through to the athlete's set. AMRAP prescribes
     // the fixed working load (entered in the Value column).
