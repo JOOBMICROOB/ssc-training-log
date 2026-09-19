@@ -1353,6 +1353,30 @@
   padding: 2px 5px;
   border-radius: var(--radius);
 }
+/* Perceived-RPE mode chip — lives in the name cell (which has room), so the button
+   cluster stays uncrowded. Tap to cycle auto → every set → last set → off. */
+.cc-rpe-chip {
+  display: inline-block;
+  margin: 3px 0 1px 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--divider);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font: 700 8px/1.5 var(--font-body);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.cc-rpe-chip:hover { border-color: var(--accent); color: var(--navy); }
+.cc-rpe-chip[data-rpe="each"],
+.cc-rpe-chip[data-rpe="last"] {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--navy);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.cc-rpe-chip[data-rpe="off"] { opacity: 0.6; text-decoration: line-through; }
 .cc-ex-name:focus,
 .cc-ex-cue:focus,
 .cc-in:focus {

@@ -1119,6 +1119,12 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                       <div className="cc-ex-grip">
                         <input className="cc-ex-name" list="ex-db" value={ex.name} onChange={(e) => mutRow(d.id, ex.id, { name: e.target.value.toUpperCase() })} onBlur={(e) => { ensureInDb(e.target.value, ex.mainLift); applySmartScheme(d.id, ex.id, e.target.value); }} />
                         <input className="cc-ex-cue" placeholder="coach cue" value={ex.cue} onChange={(e) => mutRow(d.id, ex.id, { cue: e.target.value })} />
+                        <button
+                          className="cc-rpe-chip"
+                          data-rpe={ex.rpeMode ?? "auto"}
+                          title={`Perceived RPE on the athlete's app — ${RPE_MODE_LABEL[ex.rpeMode ?? "auto"]}. Tap to cycle: auto (on for SBD lifts + variations) → every set → last set only → off.`}
+                          onClick={() => mutRow(d.id, ex.id, { rpeMode: nextRpe(ex.rpeMode) })}
+                        >RPE · {RPE_ABBR[ex.rpeMode ?? "auto"]}</button>
                         {loggedByWeekday[d.weekday]?.[ex.name.toLowerCase()] && (
                           <div className="cc-ex-logged">{loggedByWeekday[d.weekday][ex.name.toLowerCase()]}</div>
                         )}
@@ -1198,7 +1204,6 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                         {SCHEMES.map((s) => <option key={s} value={s}>{s}</option>)}
                       </select>
                       <div className="cc-row-ctl">
-                        <button title={`Perceived RPE on the athlete's app — ${RPE_MODE_LABEL[ex.rpeMode ?? "auto"]}. Tap to cycle: auto (on for SBD lifts + variations) → every set → last set only → off.`} onClick={() => mutRow(d.id, ex.id, { rpeMode: nextRpe(ex.rpeMode) })} style={{ fontSize: 8.5, padding: "0 5px", whiteSpace: "nowrap", letterSpacing: ".02em", color: (ex.rpeMode ?? "auto") === "off" ? "var(--muted)" : undefined }}>RPE·{RPE_ABBR[ex.rpeMode ?? "auto"]}</button>
                         <button title="Across the block — ramp this number W1→last, or push this exercise to every later week" onClick={() => setProgress({ dayId: d.id, exId: ex.id })}>⋯</button>
                         <button title="Up" onClick={() => nudge(d.id, ex.id, -1)}>↑</button>
                         <button title="Down" onClick={() => nudge(d.id, ex.id, 1)}>↓</button>
