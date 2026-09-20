@@ -17,6 +17,17 @@
 import { coachSupabase } from "../../lib/supabase";
 import { setProgramSaveHook, saveProgramLocalOnly, type Program } from "./coachProgram";
 
+/** How many weeks in a program actually hold training (a day with exercises). */
+const trainingWeeks = (p: Program): number =>
+  p.mesocycles.reduce((n, m) => n + m.weeks.filter((w) => w.days.some((d) => !d.rest && d.exercises.length > 0)).length, 0);
+/** Training-week count of whatever is currently in this device's localStorage. */
+const localTrainingWeeks = (aid: string): number => {
+  try {
+    const raw = localStorage.getItem(`ssc.coach.program.v2.${aid}`);
+    return raw ? trainingWeeks(JSON.parse(raw) as Program) : 0;
+  } catch { return 0; }
+};
+
 type Entry = { program: Program; updatedAt: string };
 type CoachData = Record<string, unknown> & { coachPrograms?: Record<string, Entry> };
 
@@ -61,8 +72,12 @@ export async function pullCoachPrograms(): Promise<void> {
     const programs = data.data.coachPrograms ?? {};
     for (const [aid, entry] of Object.entries(programs)) {
       if (!entry?.program) continue;
-      // Cloud wins only if it's newer than what this device last wrote locally.
-      if (!localTs(aid) || entry.updatedAt > localTs(aid)) {
+      // Cloud wins only if it's newer than what this device last wrote locally AND it
+      // isn't a lower-content copy: a stale 1-week seed edited on a fresh device must
+      // never wipe a full multi-week block that's synced everywhere. (This device can
+      // still shrink a block itself; it just won't auto-adopt a smaller cloud copy.)
+      const newer = !localTs(aid) || entry.updatedAt > localTs(aid);
+      if (newer && trainingWeeks(entry.program) >= localTrainingWeeks(aid)) {
         saveProgramLocalOnly(entry.program);
         setLocalTs(aid, entry.updatedAt);
       }
