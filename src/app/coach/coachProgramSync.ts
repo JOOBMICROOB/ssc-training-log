@@ -109,6 +109,11 @@ async function flush() {
     const merged: Record<string, Entry> = { ...(base.coachPrograms ?? {}) };
     for (const [aid, entry] of Object.entries(batch)) {
       const existing = merged[aid];
+      // Never let a near-empty copy (a bare 0/1-week seed loaded on a fresh device
+      // and lightly edited) overwrite a richer multi-week block already in the cloud.
+      // Normal edits and incremental deletions (which keep ≥2 training weeks) still
+      // push through; only a wholesale wipe against a bigger cloud copy is refused.
+      if (existing && trainingWeeks(entry.program) <= 1 && trainingWeeks(entry.program) < trainingWeeks(existing.program)) continue;
       if (!existing || entry.updatedAt >= existing.updatedAt) merged[aid] = entry;
     }
     const nextData: CoachData = { ...base, coachPrograms: merged };
