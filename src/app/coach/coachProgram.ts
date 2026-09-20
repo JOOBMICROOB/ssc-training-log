@@ -8,7 +8,7 @@
 import { DEFAULT_WEEK } from "../../lib/program/seedProgram";
 import { addDays, looseLift } from "../../lib/program/program";
 export { looseLift };
-import { getSharedData, setSharedData } from "../../lib/data/athleteData";
+import { getSharedData, setSharedData, getDashboard } from "../../lib/data/athleteData";
 import { inferLift } from "../../lib/program/deriveRecords";
 import type { ExerciseTemplate, MainLift, WeekTemplate } from "../../lib/program/program";
 import reneeProgram from "./reneeProgram.json";
@@ -374,6 +374,46 @@ function programHasTraining(p: Program): boolean {
   return p.mesocycles.some((m) => m.weeks.some(hasTraining));
 }
 
+/** Rebuild a coach week (weekday-ordered days) from an athlete's published WeekTemplate. */
+function daysFromTemplate(week: WeekTemplate): Day[] {
+  return WEEK_ORDER.map((wd) => {
+    const d = week[wd];
+    if (!d || d.rest || !d.exercises.length) return { id: uid("day"), weekday: wd, rest: true, exercises: [] };
+    return { id: uid("day"), weekday: wd, rest: false, exercises: d.exercises.map(exToRow), alt: d.alt?.map(exToRow), note: d.note };
+  });
+}
+
+/**
+ * Recover a coach program from what the athlete actually has published. Coach drafts
+ * live only in `coachPrograms`; if that's ever lost (a stale device wiping it, cache
+ * clear…) the athlete's `publishedWeeks` still hold the whole block, so we rebuild the
+ * builder view from those. Returns null when the athlete has nothing published.
+ */
+function programFromPublished(athleteId: string): Program | null {
+  let published: NonNullable<ReturnType<typeof getDashboard>["publishedWeeks"]>;
+  try { published = getDashboard(athleteId).publishedWeeks ?? {}; } catch { return null; }
+  const keys = Object.keys(published).sort();
+  if (!keys.length) return null;
+  const weeks: Week[] = keys.map((startDate, i) => ({
+    id: uid("wk"),
+    name: published[startDate].weekName || `WEEK ${i + 1}`,
+    status: "published" as const,
+    startDate,
+    days: daysFromTemplate(published[startDate].week),
+  }));
+  if (!weeks.some(hasTraining)) return null;
+  const blockName = published[keys[0]].blockName || "BLOCK 1";
+  return { athleteId, currentWeekId: weeks[0].id, mesocycles: [{ id: uid("meso"), name: blockName, color: "#5980a6", weeks }] };
+}
+
+/** If a program has no training, try to recover it from the athlete's published weeks. */
+function recoverIfEmpty(athleteId: string, program: Program): Program {
+  if (programHasTraining(program)) return program;
+  const rec = programFromPublished(athleteId);
+  if (rec) { saveProgramLocalOnly(rec); return rec; }
+  return program;
+}
+
 export function loadProgram(athleteId: string): Program {
   try {
     const raw = localStorage.getItem(progKey(athleteId));
@@ -397,12 +437,12 @@ export function loadProgram(athleteId: string): Program {
       // Local-only: dating is recomputed per device and a seed must never push
       // up and clobber a cloud program the coach built on another device.
       if (migrated !== parsed) saveProgramLocalOnly(migrated);
-      return migrated;
+      return recoverIfEmpty(athleteId, migrated);
     }
   } catch {
     /* ignore */
   }
-  const p = seedProgram(athleteId);
+  const p = recoverIfEmpty(athleteId, seedProgram(athleteId));
   saveProgramLocalOnly(p);
   return p;
 }
