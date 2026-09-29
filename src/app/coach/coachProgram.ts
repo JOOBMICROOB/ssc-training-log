@@ -18,6 +18,7 @@ import zitaProgram from "./zitaProgram.json";
 import merelProgram from "./merelProgram.json";
 import nielsProgram from "./nielsProgram.json";
 import phebeProgram from "./phebeProgram.json";
+import woutProgram from "./woutProgram.json";
 
 export type IntensityType = "rpe" | "percent" | "load" | "fixed" | "failure" | "seconds" | "backoff" | "linkpct";
 
@@ -280,6 +281,7 @@ function seedProgram(athleteId: string): Program {
   if (athleteId.toUpperCase() === "MEREL") return { ...(structuredClone(merelProgram) as Program), athleteId };
   if (athleteId.toUpperCase() === "NIELSV") return { ...(structuredClone(nielsProgram) as Program), athleteId };
   if (athleteId.toUpperCase() === "PHEBE") return { ...(structuredClone(phebeProgram) as Program), athleteId };
+  if (athleteId.toUpperCase() === "WOUTVA") return { ...(structuredClone(woutProgram) as Program), athleteId };
   // Everyone else: a blank Week 1 dated to THIS week, so the moment the coach
   // adds sessions they land on the calendar / grid for that athlete. It only
   // counts as "planned" once it has real training days (no dummy content).
@@ -428,7 +430,7 @@ export function loadProgram(athleteId: string): Program {
       }
       // A blank cached program (e.g. from opening a seeded athlete on an older
       // build) must not shadow their real backfilled block — fall back to the seed.
-      if (!programHasTraining(parsed) && (athleteId === "RS1203" || athleteId === "LV222" || athleteId === "SB428" || athleteId === "ZITA" || athleteId.toUpperCase() === "MEREL" || athleteId.toUpperCase() === "NIELSV" || athleteId.toUpperCase() === "PHEBE")) {
+      if (!programHasTraining(parsed) && (athleteId === "RS1203" || athleteId === "LV222" || athleteId === "SB428" || athleteId === "ZITA" || athleteId.toUpperCase() === "MEREL" || athleteId.toUpperCase() === "NIELSV" || athleteId.toUpperCase() === "PHEBE" || athleteId.toUpperCase() === "WOUTVA")) {
         const seed = seedProgram(athleteId);
         saveProgramLocalOnly(seed);
         return seed;
@@ -462,6 +464,7 @@ export function peekProgram(athleteId: string): Program | null {
   if (athleteId.toUpperCase() === "MEREL") return { ...(structuredClone(merelProgram) as Program), athleteId };
   if (athleteId.toUpperCase() === "NIELSV") return { ...(structuredClone(nielsProgram) as Program), athleteId };
   if (athleteId.toUpperCase() === "PHEBE") return { ...(structuredClone(phebeProgram) as Program), athleteId };
+  if (athleteId.toUpperCase() === "WOUTVA") return { ...(structuredClone(woutProgram) as Program), athleteId };
   return null;
 }
 // A save hook lets the cloud-sync layer mirror every real edit to Supabase
