@@ -428,6 +428,13 @@ export function loadProgram(athleteId: string): Program {
         saveProgramLocalOnly(fresh);
         return fresh;
       }
+      // Wout's stencil replaces his not-yet-started off-season block once (coach OK'd
+      // the overwrite). Stays local until he edits it, which then syncs it up.
+      if (athleteId.toUpperCase() === "WOUTVA" && (parsed.seedVersion ?? 0) < 2) {
+        const fresh = seedProgram(athleteId);
+        saveProgramLocalOnly(fresh);
+        return fresh;
+      }
       // A blank cached program (e.g. from opening a seeded athlete on an older
       // build) must not shadow their real backfilled block — fall back to the seed.
       if (!programHasTraining(parsed) && (athleteId === "RS1203" || athleteId === "LV222" || athleteId === "SB428" || athleteId === "ZITA" || athleteId.toUpperCase() === "MEREL" || athleteId.toUpperCase() === "NIELSV" || athleteId.toUpperCase() === "PHEBE" || athleteId.toUpperCase() === "WOUTVA")) {
