@@ -4,7 +4,6 @@ import { DiffLine } from "./DiffLine";
 import { ExDetail } from "./ExDetail";
 import { weekState, WEEK_STATE_LABEL } from "./coachStats";
 import { getSessionFor, getDashboard, loggedDatesForWeek, clearWeekLogs, publishProgramWeek, exerciseBests, type ExBest } from "../../lib/data/athleteData";
-import { notifyAthletePublished } from "../../lib/auth/coachAuth";
 import { epleyE1rm } from "../../lib/calc/epley";
 import { fmtKg } from "../../lib/calc/records";
 import { Avatar } from "./Avatar";
@@ -179,43 +178,35 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
   });
   const meso = program.mesocycles.find((m) => m.id === mesoId) ?? program.mesocycles[0];
 
-  // Set (or clear) the suggested working load on one exercise row, straight from
-  // the viewer. Saves the draft (and syncs it to the coach's cloud); the week's
-  // sync badge flips to "edited" so the coach knows to publish it to the athlete.
-  const setSuggest = (weekId: string, rowId: string, value: string) => {
-    setProgram((p) => {
-      const next: Program = {
-        ...p,
-        mesocycles: p.mesocycles.map((m) => ({
-          ...m,
-          weeks: m.weeks.map((w) =>
-            w.id !== weekId ? w : {
-              ...w,
-              days: w.days.map((d) => ({
-                ...d,
-                exercises: d.exercises.map((ex) => (ex.id === rowId ? { ...ex, suggest: value.trim() || undefined } : ex)),
-              })),
-            }),
-        })),
-      };
-      saveProgram(next);
-      return next;
-    });
-  };
+  // "Suggest loads" mode. Off by default → the viewer is purely for review and the
+  // per-exercise suggest field stays hidden. Flip it on to edit suggested loads.
+  const [suggestMode, setSuggestMode] = useState(false);
 
-  // Push the week as it stands here to the athlete, keeping any days they've
-  // already logged exactly as they did them (only still-open days get the update).
-  const publishWeek = (week: Week) => {
-    if (!live) { alert(`${athleteName} is a demo athlete — nothing is sent.`); return; }
-    if (!confirm(`Publish ${meso.name} · ${week.name} to ${athleteName}?\n\nYour suggested loads go live in their app. Days they've already logged are left untouched.`)) return;
-    publishProgramWeek(athleteId, toTemplate(week), { blockStart: week.startDate, weekStartsOn: startWeekday(week) ?? undefined, blockName: meso.name, weekName: week.name, onlyUpcoming: true });
-    void notifyAthletePublished(athleteId, meso.name);
-    // Mark it published locally so the sync badge settles back to "in sync".
-    setProgram((p) => ({
-      ...p,
-      mesocycles: p.mesocycles.map((m) => (m.id === meso.id ? { ...m, weeks: m.weeks.map((w) => (w.id === week.id ? { ...w, status: "published" as const } : w)) } : m)),
-    }));
-    alert(`Published to ${athleteName} — your suggestions are live in their app now.`);
+  // Set (or clear) the suggested working load on one row, straight from the viewer.
+  // Saves the draft (cloud-synced) and — for a live athlete — pushes it to their app
+  // right away (auto). Days they've already logged are left untouched (onlyUpcoming).
+  const setSuggest = (weekId: string, rowId: string, value: string) => {
+    const next: Program = {
+      ...program,
+      mesocycles: program.mesocycles.map((m) => ({
+        ...m,
+        weeks: m.weeks.map((w) =>
+          w.id !== weekId ? w : {
+            ...w,
+            status: live ? ("published" as const) : w.status,
+            days: w.days.map((d) => ({
+              ...d,
+              exercises: d.exercises.map((ex) => (ex.id === rowId ? { ...ex, suggest: value.trim() || undefined } : ex)),
+            })),
+          }),
+      })),
+    };
+    saveProgram(next);
+    setProgram(next);
+    if (live) {
+      const w = next.mesocycles.flatMap((m) => m.weeks).find((x) => x.id === weekId);
+      if (w) publishProgramWeek(athleteId, toTemplate(w), { blockStart: w.startDate, weekStartsOn: startWeekday(w) ?? undefined, blockName: meso.name, weekName: w.name, onlyUpcoming: true });
+    }
   };
 
   // Expanded weeks live here (not inside each WeekBlock) so they stay open
@@ -253,6 +244,14 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
               <button className="cc-chip" aria-current={layout === "rows"} onClick={() => chooseLayout("rows")}>Weeks stacked</button>
               <button className="cc-chip" aria-current={layout === "cols"} onClick={() => chooseLayout("cols")}>Weeks across</button>
             </div>
+            {live && (
+              <button
+                className="cc-chip"
+                aria-current={suggestMode}
+                onClick={() => setSuggestMode((v) => !v)}
+                title="Turn on to set suggested working loads per exercise — they're pushed to the athlete's app the moment you enter them. Off = review only."
+              >{suggestMode ? "✓ Suggesting loads" : "Suggest loads"}</button>
+            )}
           </div>
         </div>
         <button className="cc-mini cc-mini-solid" style={{ padding: "11px 16px", fontSize: 11 }} onClick={onOpenBuilder}>Open program builder →</button>
@@ -260,14 +259,14 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
 
       <div className={layout === "cols" ? "cc-wk-cols" : "cc-wk-stack"}>
         {meso.weeks.map((w, wi) => (
-          <WeekBlock key={w.id} week={w} prevWeek={wi > 0 ? meso.weeks[wi - 1] : null} live={live} athleteId={athleteId} current={w.id === currentId} athleteName={athleteName} layout={layout} open={layout === "cols" || openWeeks.has(w.id)} onToggle={() => toggleWeek(w.id)} bests={bests} onSetSuggest={(rowId, v) => setSuggest(w.id, rowId, v)} onPublish={() => publishWeek(w)} />
+          <WeekBlock key={w.id} week={w} prevWeek={wi > 0 ? meso.weeks[wi - 1] : null} live={live} athleteId={athleteId} current={w.id === currentId} athleteName={athleteName} layout={layout} open={layout === "cols" || openWeeks.has(w.id)} onToggle={() => toggleWeek(w.id)} bests={bests} suggestMode={suggestMode} onSetSuggest={(rowId, v) => setSuggest(w.id, rowId, v)} />
         ))}
       </div>
     </div>
   );
 }
 
-function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layout, open, onToggle, bests, onSetSuggest, onPublish }: { week: Week; prevWeek: Week | null; live: boolean; athleteId: string; current: boolean; athleteName: string; layout: Layout; open: boolean; onToggle: () => void; bests: Map<string, ExBest> | null; onSetSuggest: (rowId: string, value: string) => void; onPublish: () => void }) {
+function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layout, open, onToggle, bests, suggestMode, onSetSuggest }: { week: Week; prevWeek: Week | null; live: boolean; athleteId: string; current: boolean; athleteName: string; layout: Layout; open: boolean; onToggle: () => void; bests: Map<string, ExBest> | null; suggestMode: boolean; onSetSuggest: (rowId: string, value: string) => void }) {
   const cols = layout === "cols";
   const [refresh, setRefresh] = useState(0);
   const [openEx, setOpenEx] = useState<Set<string>>(new Set()); // exercises with their RM/last-done panel expanded
@@ -320,13 +319,6 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
           {!cols && <button className="cc-wk-toggle" onClick={onToggle}>{open ? "▴ Hide" : "▾ Sessions"}</button>}
-          {live && (sync === "stale" || sync === "unsent") && (
-            <button
-              title="Send this week to the athlete (including any suggested loads you just set). Days they've already logged are kept as-is."
-              onClick={onPublish}
-              style={{ border: "none", background: "var(--accent)", color: "#fff", borderRadius: 8, padding: "6px 12px", font: "700 10px/1.2 var(--font-body)", cursor: "pointer", whiteSpace: "nowrap" }}
-            >{sync === "unsent" ? "Publish week →" : "Publish changes →"}</button>
-          )}
           {canClear && (
             <button
               title="Delete every logged number for this week on both apps, so it's completely loggable again. The plan stays; only the logged data is wiped. Use it if a session bugs out."
@@ -374,7 +366,7 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
                       )}
                       <span className="cc-view-ex-scheme">{ex.scheme}</span>
                     </div>
-                    {ex.canSuggest && (
+                    {suggestMode && ex.canSuggest && (
                       <label className="cc-view-suggest">
                         <span className="cc-view-suggest-lbl">suggest load</span>
                         <input
