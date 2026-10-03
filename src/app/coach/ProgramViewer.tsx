@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import { loadProgram, weekOrder, dayDate, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, toTemplate, type Week, type ExRow, type DayDiff } from "./coachProgram";
+import { loadProgram, saveProgram, weekOrder, dayDate, startWeekday, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, toTemplate, type Program, type Week, type ExRow, type DayDiff } from "./coachProgram";
 import { DiffLine } from "./DiffLine";
+import { ExDetail } from "./ExDetail";
 import { weekState, WEEK_STATE_LABEL } from "./coachStats";
-import { getSessionFor, getDashboard, loggedDatesForWeek, clearWeekLogs } from "../../lib/data/athleteData";
+import { getSessionFor, getDashboard, loggedDatesForWeek, clearWeekLogs, publishProgramWeek, exerciseBests, type ExBest } from "../../lib/data/athleteData";
+import { notifyAthletePublished } from "../../lib/auth/coachAuth";
 import { epleyE1rm } from "../../lib/calc/epley";
 import { fmtKg } from "../../lib/calc/records";
 import { Avatar } from "./Avatar";
@@ -20,7 +22,7 @@ type Layout = "rows" | "cols"; // rows = weeks stacked / days across · cols = w
 const LAYOUT_KEY = "ssc.coach.viewLayout";
 
 type ViewSet = { reps: string; target: string; loggedKg: number | null; rpe: number | null; note: string; repsDone: number | null };
-type ViewEx = { name: string; mainLift: MainLift | null; scheme: string; sets: ViewSet[] };
+type ViewEx = { rowId: string; name: string; mainLift: MainLift | null; scheme: string; sets: ViewSet[]; canSuggest: boolean; suggest: string };
 type ViewDay = { weekday: number; date: string | null; rest: boolean; exercises: ViewEx[]; sessionRpe: number | null; pain: number | null; diff: DayDiff };
 
 const LIFTS: MainLift[] = ["squat", "bench", "deadlift"];
@@ -117,10 +119,16 @@ function buildDays(week: Week, live: boolean, athleteId: string, prevWeek: Week 
       pain: session?.pain ?? null,
       exercises: d.exercises.map((r, ei) => {
         const sEx = session?.exercises[ei];
+        // A suggested kg is only meaningful when the row doesn't already carry a
+        // concrete number (RPE / %1RM / to-failure rows) — same rule as rowToEx.
+        const canSuggest = !isAmrapReps(r.reps) && (r.intensity === "rpe" || r.intensity === "percent" || r.intensity === "failure");
         return {
+          rowId: r.id,
           name: r.name,
           mainLift: r.mainLift,
           scheme: r.scheme,
+          canSuggest,
+          suggest: r.suggest ?? "",
           sets: Array.from({ length: r.sets }, (_, si) => {
             const st = sEx?.sets[si];
             const real = st && !st.prefill;
@@ -157,7 +165,12 @@ function computeStats(days: ViewDay[]) {
 }
 
 export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuilder }: { athleteId: string; athleteName: string; avatar?: string; live: boolean; onOpenBuilder: () => void }) {
-  const program = useMemo(() => loadProgram(athleteId), [athleteId]);
+  // Held in state (not a bare memo) so the coach can tweak suggested loads right
+  // here in the review view and see them reflected immediately.
+  const [program, setProgram] = useState<Program>(() => loadProgram(athleteId));
+  // The athlete's all-time bests per exercise — feeds the per-exercise RM / last-done
+  // panel. Recomputed whenever the program state changes (cheap, local).
+  const bests = useMemo<Map<string, ExBest> | null>(() => (live ? exerciseBests(athleteId) : null), [live, athleteId, program]);
   // "Current" is the week that contains today, not a stored pointer.
   const currentId = useMemo(() => weekForToday(program, localIso(new Date())), [program]);
   const [mesoId, setMesoId] = useState(() => {
@@ -165,6 +178,45 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
     return (cur ?? program.mesocycles[program.mesocycles.length - 1]).id;
   });
   const meso = program.mesocycles.find((m) => m.id === mesoId) ?? program.mesocycles[0];
+
+  // Set (or clear) the suggested working load on one exercise row, straight from
+  // the viewer. Saves the draft (and syncs it to the coach's cloud); the week's
+  // sync badge flips to "edited" so the coach knows to publish it to the athlete.
+  const setSuggest = (weekId: string, rowId: string, value: string) => {
+    setProgram((p) => {
+      const next: Program = {
+        ...p,
+        mesocycles: p.mesocycles.map((m) => ({
+          ...m,
+          weeks: m.weeks.map((w) =>
+            w.id !== weekId ? w : {
+              ...w,
+              days: w.days.map((d) => ({
+                ...d,
+                exercises: d.exercises.map((ex) => (ex.id === rowId ? { ...ex, suggest: value.trim() || undefined } : ex)),
+              })),
+            }),
+        })),
+      };
+      saveProgram(next);
+      return next;
+    });
+  };
+
+  // Push the week as it stands here to the athlete, keeping any days they've
+  // already logged exactly as they did them (only still-open days get the update).
+  const publishWeek = (week: Week) => {
+    if (!live) { alert(`${athleteName} is a demo athlete — nothing is sent.`); return; }
+    if (!confirm(`Publish ${meso.name} · ${week.name} to ${athleteName}?\n\nYour suggested loads go live in their app. Days they've already logged are left untouched.`)) return;
+    publishProgramWeek(athleteId, toTemplate(week), { blockStart: week.startDate, weekStartsOn: startWeekday(week) ?? undefined, blockName: meso.name, weekName: week.name, onlyUpcoming: true });
+    void notifyAthletePublished(athleteId, meso.name);
+    // Mark it published locally so the sync badge settles back to "in sync".
+    setProgram((p) => ({
+      ...p,
+      mesocycles: p.mesocycles.map((m) => (m.id === meso.id ? { ...m, weeks: m.weeks.map((w) => (w.id === week.id ? { ...w, status: "published" as const } : w)) } : m)),
+    }));
+    alert(`Published to ${athleteName} — your suggestions are live in their app now.`);
+  };
 
   // Expanded weeks live here (not inside each WeekBlock) so they stay open
   // across data-sync re-renders.
@@ -208,16 +260,18 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
 
       <div className={layout === "cols" ? "cc-wk-cols" : "cc-wk-stack"}>
         {meso.weeks.map((w, wi) => (
-          <WeekBlock key={w.id} week={w} prevWeek={wi > 0 ? meso.weeks[wi - 1] : null} live={live} athleteId={athleteId} current={w.id === currentId} athleteName={athleteName} layout={layout} open={layout === "cols" || openWeeks.has(w.id)} onToggle={() => toggleWeek(w.id)} />
+          <WeekBlock key={w.id} week={w} prevWeek={wi > 0 ? meso.weeks[wi - 1] : null} live={live} athleteId={athleteId} current={w.id === currentId} athleteName={athleteName} layout={layout} open={layout === "cols" || openWeeks.has(w.id)} onToggle={() => toggleWeek(w.id)} bests={bests} onSetSuggest={(rowId, v) => setSuggest(w.id, rowId, v)} onPublish={() => publishWeek(w)} />
         ))}
       </div>
     </div>
   );
 }
 
-function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layout, open, onToggle }: { week: Week; prevWeek: Week | null; live: boolean; athleteId: string; current: boolean; athleteName: string; layout: Layout; open: boolean; onToggle: () => void }) {
+function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layout, open, onToggle, bests, onSetSuggest, onPublish }: { week: Week; prevWeek: Week | null; live: boolean; athleteId: string; current: boolean; athleteName: string; layout: Layout; open: boolean; onToggle: () => void; bests: Map<string, ExBest> | null; onSetSuggest: (rowId: string, value: string) => void; onPublish: () => void }) {
   const cols = layout === "cols";
   const [refresh, setRefresh] = useState(0);
+  const [openEx, setOpenEx] = useState<Set<string>>(new Set()); // exercises with their RM/last-done panel expanded
+  const toggleEx = (id: string) => setOpenEx((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const days = useMemo(() => buildDays(week, live, athleteId, prevWeek), [week, live, athleteId, prevWeek, refresh]);
   const { base, totalVol, anyLogged } = useMemo(() => computeStats(days), [days]);
   const state = weekState(athleteId, week, live);
@@ -266,6 +320,13 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
           {!cols && <button className="cc-wk-toggle" onClick={onToggle}>{open ? "▴ Hide" : "▾ Sessions"}</button>}
+          {live && (sync === "stale" || sync === "unsent") && (
+            <button
+              title="Send this week to the athlete (including any suggested loads you just set). Days they've already logged are kept as-is."
+              onClick={onPublish}
+              style={{ border: "none", background: "var(--accent)", color: "#fff", borderRadius: 8, padding: "6px 12px", font: "700 10px/1.2 var(--font-body)", cursor: "pointer", whiteSpace: "nowrap" }}
+            >{sync === "unsent" ? "Publish week →" : "Publish changes →"}</button>
+          )}
           {canClear && (
             <button
               title="Delete every logged number for this week on both apps, so it's completely loggable again. The plan stays; only the logged data is wiped. Use it if a session bugs out."
@@ -304,9 +365,31 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
                   return (
                   <div key={i} className={`cc-view-ex${rdiff?.isNew ? " cc-diff-new" : rdiff?.changed ? " cc-diff-changed" : ""}`}>
                     <div className="cc-view-ex-head">
-                      <span className="cc-view-ex-name">{ex.name}</span>
+                      {live && bests ? (
+                        <button type="button" className={`cc-view-ex-name cc-view-ex-toggle${openEx.has(ex.rowId) ? " cc-open" : ""}`} onClick={() => toggleEx(ex.rowId)} title="Show this exercise's rep-maxes (1RM–8RM) and the last session logged">
+                          <span className="cc-exd-caret">{openEx.has(ex.rowId) ? "▾" : "▸"}</span>{ex.name}
+                        </button>
+                      ) : (
+                        <span className="cc-view-ex-name">{ex.name}</span>
+                      )}
                       <span className="cc-view-ex-scheme">{ex.scheme}</span>
                     </div>
+                    {ex.canSuggest && (
+                      <label className="cc-view-suggest">
+                        <span className="cc-view-suggest-lbl">suggest load</span>
+                        <input
+                          className="cc-view-suggest-in"
+                          inputMode="decimal"
+                          placeholder="—"
+                          key={ex.suggest}
+                          defaultValue={ex.suggest}
+                          onBlur={(e) => { if (e.target.value.trim() !== (ex.suggest || "")) onSetSuggest(ex.rowId, e.target.value); }}
+                          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                        />
+                        <span className="cc-view-suggest-k">kg</span>
+                      </label>
+                    )}
+                    {openEx.has(ex.rowId) && live && bests && <ExDetail name={ex.name} bests={bests} />}
                     {rdiff && <DiffLine d={rdiff} prevName={prevWeek?.name} />}
                     <div className="cc-view-sets">
                       {ex.sets.map((s, si) => (

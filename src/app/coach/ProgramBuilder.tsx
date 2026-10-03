@@ -46,6 +46,7 @@ import { getClients } from "./coachData";
 import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel, exerciseBests, bestLabel, clearAthleteProgram, loggedDatesForWeek } from "../../lib/data/athleteData";
 import { notifyAthletePublished } from "../../lib/auth/coachAuth";
 import { DiffLine } from "./DiffLine";
+import { ExDetail } from "./ExDetail";
 import { fmtKg } from "../../lib/calc/records";
 import { weekState, WEEK_STATE_LABEL, weekLiftStats } from "./coachStats";
 import { Avatar } from "./Avatar";
@@ -102,6 +103,8 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   const [rpePrompt, setRpePrompt] = useState<{ dayId: string; exId: string; name: string; mode: RpeMode } | null>(null); // RPE change awaiting a scope choice
   const [copyFrom, setCopyFrom] = useState(false);
   const [showMaxes, setShowMaxes] = useState(false);
+  const [openEx, setOpenEx] = useState<Set<string>>(new Set()); // rows with their RM/last-done panel expanded
+  const toggleEx = (id: string) => setOpenEx((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [linearFill, setLinearFill] = useState(false);
   // The athlete's all-time bests per exercise (live athletes only) — for the RM toggle.
   const bests = useMemo(() => (live ? exerciseBests(athleteId) : null), [live, athleteId, program]);
@@ -362,21 +365,24 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     return `${Math.round((pct / 100) * rm / 2.5) * 2.5} kg`;
   };
 
-  // Loads the athlete actually logged on a given date, keyed by exercise name.
-  const loggedForDate = (date: string | null): Record<string, string> => {
+  // Loads the athlete actually logged on a given date, keyed by the exercise's
+  // POSITION in the day (not its name) — so a top set and its working sets of the
+  // same lift each show their own logged weights instead of both picking up the
+  // last line's numbers. The session's exercises line up with the day's by index.
+  const loggedByIndex = (date: string | null): Record<number, string> => {
     if (!live || !date) return {};
     const s = getSessionFor(athleteId, date);
-    const map: Record<string, string> = {};
-    for (const ex of s.exercises) {
+    const map: Record<number, string> = {};
+    s.exercises.forEach((ex, i) => {
       // Only the athlete's real logs — not coach fixed-load prefills.
       const w = ex.sets.filter((st) => st.weightKg != null && !st.prefill).map((st) => st.weightKg as number);
-      if (w.length) map[ex.name.toLowerCase()] = `logged ${w.map(fmtKg).join(" · ")} kg`;
-    }
+      if (w.length) map[i] = w.map(fmtKg).join(" · ");
+    });
     return map;
   };
   const loggedByWeekday = useMemo(() => {
-    const out: Record<number, Record<string, string>> = {};
-    if (live) for (const d of week.days) out[d.weekday] = loggedForDate(dayDate(week, d.weekday));
+    const out: Record<number, Record<number, string>> = {};
+    if (live) for (const d of week.days) out[d.weekday] = loggedByIndex(dayDate(week, d.weekday));
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [week, live, athleteId]);
@@ -395,18 +401,21 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
     : ex.intensity === "seconds" ? `${ex.value || "?"} s`
     : ex.intensity === "backoff" ? `−${ex.value || "?"}% off top`
     : ex.value ? `RPE${ex.value}` : "—";
+  // Last-week reference per exercise, as a list PER NAME in order of appearance —
+  // so the Nth top/working line of a lift maps to last week's Nth line of the same
+  // lift (same duplicate-safe matching as the logged numbers above).
   const prevByWeekday = useMemo(() => {
-    const out: Record<number, Record<string, string>> = {};
+    const out: Record<number, Record<string, string[]>> = {};
     if (!prevWeek) return out;
     for (const d of prevWeek.days) {
       if (d.rest) continue;
-      const logged = loggedForDate(dayDate(prevWeek, d.weekday));
-      const map: Record<string, string> = {};
-      for (const ex of d.exercises) {
-        const lg = logged[ex.name.toLowerCase()];
-        map[ex.name.toLowerCase()] = `${prescOf(ex)}${lg ? ` · ${lg.replace("logged ", "")}` : ""}`;
-      }
-      out[d.weekday] = map;
+      const logged = loggedByIndex(dayDate(prevWeek, d.weekday));
+      const byName: Record<string, string[]> = {};
+      d.exercises.forEach((ex, i) => {
+        const lg = logged[i];
+        (byName[ex.name.toLowerCase()] ??= []).push(`${prescOf(ex)}${lg ? ` · ${lg} kg` : ""}`);
+      });
+      out[d.weekday] = byName;
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1131,6 +1140,12 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                 {d.exercises.map((ex, exIdx) => {
                   const rdiff = showDiff && prevWeek ? diffByDay[d.id]?.diffs[exIdx] : undefined;
                   const isAmrap = isAmrapReps(ex.reps);
+                  // Occurrence of this name earlier in the day → so a top set and its
+                  // working sets each line up with last week's matching line.
+                  const occ = d.exercises.slice(0, exIdx).filter((x) => x.name.toLowerCase() === ex.name.toLowerCase()).length;
+                  const logged = loggedByWeekday[d.weekday]?.[exIdx];
+                  const lastWk = prevByWeekday[d.weekday]?.[ex.name.toLowerCase()]?.[occ];
+                  const exOpen = openEx.has(ex.id);
                   return (
                   <div
                     key={ex.id}
@@ -1156,15 +1171,21 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                             <option key={m} value={m}>RPE · {m === "auto" ? `auto (${rpeSummary(ex)})` : RPE_MODE_LABEL[m].toLowerCase()}</option>
                           ))}
                         </select>
-                        {loggedByWeekday[d.weekday]?.[ex.name.toLowerCase()] && (
-                          <div className="cc-ex-logged">{loggedByWeekday[d.weekday][ex.name.toLowerCase()]}</div>
-                        )}
-                        {prevByWeekday[d.weekday]?.[ex.name.toLowerCase()] && (
-                          <div className="cc-ex-prev">last wk · {prevByWeekday[d.weekday][ex.name.toLowerCase()]}</div>
+                        {(logged || lastWk) && (
+                          <div className="cc-ex-refs">
+                            {logged && <span className="cc-ref cc-ref-logged"><span className="cc-ref-k">this wk</span>{logged} kg</span>}
+                            {lastWk && <span className="cc-ref cc-ref-prev"><span className="cc-ref-k">last wk</span>{lastWk}</span>}
+                          </div>
                         )}
                         {showMaxes && bests && bestLabel(ex.name, ex.mainLift, bests) && (
                           <div className="cc-ex-best">{ex.mainLift ? "RMs" : "best"} · {bestLabel(ex.name, ex.mainLift, bests)}</div>
                         )}
+                        {live && bests && (
+                          <button type="button" className={`cc-ex-hist${exOpen ? " cc-ex-hist-on" : ""}`} onClick={() => toggleEx(ex.id)} title="Show this exercise's rep-maxes (1RM–8RM) and the last session the athlete logged it">
+                            {exOpen ? "▾" : "▸"} RMs &amp; last done
+                          </button>
+                        )}
+                        {exOpen && bests && <ExDetail name={ex.name} bests={bests} />}
                         {rdiff && <DiffLine d={rdiff} prevName={prevWeek?.name} />}
                       </div>
                       <input className="cc-in" placeholder="url" value={ex.video} onChange={(e) => mutRow(d.id, ex.id, { video: e.target.value })} />

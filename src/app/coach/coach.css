@@ -1831,23 +1831,176 @@
 }
 
 /* logged loads shown inside the builder */
-.cc-ex-logged {
-  font: 500 9.5px/1.3 var(--font-body);
-  letter-spacing: 0.02em;
-  color: var(--accent-700);
-  padding: 0 5px 3px;
+/* This-week / last-week load references under an exercise — laid out as tidy
+   labelled pills so a top set and its back-offs read cleanly, each on its own. */
+.cc-ex-refs {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 3px 5px 2px;
 }
-.cc-ex-prev {
-  font: 500 9.5px/1.3 var(--font-body);
-  letter-spacing: 0.02em;
-  color: var(--muted);
-  padding: 0 5px 3px;
+.cc-ref {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font: 600 10px/1.35 var(--font-body);
+  letter-spacing: 0.01em;
 }
+.cc-ref-k {
+  flex: none;
+  min-width: 42px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font: 700 8.5px/1.5 var(--font-heading);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.cc-ref-logged { color: var(--accent-700); }
+.cc-ref-logged .cc-ref-k { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent-700); }
+.cc-ref-prev { color: var(--muted); }
+.cc-ref-prev .cc-ref-k { background: color-mix(in srgb, var(--muted) 14%, transparent); color: var(--muted); }
 .cc-ex-best {
   font: 600 9.5px/1.3 var(--font-body);
   letter-spacing: 0.02em;
   color: var(--good);
   padding: 0 5px 3px;
+}
+
+/* ---- per-exercise RM / last-done ---------------------------------------- */
+/* The small disclosure under an exercise name (builder) that opens its history. */
+.cc-ex-hist {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 3px 0 1px 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--divider);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font: 600 9px/1.5 var(--font-body);
+  letter-spacing: 0.03em;
+  cursor: pointer;
+}
+.cc-ex-hist:hover { border-color: var(--accent); color: var(--navy); }
+.cc-ex-hist-on {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--navy);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+/* The expanded panel — shared by the builder and the viewer. */
+.cc-exd {
+  margin: 4px 5px 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--divider);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.cc-exd-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cc-exd-k {
+  font: 700 8.5px/1 var(--font-heading);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cc-exd-rms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.cc-exd-rm {
+  padding: 2px 7px;
+  border-radius: 7px;
+  background: var(--surface);
+  border: 1px solid var(--divider);
+  font: 500 11px/1.3 var(--font-body);
+  color: var(--navy);
+}
+.cc-exd-rm b {
+  font: 700 10px/1 var(--font-heading);
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  margin-right: 3px;
+}
+.cc-exd-e1 { border-style: dashed; }
+.cc-exd-last {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  font: 500 11px/1.3 var(--font-body);
+  color: var(--navy);
+}
+.cc-exd-date {
+  font: 700 9px/1 var(--font-heading);
+  letter-spacing: 0.04em;
+  color: var(--accent-700);
+  text-transform: uppercase;
+}
+.cc-exd-set {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--divider);
+}
+.cc-exd-empty {
+  font: 500 10.5px/1.3 var(--font-body);
+  color: var(--muted);
+}
+
+/* ---- viewer: inline suggested-load editor + clickable exercise ---------- */
+.cc-view-ex-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.cc-view-ex-toggle:hover { color: var(--accent-700); }
+.cc-exd-caret {
+  font-size: 9px;
+  color: var(--muted);
+}
+.cc-view-suggest {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--divider));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  width: fit-content;
+}
+.cc-view-suggest-lbl {
+  font: 700 8.5px/1 var(--font-heading);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent-700);
+}
+.cc-view-suggest-in {
+  width: 62px;
+  padding: 3px 6px;
+  border: 1px solid var(--divider);
+  border-radius: 6px;
+  background: #fff;
+  font: 600 12px/1 var(--font-body);
+  color: var(--navy);
+}
+.cc-view-suggest-in:focus { outline: none; border-color: var(--accent); }
+.cc-view-suggest-k {
+  font: 500 10px/1 var(--font-body);
+  color: var(--muted);
 }
 
 /* ---- competing ----------------------------------------------------------- */

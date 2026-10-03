@@ -694,7 +694,9 @@ export function getSessionFor(athleteId: string, date: string): Session {
 // the "bests" toggle on the athlete log and the coach's builder — a compound
 // shows its #RMs, an accessory just its top load. Reps come from the template
 // that was live on each logged date (the low end of a range).
-export type ExBest = { maxLoad: number; byReps: Record<number, number>; e1rm: number; mainLift: MainLift | null };
+export type ExLastSet = { kg: number; reps: number | null; rpe: number | null };
+export type ExLast = { date: string; sets: ExLastSet[] };
+export type ExBest = { maxLoad: number; byReps: Record<number, number>; e1rm: number; mainLift: MainLift | null; last?: ExLast };
 const repsLow = (s: string): number => { const m = String(s).match(/\d+/); return m ? parseInt(m[0], 10) : 0; };
 
 export function exerciseBests(athleteId: string): Map<string, ExBest> {
@@ -713,7 +715,18 @@ export function exerciseBests(athleteId: string): Map<string, ExBest> {
       b.e1rm = Math.max(b.e1rm, epleyE1rm(kg, reps));
     }
   };
-  for (const date of Object.keys(logs)) {
+  // Remember the most recent logged session per exercise too, so the coach has a
+  // concrete "this is what they last did" alongside the all-time rep-maxes. Dates
+  // ascending → the final write for a name is its latest session.
+  const addLast = (name: string, date: string, set: ExLastSet) => {
+    const k = name.trim().toLowerCase();
+    if (!k) return;
+    const b = best.get(k);
+    if (!b) return;
+    if (!b.last || b.last.date !== date) b.last = { date, sets: [] };
+    b.last.sets.push(set);
+  };
+  for (const date of Object.keys(logs).sort()) {
     const dayLog = logs[date];
     if (!dayLog?.sets) continue;
     const day = d.loggedDays?.[date] ?? templateForDate(d, date)[new Date(`${date}T00:00:00`).getDay()];
@@ -723,7 +736,9 @@ export function exerciseBests(athleteId: string): Map<string, ExBest> {
         ex.sets.forEach((st, si) => {
           const log = dayLog.sets![`${prefix}${ei}_${si}`];
           if (!log || log.weightKg == null || log.prefill) return;
-          add(ex.name, ex.mainLift, log.weightKg, repsLow(st.targetReps));
+          const reps = repsLow(st.targetReps);
+          add(ex.name, ex.mainLift, log.weightKg, reps);
+          addLast(ex.name, date, { kg: log.weightKg, reps: log.repsDone ?? (reps > 0 ? reps : null), rpe: log.rpe ?? null });
         }),
       );
     scan(day.exercises, "");
