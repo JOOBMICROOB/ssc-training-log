@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { loadProgram, saveProgram, weekOrder, dayDate, startWeekday, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, toTemplate, type Program, type Week, type ExRow, type DayDiff } from "./coachProgram";
+import { loadProgram, saveProgram, weekOrder, dayDate, startWeekday, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, toTemplate, movementGroup, type Program, type Week, type ExRow, type DayDiff, type ExGroup } from "./coachProgram";
 import { DiffLine } from "./DiffLine";
 import { ExDetail } from "./ExDetail";
 import { weekState, WEEK_STATE_LABEL } from "./coachStats";
@@ -19,9 +19,18 @@ import type { MainLift } from "../../lib/program/program";
 
 type Layout = "rows" | "cols"; // rows = weeks stacked / days across · cols = weeks across / days stacked
 const LAYOUT_KEY = "ssc.coach.viewLayout";
+const COLORCODE_KEY = "ssc.coach.colorCode";
+
+// Movement groups shown in the colour-code legend, in reading order.
+const MG_LEGEND: { group: Exclude<ExGroup, "accessory">; label: string }[] = [
+  { group: "squat", label: "Squat" },
+  { group: "bench", label: "Bench" },
+  { group: "deadlift", label: "Deadlift" },
+  { group: "pull", label: "Back / pull" },
+];
 
 type ViewSet = { reps: string; target: string; loggedKg: number | null; rpe: number | null; note: string; repsDone: number | null };
-type ViewEx = { rowId: string; name: string; mainLift: MainLift | null; scheme: string; sets: ViewSet[]; canSuggest: boolean; suggest: string };
+type ViewEx = { rowId: string; name: string; mainLift: MainLift | null; colorGroup: ExGroup; scheme: string; sets: ViewSet[]; canSuggest: boolean; suggest: string };
 type ViewDay = { weekday: number; date: string | null; rest: boolean; exercises: ViewEx[]; sessionRpe: number | null; pain: number | null; diff: DayDiff };
 
 const LIFTS: MainLift[] = ["squat", "bench", "deadlift"];
@@ -125,6 +134,7 @@ function buildDays(week: Week, live: boolean, athleteId: string, prevWeek: Week 
           rowId: r.id,
           name: r.name,
           mainLift: r.mainLift,
+          colorGroup: movementGroup(r),
           scheme: r.scheme,
           canSuggest,
           suggest: r.suggest ?? "",
@@ -224,6 +234,11 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
   const [layout, setLayout] = useState<Layout>(() => (localStorage.getItem(LAYOUT_KEY) as Layout) || "rows");
   const chooseLayout = (l: Layout) => { setLayout(l); try { localStorage.setItem(LAYOUT_KEY, l); } catch { /* ignore */ } };
 
+  // Colour-code exercises by movement group (squat / bench / deadlift / back).
+  // Off by default — a review-only toggle, saved per coach like the layout.
+  const [colorCode, setColorCode] = useState<boolean>(() => localStorage.getItem(COLORCODE_KEY) === "1");
+  const toggleColorCode = () => setColorCode((v) => { const next = !v; try { localStorage.setItem(COLORCODE_KEY, next ? "1" : "0"); } catch { /* ignore */ } return next; });
+
   return (
     <div className="cc-page">
       <div className="cc-head-row">
@@ -244,6 +259,21 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
               <button className="cc-chip" aria-current={layout === "rows"} onClick={() => chooseLayout("rows")}>Weeks stacked</button>
               <button className="cc-chip" aria-current={layout === "cols"} onClick={() => chooseLayout("cols")}>Weeks across</button>
             </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                className="cc-chip"
+                aria-current={colorCode}
+                onClick={toggleColorCode}
+                title="Tint each exercise by movement group — squat, bench, deadlift and back/pull. Variations follow their main lift; accessories stay neutral."
+              >{colorCode ? "✓ Colour code" : "Colour code"}</button>
+              {colorCode && (
+                <div className="cc-mg-legend">
+                  {MG_LEGEND.map((m) => (
+                    <span key={m.group} className="cc-mg-key" data-mg={m.group}><i />{m.label}</span>
+                  ))}
+                </div>
+              )}
+            </div>
             {live && (
               <button
                 className="cc-chip"
@@ -257,7 +287,7 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
         <button className="cc-mini cc-mini-solid" style={{ padding: "11px 16px", fontSize: 11 }} onClick={onOpenBuilder}>Open program builder →</button>
       </div>
 
-      <div className={layout === "cols" ? "cc-wk-cols" : "cc-wk-stack"}>
+      <div className={`${layout === "cols" ? "cc-wk-cols" : "cc-wk-stack"}${colorCode ? " cc-colorcode" : ""}`}>
         {meso.weeks.map((w, wi) => (
           <WeekBlock key={w.id} week={w} prevWeek={wi > 0 ? meso.weeks[wi - 1] : null} live={live} athleteId={athleteId} current={w.id === currentId} athleteName={athleteName} layout={layout} open={layout === "cols" || openWeeks.has(w.id)} onToggle={() => toggleWeek(w.id)} bests={bests} suggestMode={suggestMode} onSetSuggest={(rowId, v) => setSuggest(w.id, rowId, v)} />
         ))}
@@ -355,7 +385,7 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
                 {dv.exercises.map((ex, i) => {
                   const rdiff = prevWeek ? dv.diff.diffs[i] : undefined;
                   return (
-                  <div key={i} className={`cc-view-ex${rdiff?.isNew ? " cc-diff-new" : rdiff?.changed ? " cc-diff-changed" : ""}`}>
+                  <div key={i} data-mg={ex.colorGroup} className={`cc-view-ex${rdiff?.isNew ? " cc-diff-new" : rdiff?.changed ? " cc-diff-changed" : ""}`}>
                     <div className="cc-view-ex-head">
                       {live && bests ? (
                         <button type="button" className={`cc-view-ex-name cc-view-ex-toggle${openEx.has(ex.rowId) ? " cc-open" : ""}`} onClick={() => toggleEx(ex.rowId)} title="Show this exercise's rep-maxes (1RM–8RM) and the last session logged">

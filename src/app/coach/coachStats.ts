@@ -6,6 +6,7 @@
  */
 import { getDashboard, getSessionFor } from "../../lib/data/athleteData";
 import { epleyE1rm } from "../../lib/calc/epley";
+import { countsForLift } from "../../lib/program/deriveRecords";
 import { weekOrder, dayDate, type Week } from "./coachProgram";
 import type { MainLift, ProgramLogs } from "../../lib/program/program";
 
@@ -75,7 +76,7 @@ export function weekLiftStats(athleteId: string, week: Week, live: boolean): Wee
           totalSets++;
           const logged = st.weightKg != null && !st.prefill; // coach prefills excluded
           if (logged) loggedSets++;
-          if (!ex.mainLift) continue;
+          if (!ex.mainLift || !countsForLift(ex, ex.mainLift)) continue;
           const b = base[ex.mainLift];
           b.planned++;
           if (!logged) continue;

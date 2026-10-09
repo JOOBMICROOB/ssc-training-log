@@ -17,6 +17,14 @@
   --warn: #c98a3a;
   --bad: #b5534f;
 
+  /* Movement-group colours for the coach viewer's colour-code mode. Four
+     well-separated hues that sit on the light blueprint background; accessories
+     stay neutral (no token). */
+  --mg-squat: #c26a3a;
+  --mg-bench: #2f80b5;
+  --mg-deadlift: #8a5cc4;
+  --mg-pull: #3f9d8f;
+
   --font-heading: "Barlow Condensed", system-ui, sans-serif;
   --font-body: "Barlow", system-ui, sans-serif;
   --radius: 3px;

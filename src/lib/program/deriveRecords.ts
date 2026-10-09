@@ -41,6 +41,32 @@ export function inferLift(name: string): MainLift | null {
   return null;
 }
 
+// A set only counts toward a comp lift's PR / e1RM when the exercise truly
+// belongs to that lift: either flagged as the competition lift, or a same-family
+// variation by name (comp/paused/tempo/midgrip/larsen bench, box/front/pause
+// squat, RDL/deficit deadlift…). This is the safety net for a mis-tagged
+// accessory — e.g. a leg press saved with mainLift "bench" would otherwise
+// become a 140 kg "bench 1RM". It's a keyword match (not the strict inferLift
+// regex), so genuine variations still count; a variation whose name shares no
+// family word (rare) should be flagged `competition` to count toward the PR.
+const LIFT_FAMILY: Record<MainLift, RegExp> = {
+  squat: /squat/,
+  bench: /bench/,
+  deadlift: /dead\s*lift|\brdl\b/,
+};
+export function nameInLiftFamily(name: string, lift: MainLift): boolean {
+  return LIFT_FAMILY[lift].test(name.trim().toLowerCase());
+}
+
+/** Does this logged exercise genuinely belong to `lift` (for PR/e1RM purposes)? */
+export function countsForLift(
+  ex: { name: string; mainLift: MainLift | null; competition?: boolean },
+  lift: MainLift,
+): boolean {
+  if ((ex.mainLift ?? inferLift(ex.name)) !== lift) return false;
+  return ex.competition === true || nameInLiftFamily(ex.name, lift);
+}
+
 const monthLabel = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 
@@ -87,7 +113,7 @@ export function deriveRecords(
     const s = getSession(templateAt ? templateAt(date) : template, logs, date, "A", undefined, undefined, frozen);
     for (const ex of s.exercises) {
       const lift = ex.mainLift ?? inferLift(ex.name);
-      if (!lift) continue;
+      if (!lift || !countsForLift(ex, lift)) continue;
       for (const st of ex.sets) {
         if (st.weightKg != null && !st.failed && !st.prefill) {
           const cur = maxByLift[lift];

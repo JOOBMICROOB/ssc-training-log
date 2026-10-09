@@ -9,7 +9,7 @@ import { DEFAULT_WEEK } from "../../lib/program/seedProgram";
 import { addDays, looseLift } from "../../lib/program/program";
 export { looseLift };
 import { getSharedData, setSharedData, getDashboard } from "../../lib/data/athleteData";
-import { inferLift } from "../../lib/program/deriveRecords";
+import { inferLift, nameInLiftFamily } from "../../lib/program/deriveRecords";
 import type { ExerciseTemplate, MainLift, WeekTemplate } from "../../lib/program/program";
 import reneeProgram from "./reneeProgram.json";
 import liezeProgram from "./liezeProgram.json";
@@ -92,6 +92,26 @@ export type DbExercise = { id: string; name: string; group: ExGroup; video?: str
 /** Which database column an exercise belongs to, inferred from its main lift. */
 export function inferGroup(mainLift: MainLift | null): ExGroup {
   return mainLift ?? "accessory";
+}
+
+// Back / vertical-and-horizontal pull work — rows, pulldowns, pull-/chin-ups,
+// face pulls, pull-throughs. Its own colour group; everything unmatched that
+// isn't a main lift stays "accessory".
+const PULL_RE =
+  /\b(rows?|pulldowns?|lat\s*pull|pull-?ups?|chin-?ups?|face\s*pulls?|pull-?throughs?|pull-?ins?|pendlay|seal\s*row|t-?bar)\b/i;
+
+/**
+ * Movement group for colour-coding the viewer. Squat / bench / deadlift come
+ * from the main-lift tag, but only when the exercise genuinely belongs to that
+ * lift (same guard as the PRs) so a mis-tagged accessory — e.g. a leg press
+ * saved as "bench" — is coloured neutral, not as a main lift. Then back/pull
+ * work by name; everything else is an accessory.
+ */
+export function movementGroup(ex: { name: string; mainLift: MainLift | null; competition?: boolean }): ExGroup {
+  const lift = ex.mainLift ?? inferLift(ex.name);
+  if (lift && (ex.competition === true || nameInLiftFamily(ex.name, lift))) return lift;
+  if (PULL_RE.test(ex.name)) return "pull";
+  return "accessory";
 }
 
 // Monday-first weekday order for display (0=Sun … 6=Sat).

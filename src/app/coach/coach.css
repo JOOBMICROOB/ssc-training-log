@@ -1626,6 +1626,51 @@
 .cc-view-ex:last-child {
   border-bottom: none;
 }
+
+/* ---- colour-code mode: tint each exercise by movement group -------------- */
+.cc-colorcode .cc-view-ex[data-mg="squat"]    { --mg: var(--mg-squat); }
+.cc-colorcode .cc-view-ex[data-mg="bench"]    { --mg: var(--mg-bench); }
+.cc-colorcode .cc-view-ex[data-mg="deadlift"] { --mg: var(--mg-deadlift); }
+.cc-colorcode .cc-view-ex[data-mg="pull"]     { --mg: var(--mg-pull); }
+.cc-colorcode .cc-view-ex[data-mg]:not([data-mg="accessory"]) {
+  box-shadow: inset 3px 0 0 var(--mg);
+  background: color-mix(in srgb, var(--mg) 7%, transparent);
+  padding-left: 11px;
+}
+.cc-colorcode .cc-view-ex[data-mg]:not([data-mg="accessory"]) .cc-view-ex-name { color: var(--mg); }
+/* Keep the change / new-row marker visible alongside the movement bar. */
+.cc-colorcode .cc-view-ex.cc-diff-changed:not([data-mg="accessory"]) {
+  box-shadow: inset 3px 0 0 var(--mg), inset 7px 0 0 color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.cc-colorcode .cc-view-ex.cc-diff-new:not([data-mg="accessory"]) {
+  box-shadow: inset 3px 0 0 var(--mg), inset 7px 0 0 color-mix(in srgb, var(--good) 60%, transparent);
+}
+
+/* Legend beside the Colour-code toggle. */
+.cc-mg-legend {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.cc-mg-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 9.5px/1 var(--font-heading);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cc-mg-key > i {
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  background: var(--mg, var(--muted));
+}
+.cc-mg-key[data-mg="squat"]    { --mg: var(--mg-squat); }
+.cc-mg-key[data-mg="bench"]    { --mg: var(--mg-bench); }
+.cc-mg-key[data-mg="deadlift"] { --mg: var(--mg-deadlift); }
+.cc-mg-key[data-mg="pull"]     { --mg: var(--mg-pull); }
 .cc-view-ex-head {
   display: flex;
   align-items: baseline;

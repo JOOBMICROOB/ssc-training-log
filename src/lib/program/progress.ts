@@ -3,7 +3,7 @@ import { ipfGlPoints, type Sex } from "../calc/scores";
 import { currentWeekWindow, type Weekday } from "../calc/adherence";
 import { fmtKg, fmtGl } from "../calc/records";
 import { getSession, addDays, type WeekTemplate, type ProgramLogs, type MainLift } from "./program";
-import { inferLift } from "./deriveRecords";
+import { inferLift, countsForLift } from "./deriveRecords";
 
 /**
  * Per-lift progress for the 6a page. The estimated 1RM each week is Epley from
@@ -95,9 +95,11 @@ export function liftProgress(
   for (const date of Object.keys(logs)) {
     const s = getSession(templateAt ? templateAt(date) : template, logs, date);
     for (const ex of s.exercises) {
-      // Same lift-match as the dashboard: mainLift, or the name when it's unset.
+      // Same lift-match as the dashboard: mainLift, or the name when it's unset —
+      // but only when the exercise genuinely belongs to the lift, so a mis-tagged
+      // accessory (e.g. a leg press saved as "bench") can't inflate the 1RM/PR.
       const exLift = ex.mainLift ?? inferLift(ex.name);
-      if (exLift !== lift) continue;
+      if (exLift !== lift || !countsForLift(ex, lift)) continue;
       // Every set of this main lift feeds the rep-maxes — exactly what the
       // dashboard PR counts, so the two always agree (a heavy set logged under a
       // variation still shows as the heaviest-logged here). Genuine variations
