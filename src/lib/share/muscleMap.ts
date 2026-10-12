@@ -17,9 +17,9 @@ const FRONT: Region[] = ["delts", "chest", "biceps", "forearms", "abs", "quads"]
 
 // Primary movers per main lift (used first, before name keywords refine).
 const LIFT_MUSCLES: Record<"squat" | "bench" | "deadlift", Region[]> = {
-  squat: ["quads", "glutes", "abs"],
-  bench: ["chest", "triceps", "delts"],
-  deadlift: ["hams", "glutes", "traps", "lats"],
+  squat: ["quads", "glutes", "hams", "calves"], // whole legs
+  bench: ["chest", "triceps", "biceps", "delts"], // chest + arms
+  deadlift: ["quads", "hams", "glutes", "calves", "lats", "traps"], // legs + back
 };
 
 // Name keyword → regions, for accessories (and to enrich the main lifts).
