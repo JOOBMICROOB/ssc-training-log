@@ -35,6 +35,13 @@
   --a-accent-rgb: 89, 128, 166;
   --a-accent2-rgb: 65, 97, 128;
   --a-navy-rgb: 29, 45, 61;
+  /* Split tokens so a dark theme can re-point them without moving structure:
+     --a-glass = frosted panel base, --a-ink = text that tracked the navy,
+     --a-text = near-black body text. Defaults equal the originals, so the light
+     themes render byte-identically. */
+  --a-glass-rgb: 255, 255, 255;
+  --a-ink-rgb: var(--a-navy-rgb);
+  --a-text-rgb: 29, 31, 32;
 }
 
 /* ---- athlete app themes (Specific Strength · Flower · Flame · Nature) ---------
@@ -73,6 +80,37 @@
     radial-gradient(circle at 14% 10%, rgba(160, 215, 95, 0.58), transparent 34%),
     radial-gradient(circle at 82% 58%, rgba(150, 205, 90, 0.5), transparent 36%),
     radial-gradient(circle at 30% 90%, rgba(165, 220, 100, 0.5), transparent 32%), #ffffff;
+}
+
+/* ---- Neon — a dark theme (same structure, colours pulled back to charcoal +
+   a single neon-purple accent, with soft neumorphic depth + glow). --------- */
+[data-theme="neon"] {
+  --a-accent-rgb: 176, 108, 255;   /* neon purple */
+  --a-accent2-rgb: 139, 92, 246;
+  --a-navy-rgb: 22, 20, 30;        /* dark surfaces: top bar, navy cards */
+  --a-ink-rgb: 233, 231, 242;      /* text that tracked navy → now light */
+  --a-text-rgb: 233, 231, 242;     /* body text → light */
+  --a-glass-rgb: 38, 35, 52;       /* frosted panels → dark */
+  --a-panel-bg: rgb(26, 24, 36);
+}
+[data-theme="neon"] .a-root {
+  --bg: #0e0d14;
+  --card: #1a1826;
+  --line: rgba(255, 255, 255, .06);
+  --text: #e9e7f2;
+  --muted: #9b97ad;
+  --navy-deep: #0a0910;
+}
+/* Neumorphic depth on the token-driven cards + neon glow on the accents. */
+[data-theme="neon"] .a-root .a-card,
+[data-theme="neon"] .a-root .a-stat {
+  box-shadow: 6px 6px 16px rgba(0, 0, 0, .55), -5px -5px 14px rgba(255, 255, 255, .035);
+}
+[data-theme="neon"] .a-root .a-btn.primary {
+  box-shadow: 0 0 18px rgba(176, 108, 255, .5);
+}
+[data-theme="neon"] .a-root .a-card.navy {
+  box-shadow: 0 0 0 1px rgba(176, 108, 255, .18), 6px 6px 18px rgba(0, 0, 0, .6);
 }
 
 * { box-sizing: border-box; }

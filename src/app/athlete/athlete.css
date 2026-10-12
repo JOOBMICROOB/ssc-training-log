@@ -27,7 +27,7 @@
 
 /* cards */
 .a-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; box-shadow: 0 1px 2px rgba(29,31,32,.05); }
-.a-card.navy { background: rgb(var(--a-navy-rgb)); color: #eef2f6; border-color: rgba(255,255,255,.08); }
+.a-card.navy { background: rgb(var(--a-navy-rgb)); color: #eef2f6; border-color: rgba(var(--a-glass-rgb),.08); }
 .a-stat { background: var(--card); border: 1px solid var(--line); border-radius: 13px; padding: 12px 14px; }
 .a-stat .v { font: 600 22px/1 "Barlow Condensed", sans-serif; }
 

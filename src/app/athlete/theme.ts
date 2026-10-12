@@ -2,13 +2,14 @@
 // data-theme on the .athlete-shell (theme.css re-points the accent + background
 // vars per value). Both React (AthleteApp) and the DOM-wired dashboard widget
 // go through here so the choice stays in sync and persists per device.
-export type Theme = "strength" | "flower" | "flame" | "nature";
+export type Theme = "strength" | "flower" | "flame" | "nature" | "neon";
 
 export const THEMES: { id: Theme; name: string; sub: string; swatch: string }[] = [
   { id: "strength", name: "Specific Strength", sub: "The original blue", swatch: "rgb(89,128,166)" },
   { id: "flower", name: "Flower", sub: "Soft pink bloom", swatch: "rgb(214,96,158)" },
   { id: "flame", name: "Flame", sub: "Warm coral red", swatch: "rgb(224,101,74)" },
   { id: "nature", name: "Nature", sub: "Fresh green", swatch: "rgb(112,176,70)" },
+  { id: "neon", name: "Neon", sub: "Dark purple glow", swatch: "rgb(176,108,255)" },
 ];
 
 const KEY = "ssc.theme";

@@ -43,9 +43,9 @@ function setText(host: HTMLElement, id: string, value: string) {
 }
 
 function prRowHtml(p: { lift: string; key?: string; value: string; date: string; delta: string }): string {
-  return `<div data-lift="${p.key ?? ""}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(255,255,255,.75);border-radius:16px;background:rgba(255,255,255,.62);backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;cursor:pointer;">
-    <span style="flex:1 1 0%;font:600 15px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(var(--a-navy-rgb));">${p.lift}</span>
-    <span data-pr-value style="flex:0 0 auto;font:600 20px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${p.value}</span>
+  return `<div data-lift="${p.key ?? ""}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(var(--a-glass-rgb),.75);border-radius:16px;background:rgba(var(--a-glass-rgb),.62);backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;cursor:pointer;">
+    <span style="flex:1 1 0%;font:600 15px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color: rgb(var(--a-ink-rgb));">${p.lift}</span>
+    <span data-pr-value style="flex:0 0 auto;font:600 20px/1 'Barlow Condensed',sans-serif;color: rgb(var(--a-ink-rgb));">${p.value}</span>
     <span style="flex:0 0 auto;width:64px;text-align:right;font:400 10px/1.2 Barlow,sans-serif;color:rgb(107,116,128);">${p.date}</span>
     <span style="flex:0 0 auto;width:46px;text-align:right;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:rgb(var(--a-accent2-rgb));">${p.delta}</span>
   </div>`;
@@ -69,7 +69,7 @@ function renderSentNotes(host: HTMLElement, model: DashboardModel) {
   if (wrap) wrap.style.display = notes.length ? "" : "none";
   list.innerHTML = notes
     .map(
-      (n) => `<div style="padding:10px 12px;border:1px solid rgba(29,31,32,.12);border-radius:16px;background:rgba(255,255,255,.62);backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;">
+      (n) => `<div style="padding:10px 12px;border:1px solid rgba(29,31,32,.12);border-radius:16px;background:rgba(var(--a-glass-rgb),.62);backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;">
         <div style="display:flex;justify-content:space-between;gap:8px;font:400 9px/1 Barlow,sans-serif;letter-spacing:.12em;color:rgb(138,146,156);">
           <span>${fmtNoteDate(n.date)}</span><span style="${n.checkedAt ? "color:rgb(79,157,105);" : ""}">${n.checkedAt ? "SEEN ✓" : "SENT"}</span>
         </div>
@@ -117,12 +117,12 @@ function applyModel(host: HTMLElement, model: DashboardModel) {
     setText(host, "nutriName", nutri.name.trim());
     setText(host, "nutriRole", nutri.role?.trim() || "Nutritionist");
     if (nutriCard) {
-      nutriCard.style.border = "1px solid rgba(255,255,255,.75)";
-      nutriCard.style.background = "rgba(255,255,255,.62)";
+      nutriCard.style.border = "1px solid rgba(var(--a-glass-rgb),.75)";
+      nutriCard.style.background = "rgba(var(--a-glass-rgb),.62)";
     }
     if (nutriPic) {
       if (nutri.photo) {
-        nutriPic.style.background = "rgba(255,255,255,.62)";
+        nutriPic.style.background = "rgba(var(--a-glass-rgb),.62)";
         nutriPic.innerHTML = `<img src="${nutri.photo}" alt="" style="width:100%;height:100%;object-fit:cover;">`;
       } else {
         const ni = nutri.name.trim().split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "N";
@@ -251,7 +251,7 @@ function maybeAvatarPrompt(athleteId: string, hasAvatar: boolean): (() => void) 
   root.innerHTML = `
     <div style="width:100%;max-width:340px;background:var(--a-panel-bg,#fbfdff);border-radius:20px;box-shadow:0 24px 60px rgba(9,17,28,.4);padding:22px 20px 18px;text-align:center;">
       <div style="width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:rgba(var(--a-accent-rgb),.14);display:grid;place-items:center;font-size:30px;">📸</div>
-      <div style="font:600 20px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(var(--a-navy-rgb));">Add a profile picture?</div>
+      <div style="font:600 20px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.01em;color: rgb(var(--a-ink-rgb));">Add a profile picture?</div>
       <div style="margin-top:8px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(107,116,128);">Pop a photo on your profile so your coach recognises you at a glance. Takes two seconds — totally optional.</div>
       <button data-add style="width:100%;margin-top:16px;padding:13px;border:1px solid rgb(var(--a-navy-rgb));border-radius:12px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">ADD A PHOTO</button>
       <button data-skip style="width:100%;margin-top:9px;padding:11px;border:none;background:transparent;color:rgb(138,146,156);font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;cursor:pointer;">NOT NOW</button>
@@ -303,7 +303,7 @@ function editPrBaseline(athleteId: string, valueSpan: HTMLElement, lift: "squat"
   inp.value = current;
   inp.inputMode = "decimal";
   inp.style.cssText =
-    "width:74px;font:600 18px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background:#fff;text-align:right;";
+    "width:74px;font:600 18px/1 'Barlow Condensed',sans-serif;color: rgb(var(--a-ink-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background:#fff;text-align:right;";
   valueSpan.style.display = "none";
   valueSpan.parentElement?.insertBefore(inp, valueSpan.nextSibling);
   inp.focus();
@@ -355,7 +355,7 @@ function openTileEditor(athleteId: string, span: HTMLElement, field: EditField, 
     editor = inp;
   }
   editor.style.cssText =
-    "font:600 16px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background:#fff;max-width:100%;";
+    "font:600 16px/1 'Barlow Condensed',sans-serif;color: rgb(var(--a-ink-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background:#fff;max-width:100%;";
   span.style.display = "none";
   parent.appendChild(editor);
   editor.focus();
@@ -414,7 +414,7 @@ function editCompTotal(athleteId: string, span: HTMLElement) {
   inp.size = 6;
   inp.placeholder = "kg";
   inp.style.cssText =
-    "font:600 28px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:1px 6px;background:#fff;width:110px;max-width:100%;";
+    "font:600 28px/1 'Barlow Condensed',sans-serif;color: rgb(var(--a-ink-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:1px 6px;background:#fff;width:110px;max-width:100%;";
   span.style.display = "none";
   parent.appendChild(inp);
   inp.focus();
@@ -478,10 +478,10 @@ function buildModal(model: DashboardModel): {
       <div style="margin-top:14px">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <span style="font:400 10px/1 Barlow,sans-serif;letter-spacing:.12em;color:#6b7480">${label}</span>
-          <span data-v="${key}" style="font:600 15px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb))">${scores[key]}</span>
+          <span data-v="${key}" style="font:600 15px/1 'Barlow Condensed',sans-serif;color: rgb(var(--a-ink-rgb))">${scores[key]}</span>
         </div>
         <input type="range" min="0" max="10" value="${scores[key]}" data-k="${key}"
-          style="width:100%;margin-top:7px;height:6px;accent-color:rgb(var(--a-navy-rgb))">
+          style="width:100%;margin-top:7px;height:6px;accent-color: rgb(var(--a-ink-rgb))">
       </div>`,
   ).join("");
 
@@ -493,13 +493,13 @@ function buildModal(model: DashboardModel): {
       <div style="display:flex;align-items:flex-start;justify-content:space-between">
         <div>
           <div style="font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.14em;color:#8a929c">WEEKLY CHECK-IN</div>
-          <div style="margin-top:5px;font:600 17px/1.1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb))">${model.checkinStatus}</div>
+          <div style="margin-top:5px;font:600 17px/1.1 'Barlow Condensed',sans-serif;color: rgb(var(--a-ink-rgb))">${model.checkinStatus}</div>
         </div>
         <button data-close style="border:0;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:16px;cursor:pointer;line-height:1">▴</button>
       </div>
       <div style="height:1px;background:rgba(29,31,32,.1);margin:14px 0 2px"></div>
       ${rows}
-      <textarea data-note placeholder="Additional information for the coach" style="width:100%;min-height:64px;margin-top:16px;padding:11px;background:rgba(255,255,255,.6);border:1px solid rgba(29,31,32,.14);border-radius:12px;color:rgb(var(--a-navy-rgb));font-size:12.5px;resize:none;box-sizing:border-box">${model.checkin.note}</textarea>
+      <textarea data-note placeholder="Additional information for the coach" style="width:100%;min-height:64px;margin-top:16px;padding:11px;background:rgba(var(--a-glass-rgb),.6);border:1px solid rgba(29,31,32,.14);border-radius:12px;color: rgb(var(--a-ink-rgb));font-size:12.5px;resize:none;box-sizing:border-box">${model.checkin.note}</textarea>
       <button data-submit style="width:100%;margin-top:12px;padding:14px;border:1px solid rgb(var(--a-navy-rgb));border-radius:12px;background:rgb(var(--a-navy-rgb));color:#f2f2f3;font:600 14px/1 'Barlow Condensed',sans-serif;letter-spacing:.14em;cursor:pointer">SUBMIT CHECK-IN</button>
     </div>`;
 
@@ -650,9 +650,9 @@ function mountCalendarWidget(host: HTMLElement, athleteId: string): () => void {
         const comp = compByDate[c.date];
         const tile =
           c.status === "logged"
-            ? "background:rgba(var(--a-accent-rgb),.24);color:rgb(var(--a-navy-rgb));font-weight:700;"
+            ? "background:rgba(var(--a-accent-rgb),.24);color: rgb(var(--a-ink-rgb));font-weight:700;"
             : c.status === "training"
-              ? "background:#e6eaef;color:rgb(var(--a-navy-rgb));font-weight:600;"
+              ? "background:#e6eaef;color: rgb(var(--a-ink-rgb));font-weight:600;"
               : "background:transparent;color:#afb5bd;";
         const ring = c.isToday ? "box-shadow:0 0 0 2px rgb(var(--a-accent-rgb)) inset;" : "";
         const star = comp ? `<span style="position:absolute;top:1px;right:3px;font-size:8px;line-height:1;color:#7c6bd6;">★</span>` : "";
@@ -665,7 +665,7 @@ function mountCalendarWidget(host: HTMLElement, athleteId: string): () => void {
       .map((c) => {
         const dd = dayDiff(today, c.date);
         const when = dd === 0 ? "today" : dd === 1 ? "tomorrow" : dd < 14 ? `${dd} days` : `${Math.round(dd / 7)} weeks`;
-        return `<div style="display:flex;align-items:center;gap:7px;margin-top:6px;"><span style="color:#7c6bd6;">★</span><span style="flex:1 1 0;font:600 11.5px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(var(--a-navy-rgb));">${c.name}</span><span style="font:600 10px/1 Barlow,sans-serif;color:rgb(var(--a-accent2-rgb));">${when}</span></div>`;
+        return `<div style="display:flex;align-items:center;gap:7px;margin-top:6px;"><span style="color:#7c6bd6;">★</span><span style="flex:1 1 0;font:600 11.5px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.02em;color: rgb(var(--a-ink-rgb));">${c.name}</span><span style="font:600 10px/1 Barlow,sans-serif;color:rgb(var(--a-accent2-rgb));">${when}</span></div>`;
       })
       .join("");
 
@@ -673,7 +673,7 @@ function mountCalendarWidget(host: HTMLElement, athleteId: string): () => void {
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="flex:1 1 0;font:600 10px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(107,116,128);">YOUR CALENDAR</span>
         <button data-cw="prev" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:#fff;color:rgb(var(--a-accent2-rgb));cursor:pointer;font-size:13px;">‹</button>
-        <span style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.08em;color:rgb(var(--a-navy-rgb));min-width:96px;text-align:center;">${CAL_MONTHS[view.m]} ${view.y}</span>
+        <span style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.08em;color: rgb(var(--a-ink-rgb));min-width:96px;text-align:center;">${CAL_MONTHS[view.m]} ${view.y}</span>
         <button data-cw="next" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:#fff;color:rgb(var(--a-accent2-rgb));cursor:pointer;font-size:13px;">›</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.08em;color:#8a929c;text-align:center;margin-bottom:4px;">
