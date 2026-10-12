@@ -149,6 +149,50 @@ export async function setAthleteNutrition(athleteUserId: string, val: boolean): 
   return error ? { ok: false, error: error.message ?? "Could not update." } : { ok: true };
 }
 
+// --- nutritionist profile photo ---------------------------------------------
+// Jess's photo lives in her own app_state (she can write her own row), and is
+// pushed onto her athletes' dashboards via app_stamp_nutritionist().
+const stateSb = () =>
+  coachSupabase as unknown as {
+    from: (t: string) => {
+      select: (c: string) => { eq: (col: string, v: string) => { maybeSingle: () => Promise<{ data: { data?: Record<string, unknown> } | null }> } };
+      upsert: (v: unknown, o?: unknown) => Promise<{ error: { message?: string } | null }>;
+    };
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ error: { message?: string } | null }>;
+  };
+
+/** Jess's saved profile photo (data URL), or null. */
+export async function getNutritionistPhoto(): Promise<string | null> {
+  const { data: u } = await coachSupabase.auth.getUser();
+  const uid = u.user?.id;
+  if (!uid) return null;
+  const { data } = await stateSb().from("app_state").select("data").eq("user_id", uid).maybeSingle();
+  const photo = data?.data?.nutritionistPhoto;
+  return typeof photo === "string" ? photo : null;
+}
+
+/** Push Jess's current name + photo onto every athlete she follows. */
+export async function stampNutritionist(photo: string | null): Promise<void> {
+  try {
+    await stateSb().rpc("app_stamp_nutritionist", { photo });
+  } catch {
+    /* RPC not deployed yet — card just stays "Coming soon" until 0019 is run */
+  }
+}
+
+/** Save Jess's photo (to her own state) and propagate it to her athletes. */
+export async function setNutritionistPhoto(photo: string): Promise<{ ok: boolean; error?: string }> {
+  const { data: u } = await coachSupabase.auth.getUser();
+  const uid = u.user?.id;
+  if (!uid) return { ok: false, error: "not signed in" };
+  const cur = await stateSb().from("app_state").select("data").eq("user_id", uid).maybeSingle();
+  const merged = { ...(cur.data?.data ?? {}), nutritionistPhoto: photo };
+  const { error } = await stateSb().from("app_state").upsert({ user_id: uid, data: merged }, { onConflict: "user_id" });
+  if (error) return { ok: false, error: error.message ?? "Could not save photo." };
+  await stampNutritionist(photo);
+  return { ok: true };
+}
+
 /** Every coach (for the Team tab, the coach switcher, and the share picker). */
 export async function listCoaches(): Promise<{ userId: string; name: string; code: string }[]> {
   const { data, error } = await q.from("app_profiles").select("user_id,name,code").eq("role", "coach");

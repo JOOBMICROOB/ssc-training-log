@@ -108,6 +108,29 @@ function applyModel(host: HTMLElement, model: DashboardModel) {
     }
   }
 
+  // "Nutritionist" card — stamped onto the athlete by their nutritionist's console
+  // once a coach flags them. No nutritionist yet → the "Coming soon" default stays.
+  const nutri = model.nutritionist;
+  const nutriCard = host.querySelector<HTMLElement>("#nutriCard");
+  const nutriPic = host.querySelector<HTMLElement>("#nutriPic");
+  if (nutri?.name?.trim()) {
+    setText(host, "nutriName", nutri.name.trim());
+    setText(host, "nutriRole", nutri.role?.trim() || "Nutritionist");
+    if (nutriCard) {
+      nutriCard.style.border = "1px solid rgba(255,255,255,.75)";
+      nutriCard.style.background = "rgba(255,255,255,.62)";
+    }
+    if (nutriPic) {
+      if (nutri.photo) {
+        nutriPic.style.background = "rgba(255,255,255,.62)";
+        nutriPic.innerHTML = `<img src="${nutri.photo}" alt="" style="width:100%;height:100%;object-fit:cover;">`;
+      } else {
+        const ni = nutri.name.trim().split(/\s+/).map((w) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "N";
+        nutriPic.innerHTML = `<div style="width:100%;height:100%;display:grid;place-items:center;background:rgb(var(--a-accent2-rgb));color:rgb(242,242,243);font:700 18px/1 'Barlow Condensed',sans-serif;">${ni}</div>`;
+      }
+    }
+  }
+
   // Bodyweight card
   const bw = model.bw;
   const svg = host.querySelector("#bwSvg");

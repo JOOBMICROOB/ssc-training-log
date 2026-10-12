@@ -8,7 +8,7 @@ import { currentWeekWindow, type Weekday } from "./adherence";
  * as the "now" marker, with a dotted linear run-out projecting the trend.
  */
 
-export type BwEntry = { date: string; kg: number }; // date = ISO yyyy-mm-dd
+export type BwEntry = { date: string; kg: number; at?: number }; // date = ISO yyyy-mm-dd, at = ms epoch when logged
 export type BwRange = "all" | "meso" | "week";
 
 const VB_H = 130;
@@ -18,7 +18,7 @@ const X_RUNOUT = 310;
 const Y_TOP = 30;
 const Y_BOT = 100;
 
-export type BwPoint = { x: number; y: number; kg: number; date: string };
+export type BwPoint = { x: number; y: number; kg: number; date: string; at?: number };
 
 export type BwModel = {
   range: BwRange;
@@ -87,6 +87,7 @@ export function bwChart(entries: BwEntry[], range: BwRange, o: BwOpts): BwModel 
     y: yFor(e.kg),
     kg: e.kg,
     date: e.date,
+    at: e.at,
   }));
   const last = points.length ? points[points.length - 1] : null;
 
@@ -248,5 +249,15 @@ export function renderBwSvgInner(m: BwModel, s: BwStyle): string {
     ? `<circle cx="${m.last.x.toFixed(1)}" cy="${m.last.y.toFixed(1)}" r="${s.lastR}" style="fill:${s.lastFill}"${glowAttr}></circle>`
     : "";
 
-  return defs + area + line + runout + nowV + dots + lastDot;
+  // Transparent, enlarged hit-targets over EVERY point so each can be tapped —
+  // carry the data a tooltip needs (kg, date, logged-at time). Rendered last so
+  // they sit on top; interactivity is wired by whoever renders the chart.
+  const hits = m.points
+    .map(
+      (p) =>
+        `<circle class="bw-hit" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="11" fill="transparent" data-kg="${p.kg}" data-date="${p.date}"${p.at != null ? ` data-at="${p.at}"` : ""} style="cursor:pointer;pointer-events:all"></circle>`,
+    )
+    .join("");
+
+  return defs + area + line + runout + nowV + dots + lastDot + hits;
 }

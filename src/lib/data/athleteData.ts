@@ -65,6 +65,9 @@ export type DashboardData = {
   bwRange: BwRange;
   bwEntries: BwEntry[];
   coach: { name: string; role: string };
+  // Stamped onto the athlete by their nutritionist's console when they're a
+  // nutrition client — drives the dashboard "Nutritionist" card (name + photo).
+  nutritionist?: { name: string; role: string; photo?: string };
   shop: { sub: string };
   // Coach-managed catalogue + the athlete's request (they collect kit at the gym).
   shopProducts: {
@@ -525,8 +528,8 @@ export function logBodyweight(athleteId: string, value: string, opts?: { overwri
   const idx = entries.findIndex((e) => e.date === today);
   if (idx >= 0 && !opts?.overwrite) return { status: "exists", existingKg: entries[idx].kg };
   const overwrote = idx >= 0;
-  if (overwrote) entries[idx] = { date: today, kg };
-  else entries.push({ date: today, kg });
+  if (overwrote) entries[idx] = { date: today, kg, at: Date.now() };
+  else entries.push({ date: today, kg, at: Date.now() });
   save(athleteId, {
     ...data,
     bwEntries: entries,

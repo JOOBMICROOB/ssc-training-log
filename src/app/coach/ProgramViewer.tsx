@@ -254,11 +254,13 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
                 ))}
               </select>
             </label>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <span className="cc-side-k" style={{ marginBottom: 0 }}>Layout</span>
-              <button className="cc-chip" aria-current={layout === "rows"} onClick={() => chooseLayout("rows")}>Weeks stacked</button>
-              <button className="cc-chip" aria-current={layout === "cols"} onClick={() => chooseLayout("cols")}>Weeks across</button>
-            </div>
+            {!readOnly && (
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <span className="cc-side-k" style={{ marginBottom: 0 }}>Layout</span>
+                <button className="cc-chip" aria-current={layout === "rows"} onClick={() => chooseLayout("rows")}>Weeks stacked</button>
+                <button className="cc-chip" aria-current={layout === "cols"} onClick={() => chooseLayout("cols")}>Weeks across</button>
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <button
                 className="cc-chip"
@@ -289,16 +291,16 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
         )}
       </div>
 
-      <div className={`${layout === "cols" ? "cc-wk-cols" : "cc-wk-stack"}${colorCode ? " cc-colorcode" : ""}`}>
+      <div className={`${!readOnly && layout === "cols" ? "cc-wk-cols" : "cc-wk-stack"}${colorCode ? " cc-colorcode" : ""}`}>
         {meso.weeks.map((w, wi) => (
-          <WeekBlock key={w.id} week={w} prevWeek={wi > 0 ? meso.weeks[wi - 1] : null} live={live} athleteId={athleteId} current={w.id === currentId} athleteName={athleteName} layout={layout} open={layout === "cols" || openWeeks.has(w.id)} onToggle={() => toggleWeek(w.id)} bests={bests} suggestMode={suggestMode && !readOnly} onSetSuggest={(rowId, v) => setSuggest(w.id, rowId, v)} />
+          <WeekBlock key={w.id} week={w} prevWeek={wi > 0 ? meso.weeks[wi - 1] : null} live={live} athleteId={athleteId} current={w.id === currentId} athleteName={athleteName} layout={readOnly ? "rows" : layout} open={readOnly || layout === "cols" || openWeeks.has(w.id)} onToggle={() => toggleWeek(w.id)} bests={bests} suggestMode={suggestMode && !readOnly} onSetSuggest={(rowId, v) => setSuggest(w.id, rowId, v)} readOnly={readOnly} />
         ))}
       </div>
     </div>
   );
 }
 
-function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layout, open, onToggle, bests, suggestMode, onSetSuggest }: { week: Week; prevWeek: Week | null; live: boolean; athleteId: string; current: boolean; athleteName: string; layout: Layout; open: boolean; onToggle: () => void; bests: Map<string, ExBest> | null; suggestMode: boolean; onSetSuggest: (rowId: string, value: string) => void }) {
+function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layout, open, onToggle, bests, suggestMode, onSetSuggest, readOnly = false }: { week: Week; prevWeek: Week | null; live: boolean; athleteId: string; current: boolean; athleteName: string; layout: Layout; open: boolean; onToggle: () => void; bests: Map<string, ExBest> | null; suggestMode: boolean; onSetSuggest: (rowId: string, value: string) => void; readOnly?: boolean }) {
   const cols = layout === "cols";
   const [refresh, setRefresh] = useState(0);
   const [openEx, setOpenEx] = useState<Set<string>>(new Set()); // exercises with their RM/last-done panel expanded
@@ -350,7 +352,7 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
-          {!cols && <button className="cc-wk-toggle" onClick={onToggle}>{open ? "▴ Hide" : "▾ Sessions"}</button>}
+          {!cols && !readOnly && <button className="cc-wk-toggle" onClick={onToggle}>{open ? "▴ Hide" : "▾ Sessions"}</button>}
           {canClear && (
             <button
               title="Delete every logged number for this week on both apps, so it's completely loggable again. The plan stays; only the logged data is wiped. Use it if a session bugs out."

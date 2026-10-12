@@ -4,7 +4,7 @@ import { ProgramViewer } from "./coach/ProgramViewer";
 import { AthletePanels } from "./coach/AthleteProfileView";
 import { Avatar } from "./coach/Avatar";
 import { getClients, setRealAthletes, subscribeCoach } from "./coach/coachData";
-import { startNutritionistSync, type CoachSession } from "../lib/auth/coachAuth";
+import { startNutritionistSync, getNutritionistPhoto, setNutritionistPhoto, stampNutritionist, type CoachSession } from "../lib/auth/coachAuth";
 
 /**
  * Read-only console for the nutritionist (Jess). Lists every athlete a coach
@@ -17,16 +17,48 @@ export function NutritionConsole({ session, onSignOut }: { session: CoachSession
   const [ready, setReady] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [view, setView] = useState<"program" | "info">("program");
+  const [photo, setPhoto] = useState<string | null>(null);
 
   useEffect(() => subscribeCoach(() => force((n) => n + 1)), []);
+
+  // Pick a new profile photo → save it + push the card to every followed athlete.
+  const pickPhoto = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const size = 256;
+          const side = Math.min(img.width, img.height);
+          const canvas = document.createElement("canvas");
+          canvas.width = size;
+          canvas.height = size;
+          canvas.getContext("2d")!.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, size, size);
+          const url = canvas.toDataURL("image/jpeg", 0.82);
+          setPhoto(url);
+          void setNutritionistPhoto(url);
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    };
+    input.click();
+  };
 
   useEffect(() => {
     let alive = true;
     const sync = async () => {
-      const list = await startNutritionistSync();
+      const [list, p] = await Promise.all([startNutritionistSync(), getNutritionistPhoto()]);
       if (!alive) return;
       setRealAthletes(list);
+      setPhoto(p);
       setReady(true);
+      void stampNutritionist(p); // refresh the card on every athlete (incl. newly flagged)
     };
     void sync();
     const onVis = () => { if (document.visibilityState === "visible") void sync(); };
@@ -49,8 +81,12 @@ export function NutritionConsole({ session, onSignOut }: { session: CoachSession
           <img className="cc-emblem" src="/assets/logo-emblem-white.png" alt="" />
           <span className="cc-brand-txt">NUTRITION CONSOLE</span>
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
-          <span className="cc-cell-s">Read-only · {session.name}</span>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+          <Avatar src={photo ?? undefined} name={session.name} size={34} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span className="cc-cell-s">{session.name}</span>
+            <button className="cc-mini" style={{ padding: "3px 8px", fontSize: 10 }} onClick={pickPhoto}>Change photo</button>
+          </div>
           <button className="cc-mini" onClick={onSignOut}>Sign out</button>
         </div>
       </header>
@@ -97,7 +133,7 @@ export function NutritionConsole({ session, onSignOut }: { session: CoachSession
                     onOpenBuilder={() => {}}
                   />
                 ) : (
-                  <AthletePanels key={selected.athleteId} client={selected} />
+                  <AthletePanels key={selected.athleteId} client={selected} interactiveBw />
                 )}
               </>
             )}

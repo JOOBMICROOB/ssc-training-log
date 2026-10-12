@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getDashboardModel, getDashboard, getSessionFor, setAthleteInfo, setCompPr, setCompTotal, setPrBaseline, markNoteChecked, removeNote, clearNotes, setWeekLockOff, IPF_CLASSES } from "../../lib/data/athleteData";
-import { createAthlete, athleteLoginEmail, resetAthletePassword, listCoaches, shareAthlete, unshareAthlete, sharesForAthlete, setAthleteNutrition } from "../../lib/auth/coachAuth";
+import { createAthlete, athleteLoginEmail, resetAthletePassword, listCoaches, shareAthlete, unshareAthlete, sharesForAthlete, setAthleteNutrition, notifyAthlete } from "../../lib/auth/coachAuth";
 import { fmtKg } from "../../lib/calc/records";
 import { renderBwSvgInner, DASH_STYLE } from "../../lib/calc/bwChart";
 import { Avatar } from "./Avatar";
@@ -132,7 +132,11 @@ function FullProfile({ client, coachUserId, onRosterChange }: { client: ClientRo
     if (!res.ok) {
       setNutri(!next); // revert
       alert(`Could not update nutrition — ${res.error ?? "unknown error"}`);
-    } else onRosterChange();
+    } else {
+      onRosterChange();
+      // Tell the athlete they've got a nutritionist following their training now.
+      if (next) void notifyAthlete(athleteId, "You've got a nutritionist", "A nutritionist now follows your training. See their card on your dashboard.");
+    }
   };
   const save = (patch: Parameters<typeof setAthleteInfo>[1]) => setAthleteInfo(athleteId, patch);
   const firstDefault = live ? a.firstName : client.name.split(" ")[0];
@@ -291,13 +295,31 @@ function SharePanel({ client, coachUserId, onRosterChange }: { client: ClientRow
  * The athlete's training variables as a grid of panels — reused both on the
  * profile page and inside the Client Board's expanded row so they read the same.
  */
-export function AthletePanels({ client }: { client: ClientRow }) {
+export function AthletePanels({ client, interactiveBw = false }: { client: ClientRow; interactiveBw?: boolean }) {
   const athleteId = client.athleteId;
   const live = client.live;
   const m = getDashboardModel(athleteId);
   const history = live ? m.adherenceHistory.slice(-10) : [];
   const latest = live ? latestSession(athleteId) : null;
   const scores = client.checkin;
+  // Tap a bodyweight point → popup with weight, date and (for new weigh-ins) time.
+  const [bwTip, setBwTip] = useState<{ x: number; y: number; kg: string; date: string; at?: number } | null>(null);
+  const onBwClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const t = (e.target as HTMLElement).closest(".bw-hit");
+    if (!t) { setBwTip(null); return; }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const atRaw = t.getAttribute("data-at");
+    setBwTip({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      kg: t.getAttribute("data-kg") ?? "",
+      date: t.getAttribute("data-date") ?? "",
+      at: atRaw ? Number(atRaw) : undefined,
+    });
+  };
+  const bwTipLabel = bwTip
+    ? `${bwTip.kg} kg · ${fmtDay(bwTip.date)}${bwTip.at ? ` · ${new Date(bwTip.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}`
+    : "";
 
   return (
       <div className="cc-profile-grid">
@@ -335,7 +357,18 @@ export function AthletePanels({ client }: { client: ClientRow }) {
           <div style={{ font: "600 24px/1 var(--font-heading)", color: "var(--navy)", marginTop: 8 }}>{m.bw.currentLabel}</div>
           <div className="cc-cell-s">{client.bodyweight.delta}</div>
           {m.bw.last ? (
-            <div style={{ marginTop: 12 }} dangerouslySetInnerHTML={{ __html: `<svg viewBox="0 0 320 130" preserveAspectRatio="xMidYMid meet" style="display:block;width:100%;height:auto;">${renderBwSvgInner(m.bw, DASH_STYLE)}</svg>` }} />
+            <div style={{ position: "relative", marginTop: 12 }} onClick={interactiveBw ? onBwClick : undefined}>
+              <div
+                style={{ cursor: interactiveBw ? "pointer" : "default" }}
+                dangerouslySetInnerHTML={{ __html: `<svg viewBox="0 0 320 130" preserveAspectRatio="xMidYMid meet" style="display:block;width:100%;height:auto;">${renderBwSvgInner(m.bw, DASH_STYLE)}</svg>` }}
+              />
+              {interactiveBw && bwTip && (
+                <div
+                  style={{ position: "absolute", left: bwTip.x, top: bwTip.y, transform: "translate(-50%,-130%)", pointerEvents: "none", whiteSpace: "nowrap", background: "var(--navy)", color: "#f2f7fc", font: "600 11px/1 var(--font-body)", padding: "6px 9px", borderRadius: 7, boxShadow: "0 6px 18px rgba(9,17,28,.35)", zIndex: 5 }}
+                >{bwTipLabel}</div>
+              )}
+              {interactiveBw && <div className="cc-cell-s" style={{ marginTop: 6 }}>Tap a point for weight · date · time.</div>}
+            </div>
           ) : (
             <div className="cc-cell-s" style={{ marginTop: 12 }}>No weigh-ins yet.</div>
           )}
