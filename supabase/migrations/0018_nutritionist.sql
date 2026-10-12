@@ -21,6 +21,11 @@
 -- 1) Per-athlete nutrition flag ----------------------------------------------
 alter table app_profiles add column if not exists nutrition boolean not null default false;
 
+-- 1b) Allow the new 'nutritionist' role (0014 limited role to athlete/coach).
+alter table app_profiles drop constraint if exists app_profiles_role_check;
+alter table app_profiles add constraint app_profiles_role_check
+  check (role in ('athlete', 'coach', 'nutritionist'));
+
 -- 2) Let the new-user trigger also profile a NUTRITIONIST --------------------
 create or replace function app_handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
