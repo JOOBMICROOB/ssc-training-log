@@ -14,31 +14,48 @@ import { hydrateAthletes, hydrateAthletesReadonly, hydrateShared, stopSync, enab
 // The generated Database type predates app_profiles; use an untyped view.
 const q = coachSupabase as unknown as { from: (t: string) => { select: (c: string) => { eq: (col: string, v: string) => { maybeSingle: () => Promise<{ data: Record<string, string> | null; error: unknown }> } & Promise<{ data: Record<string, string>[] | null; error: unknown }> } } };
 
-export type CoachSession = { userId: string; name: string; code: string };
+export type StaffRole = "coach" | "nutritionist";
+export type CoachSession = { userId: string; name: string; code: string; role: StaffRole };
 
 /** The current coach session, or null if nobody's signed in as a coach. */
 export async function getCoachSession(): Promise<CoachSession | null> {
+  const s = await getStaffSession();
+  return s && s.role === "coach" ? s : null;
+}
+
+/**
+ * The current staff session — a coach OR the nutritionist. The console branches
+ * on `role`: a coach gets the full console, a nutritionist a read-only board.
+ */
+export async function getStaffSession(): Promise<CoachSession | null> {
   const { data: userRes } = await coachSupabase.auth.getUser();
   const user = userRes.user;
   if (!user) return null;
   const { data, error } = await q.from("app_profiles").select("role,name,code").eq("user_id", user.id).maybeSingle();
-  if (error || !data || data.role !== "coach") return null;
-  return { userId: user.id, name: data.name ?? "Coach", code: data.code ?? "" };
+  if (error || !data || (data.role !== "coach" && data.role !== "nutritionist")) return null;
+  const role = data.role as StaffRole;
+  return { userId: user.id, name: data.name ?? (role === "coach" ? "Coach" : "Nutritionist"), code: data.code ?? "", role };
 }
 
 /** Sign in with email + password; rejects accounts that aren't coaches. */
 export async function signInCoach(email: string, password: string): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await coachSupabase.auth.signInWithPassword({ email: email.trim(), password });
-  if (error) return { ok: false, error: "Wrong email or password." };
-  const session = await getCoachSession();
-  if (!session) {
-    await coachSupabase.auth.signOut().catch(() => {});
-    return { ok: false, error: "This account isn't set up as a coach." };
-  }
-  return { ok: true };
+  const res = await signInStaff(email, password);
+  return res.ok ? { ok: true } : res;
 }
 
-export type CoachAthlete = { athleteId: string; userId: string; name: string; shared: boolean; owned: boolean; ownerId: string | null };
+/** Sign in a coach OR the nutritionist; returns the role so the console can route. */
+export async function signInStaff(email: string, password: string): Promise<{ ok: boolean; error?: string; role?: StaffRole }> {
+  const { error } = await coachSupabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) return { ok: false, error: "Wrong email or password." };
+  const session = await getStaffSession();
+  if (!session) {
+    await coachSupabase.auth.signOut().catch(() => {});
+    return { ok: false, error: "This account isn't set up as a coach or nutritionist." };
+  }
+  return { ok: true, role: session.role };
+}
+
+export type CoachAthlete = { athleteId: string; userId: string; name: string; shared: boolean; owned: boolean; ownerId: string | null; nutrition: boolean };
 
 // Broad, untyped view of coachSupabase for the tables the generated types predate.
 const cs = coachSupabase as unknown as {
@@ -62,7 +79,7 @@ export async function startCoachSync(coachUserId: string): Promise<CoachAthlete[
   // Every athlete (coaches can read all profiles — 0016). Each is tagged with its
   // owner so the Team/Clients board can show everyone while program tabs stay
   // scoped to own + shared.
-  const { data, error } = await cs.from("app_profiles").select("code,name,user_id,coach_user_id").eq("role", "athlete");
+  const { data, error } = await cs.from("app_profiles").select("code,name,user_id,coach_user_id,nutrition").eq("role", "athlete");
   const profs = !error && data ? data : [];
   // Which of them are shared TO me (defensive — table exists only after 0016).
   let sharedIds = new Set<string>();
@@ -79,6 +96,7 @@ export async function startCoachSync(coachUserId: string): Promise<CoachAthlete[
     ownerId: r.coach_user_id ?? null,
     owned: r.coach_user_id === coachUserId,
     shared: sharedIds.has(r.user_id),
+    nutrition: !!(r as Record<string, unknown>).nutrition,
   }));
   // Own + shared connect live (editable); everyone else is a one-shot read for the
   // board/summary only.
@@ -88,6 +106,35 @@ export async function startCoachSync(coachUserId: string): Promise<CoachAthlete[
   await hydrateAthletesReadonly(others);
   await hydrateShared(true); // coach seeds the shared competition list if empty
   return list;
+}
+
+/**
+ * Nutritionist-side roster: every athlete flagged `nutrition` (RLS returns only
+ * those to a nutritionist). Connected READ-ONLY — the nutritionist follows the
+ * published programs + logs but can't write anything (no write policy either).
+ */
+export async function startNutritionistSync(): Promise<CoachAthlete[]> {
+  enableCoachSync();
+  const { data, error } = await cs.from("app_profiles").select("code,name,user_id,coach_user_id,nutrition").eq("role", "athlete");
+  const profs = !error && data ? data : [];
+  const list: CoachAthlete[] = profs.map((r) => ({
+    athleteId: r.code,
+    userId: r.user_id,
+    name: r.name,
+    ownerId: r.coach_user_id ?? null,
+    owned: false,
+    shared: false,
+    nutrition: true,
+  }));
+  await hydrateAthletesReadonly(list);
+  return list;
+}
+
+/** Coach ticks/unticks whether an athlete also does nutrition (routed through RLS). */
+export async function setAthleteNutrition(athleteUserId: string, val: boolean): Promise<{ ok: boolean; error?: string }> {
+  const sb = coachSupabase as unknown as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ error: { message?: string } | null }> };
+  const { error } = await sb.rpc("app_set_nutrition", { athlete: athleteUserId, val });
+  return error ? { ok: false, error: error.message ?? "Could not update." } : { ok: true };
 }
 
 /** Every coach (for the Team tab, the coach switcher, and the share picker). */

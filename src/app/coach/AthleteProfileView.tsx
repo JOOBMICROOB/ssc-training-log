@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { getDashboardModel, getDashboard, getSessionFor, setAthleteInfo, setCompPr, setCompTotal, setPrBaseline, markNoteChecked, removeNote, clearNotes, setWeekLockOff, IPF_CLASSES } from "../../lib/data/athleteData";
-import { createAthlete, athleteLoginEmail, resetAthletePassword, listCoaches, shareAthlete, unshareAthlete, sharesForAthlete } from "../../lib/auth/coachAuth";
+import { createAthlete, athleteLoginEmail, resetAthletePassword, listCoaches, shareAthlete, unshareAthlete, sharesForAthlete, setAthleteNutrition } from "../../lib/auth/coachAuth";
 import { fmtKg } from "../../lib/calc/records";
 import { renderBwSvgInner, DASH_STYLE } from "../../lib/calc/bwChart";
 import { Avatar } from "./Avatar";
@@ -121,6 +121,17 @@ function FullProfile({ client, coachUserId, onRosterChange }: { client: ClientRo
   const prVal = (lift: "squat" | "bench" | "deadlift") => m.prs.find((p) => p.key === lift)?.value ?? "";
   const [sex, setSex] = useState<Sex>(a.sex === "male" ? "male" : "female");
   const [lockOff, setLockOff] = useState<boolean>(getDashboard(athleteId).weekLockOff ?? false);
+  const [nutri, setNutri] = useState<boolean>(!!client.nutrition);
+  useEffect(() => setNutri(!!client.nutrition), [client.nutrition]);
+  const toggleNutri = async () => {
+    const uid = getAthleteUserId(athleteId);
+    if (!uid) return;
+    const next = !nutri;
+    setNutri(next);
+    const res = await setAthleteNutrition(uid, next);
+    if (!res.ok) setNutri(!next); // revert on failure
+    else onRosterChange();
+  };
   const save = (patch: Parameters<typeof setAthleteInfo>[1]) => setAthleteInfo(athleteId, patch);
   const firstDefault = live ? a.firstName : client.name.split(" ")[0];
 
@@ -138,6 +149,13 @@ function FullProfile({ client, coachUserId, onRosterChange }: { client: ClientRo
           </div>
           {live ? <span className="cc-pr-badge" style={{ borderColor: "var(--good)", color: "var(--good)" }}>LIVE</span> : <span className="cc-cell-s">demo — not a real account yet</span>}
         </div>
+
+        {live && (
+          <label style={{ display: "flex", alignItems: "center", gap: 9, margin: "0 0 16px", cursor: "pointer" }}>
+            <input type="checkbox" checked={nutri} onChange={toggleNutri} />
+            <span className="cc-side-k" style={{ marginBottom: 0 }}>Nutrition — share training (read-only) with the nutritionist</span>
+          </label>
+        )}
 
         <div className="cc-side-k" style={{ marginBottom: 5 }}>Details</div>
         <div className="cc-form-grid">

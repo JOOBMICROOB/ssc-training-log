@@ -173,7 +173,7 @@ function computeStats(days: ViewDay[]) {
   return { base, totalVol, anyLogged: totalVol > 0 };
 }
 
-export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuilder }: { athleteId: string; athleteName: string; avatar?: string; live: boolean; onOpenBuilder: () => void }) {
+export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuilder, readOnly = false }: { athleteId: string; athleteName: string; avatar?: string; live: boolean; onOpenBuilder: () => void; readOnly?: boolean }) {
   // Held in state (not a bare memo) so the coach can tweak suggested loads right
   // here in the review view and see them reflected immediately.
   const [program, setProgram] = useState<Program>(() => loadProgram(athleteId));
@@ -274,7 +274,7 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
                 </div>
               )}
             </div>
-            {live && (
+            {live && !readOnly && (
               <button
                 className="cc-chip"
                 aria-current={suggestMode}
@@ -284,12 +284,14 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
             )}
           </div>
         </div>
-        <button className="cc-mini cc-mini-solid" style={{ padding: "11px 16px", fontSize: 11 }} onClick={onOpenBuilder}>Open program builder →</button>
+        {!readOnly && (
+          <button className="cc-mini cc-mini-solid" style={{ padding: "11px 16px", fontSize: 11 }} onClick={onOpenBuilder}>Open program builder →</button>
+        )}
       </div>
 
       <div className={`${layout === "cols" ? "cc-wk-cols" : "cc-wk-stack"}${colorCode ? " cc-colorcode" : ""}`}>
         {meso.weeks.map((w, wi) => (
-          <WeekBlock key={w.id} week={w} prevWeek={wi > 0 ? meso.weeks[wi - 1] : null} live={live} athleteId={athleteId} current={w.id === currentId} athleteName={athleteName} layout={layout} open={layout === "cols" || openWeeks.has(w.id)} onToggle={() => toggleWeek(w.id)} bests={bests} suggestMode={suggestMode} onSetSuggest={(rowId, v) => setSuggest(w.id, rowId, v)} />
+          <WeekBlock key={w.id} week={w} prevWeek={wi > 0 ? meso.weeks[wi - 1] : null} live={live} athleteId={athleteId} current={w.id === currentId} athleteName={athleteName} layout={layout} open={layout === "cols" || openWeeks.has(w.id)} onToggle={() => toggleWeek(w.id)} bests={bests} suggestMode={suggestMode && !readOnly} onSetSuggest={(rowId, v) => setSuggest(w.id, rowId, v)} />
         ))}
       </div>
     </div>

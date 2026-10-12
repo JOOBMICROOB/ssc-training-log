@@ -25,7 +25,8 @@ import {
   type ClientRow,
   type Coach,
 } from "./coach/coachData";
-import { getCoachSession, signInCoach, signOutCoach, startCoachSync, listCoaches, type CoachSession, type CoachAthlete } from "../lib/auth/coachAuth";
+import { getStaffSession, signInCoach, signOutCoach, startCoachSync, listCoaches, type CoachSession, type CoachAthlete } from "../lib/auth/coachAuth";
+import { NutritionConsole } from "./NutritionConsole";
 import { setAthleteCoachLabel } from "../lib/data/athleteData";
 import { enableCoachProgramSync, pullCoachPrograms, disableCoachProgramSync } from "./coach/coachProgramSync";
 
@@ -78,15 +79,15 @@ export function CoachConsole() {
   const [session, setSession] = useState<CoachSession | null | "loading">("loading");
 
   const load = async () => {
-    const s = await getCoachSession();
-    if (s) {
+    const s = await getStaffSession();
+    if (s && s.role === "coach") {
       // Pull the coach's cloud programs into localStorage BEFORE the console
       // renders, so the builder/calendar show the same on every device.
       enableCoachProgramSync(s.userId);
       await pullCoachPrograms().catch(() => {});
     }
     setSession(s);
-    if (s) void syncRoster(s);
+    if (s && s.role === "coach") void syncRoster(s);
   };
   useEffect(() => { void load(); }, []);
 
@@ -94,6 +95,9 @@ export function CoachConsole() {
     return <div className="cc" style={{ display: "grid", placeItems: "center", minHeight: "100vh", color: "var(--muted)" }}>Loading…</div>;
   }
   if (!session) return <CoachLogin onSignedIn={load} />;
+  if (session.role === "nutritionist") {
+    return <NutritionConsole session={session} onSignOut={async () => { await signOutCoach(); setSession(null); }} />;
+  }
   return <ConsoleShell session={session} onSignOut={async () => { disableCoachProgramSync(); await signOutCoach(); setSession(null); }} />;
 }
 

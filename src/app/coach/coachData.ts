@@ -77,6 +77,7 @@ export type ClientRow = {
   disabled: boolean; // archived by the coach — hidden from board + switcher, reversible
   shared?: boolean; // in this coach's roster because another coach shared them (not owned)
   owned?: boolean; // this coach owns the athlete (can edit their program)
+  nutrition?: boolean; // athlete also does nutrition → followed by the nutritionist
   streak: number; // athlete's current logging streak (0 = none / demo)
   opts: MeetOpt[];
 };
@@ -87,7 +88,7 @@ export const LIVE_ATHLETE_ID = "RS1203";
 // Real, cloud-synced athletes the coach owns (from app_profiles). The console
 // fills this after startCoachSync so getClients can turn each into a live row —
 // this is how a newly created account appears on the board.
-export type RealAthlete = { athleteId: string; userId: string; name: string; coachId?: string; shared?: boolean; owned?: boolean; ownerId?: string | null };
+export type RealAthlete = { athleteId: string; userId: string; name: string; coachId?: string; shared?: boolean; owned?: boolean; ownerId?: string | null; nutrition?: boolean };
 let realAthletes: RealAthlete[] = [];
 export function setRealAthletes(list: RealAthlete[]) {
   realAthletes = list;
@@ -431,6 +432,7 @@ export function getClients(coachId?: string, opts?: { includeDisabled?: boolean 
       }),
       shared: a.shared,
       owned: a.owned,
+      nutrition: a.nutrition,
     });
   }
 
