@@ -74,13 +74,26 @@ const cs = coachSupabase as unknown as {
  * they OWN (app_profiles.coach_user_id) plus any SHARED to them by another coach
  * (app_shared_athletes) — the shared ones flagged so the console can badge them.
  */
+/**
+ * Load every athlete profile, tolerating a stale PostgREST schema cache that
+ * doesn't know the `nutrition` column yet (right after the 0018 migration). If
+ * the column isn't in the API schema yet, fall back to the roster WITHOUT it so
+ * the board never goes blank — the nutrition flag just defaults off until the
+ * cache catches up.
+ */
+async function fetchAthleteProfiles(): Promise<Record<string, string>[]> {
+  const withNutri = await cs.from("app_profiles").select("code,name,user_id,coach_user_id,nutrition").eq("role", "athlete");
+  if (!withNutri.error && withNutri.data) return withNutri.data;
+  const base = await cs.from("app_profiles").select("code,name,user_id,coach_user_id").eq("role", "athlete");
+  return !base.error && base.data ? base.data : [];
+}
+
 export async function startCoachSync(coachUserId: string): Promise<CoachAthlete[]> {
   enableCoachSync();
   // Every athlete (coaches can read all profiles — 0016). Each is tagged with its
   // owner so the Team/Clients board can show everyone while program tabs stay
   // scoped to own + shared.
-  const { data, error } = await cs.from("app_profiles").select("code,name,user_id,coach_user_id,nutrition").eq("role", "athlete");
-  const profs = !error && data ? data : [];
+  const profs = await fetchAthleteProfiles();
   // Which of them are shared TO me (defensive — table exists only after 0016).
   let sharedIds = new Set<string>();
   try {
@@ -115,8 +128,7 @@ export async function startCoachSync(coachUserId: string): Promise<CoachAthlete[
  */
 export async function startNutritionistSync(): Promise<CoachAthlete[]> {
   enableCoachSync();
-  const { data, error } = await cs.from("app_profiles").select("code,name,user_id,coach_user_id,nutrition").eq("role", "athlete");
-  const profs = !error && data ? data : [];
+  const profs = await fetchAthleteProfiles();
   const list: CoachAthlete[] = profs.map((r) => ({
     athleteId: r.code,
     userId: r.user_id,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./coach/coach.css";
 import { ProgramViewer } from "./coach/ProgramViewer";
+import { AthletePanels } from "./coach/AthleteProfileView";
 import { Avatar } from "./coach/Avatar";
 import { getClients, setRealAthletes, subscribeCoach } from "./coach/coachData";
 import { startNutritionistSync, type CoachSession } from "../lib/auth/coachAuth";
@@ -15,6 +16,7 @@ export function NutritionConsole({ session, onSignOut }: { session: CoachSession
   const [, force] = useState(0);
   const [ready, setReady] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [view, setView] = useState<"program" | "info">("program");
 
   useEffect(() => subscribeCoach(() => force((n) => n + 1)), []);
 
@@ -79,15 +81,25 @@ export function NutritionConsole({ session, onSignOut }: { session: CoachSession
           </aside>
           <main>
             {selected && (
-              <ProgramViewer
-                key={selected.athleteId}
-                athleteId={selected.athleteId}
-                athleteName={selected.name}
-                avatar={selected.avatar}
-                live
-                readOnly
-                onOpenBuilder={() => {}}
-              />
+              <>
+                <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+                  <button className="cc-chip" aria-current={view === "program"} onClick={() => setView("program")}>Program</button>
+                  <button className="cc-chip" aria-current={view === "info"} onClick={() => setView("info")}>Info &amp; progress</button>
+                </div>
+                {view === "program" ? (
+                  <ProgramViewer
+                    key={selected.athleteId}
+                    athleteId={selected.athleteId}
+                    athleteName={selected.name}
+                    avatar={selected.avatar}
+                    live
+                    readOnly
+                    onOpenBuilder={() => {}}
+                  />
+                ) : (
+                  <AthletePanels key={selected.athleteId} client={selected} />
+                )}
+              </>
             )}
           </main>
         </div>
