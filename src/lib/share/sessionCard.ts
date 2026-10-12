@@ -1,79 +1,78 @@
 import type { Session } from "../program/program";
 import { fmtKg } from "../calc/records";
+import { musclesForSession, muscleMapSvg, type Region } from "./muscleMap";
 
 /**
- * Builds a shareable 1080×1920 "story" PNG summarising a finished session —
- * SSC branding + the key lifts, total volume, sets and session RPE — for the
- * athlete to post (and the coach to get some free marketing).
+ * Builds a shareable "session complete" PNG — a COMPACT, transparent card (not a
+ * full-screen frame) so once it's saved it drops onto a story as a movable
+ * sticker. Shows each S/B/D with its actual sets (and a PR badge), total volume,
+ * training time and a targeted-muscle map, under a single SSC wordmark.
  */
 
-export type ShareLift = { name: string; top: string; volume: string; pr: boolean };
+export type ShareLift = {
+  name: string; // SQUAT / BENCH / DEADLIFT
+  sets: string; // "100×5 · 110×5 · 140×1" — what the sets actually were
+  pr: boolean; // top set beat the stored PR → show the PR badge
+};
 export type ShareData = {
-  athleteName: string;
-  sessionName: string;
-  dateLabel: string;
-  lifts: ShareLift[];
+  lifts: ShareLift[]; // the S/B/D trained this session (≤3)
   volume: string;
-  prCount: number;
+  durationLabel: string; // "" when the session clock is unknown
+  muscles: Region[];
 };
 
 type Pr = { lift: string; value: string };
 
 const fmtInt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
-export function buildShareData(session: Session, prs: Pr[], athleteName: string): ShareData {
+const fmtDuration = (ms: number): string => {
+  const s = Math.round(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m ${sec}s`;
+};
+
+export function buildShareData(session: Session, prs: Pr[]): ShareData {
   const order: ("squat" | "bench" | "deadlift")[] = ["squat", "bench", "deadlift"];
   const label = { squat: "SQUAT", bench: "BENCH", deadlift: "DEADLIFT" } as const;
   const prFor = (l: string) => prs.find((p) => new RegExp(l, "i").test(p.lift));
 
+  // Each S/B/D trained this session: the actual sets (weight×reps), and a PR flag
+  // when the top logged set beat the stored PR.
   const lifts: ShareLift[] = order
     .filter((l) => session.exercises.some((e) => e.mainLift === l))
     .map((l) => {
-      const exs = session.exercises.filter((e) => e.mainLift === l);
-      const logged = exs.flatMap((e) => e.sets).filter((s) => s.weightKg != null && !s.failed);
+      const logged = session.exercises
+        .filter((e) => e.mainLift === l)
+        .flatMap((e) => e.sets)
+        .filter((s) => s.weightKg != null && !s.failed && !s.prefill);
       const top = logged.length ? Math.max(...logged.map((s) => s.weightKg as number)) : 0;
-      let lv = 0;
-      exs.forEach((e) =>
-        e.sets.forEach((s) => {
-          if (s.weightKg != null) lv += s.weightKg * (parseInt(s.targetReps, 10) || 1);
-        }),
-      );
       const pr = prFor(l === "deadlift" ? "dead" : l);
       const prVal = pr ? parseFloat(pr.value.replace(",", ".")) : NaN;
-      return {
-        name: label[l],
-        top: top ? `${fmtKg(top)} kg` : "—",
-        volume: `${fmtInt(lv)} kg`,
-        pr: isFinite(prVal) && top > prVal,
-      };
-    });
+      const sets = logged
+        .map((s) => `${fmtKg(s.weightKg as number)}×${s.repsDone != null ? s.repsDone : s.targetReps || "?"}`)
+        .join("   ·   ");
+      return { name: label[l], sets, pr: isFinite(prVal) && top > prVal && top > 0 };
+    })
+    .filter((x) => x.sets);
 
+  // Total volume actually done — confirmed loads only (no coach prefills / fails).
   let vol = 0;
   session.exercises.forEach((e) =>
     e.sets.forEach((s) => {
-      if (s.weightKg != null) vol += s.weightKg * (parseInt(s.targetReps, 10) || 1);
+      if (s.weightKg != null && !s.prefill && !s.failed) vol += s.weightKg * (parseInt(s.targetReps, 10) || 1);
     }),
   );
-  const d = new Date(`${session.date}T00:00:00`);
-  const dateLabel = d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }).toUpperCase();
-  return {
-    athleteName,
-    sessionName: session.name,
-    dateLabel,
-    lifts,
-    volume: `${fmtInt(vol)} kg`,
-    prCount: lifts.filter((l) => l.pr).length,
-  };
-}
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
+  // Training time: the app's session clock — first real set (startedAt) to the
+  // last set touched (editedAt). Hidden if the clock wasn't captured.
+  const durationLabel =
+    session.startedAt && session.editedAt && session.editedAt > session.startedAt
+      ? fmtDuration(session.editedAt - session.startedAt)
+      : "";
+
+  return { lifts, volume: `${fmtInt(vol)} kg`, durationLabel, muscles: [...musclesForSession(session)] };
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -86,127 +85,160 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fill();
+}
+
+const WHITE = "#f2f7fc";
+const LABEL = "rgba(224,236,248,.72)";
+const ACCENT = "#9ed0ff";
+const INK = "#0b1622"; // dark text on the accent PR badge
+const spaced = (t: string) => t.split("").join(" "); // hair-space tracking
+
+type Row = { h: number; draw: (ctx: CanvasRenderingContext2D, yTop: number) => void };
+
+/**
+ * Renders a COMPACT, auto-sized card — not a full-screen frame — so when it's
+ * saved and added to a story it behaves like a movable sticker. Fixed width,
+ * height grows to fit, equal gaps between every row, transparent background.
+ */
 export async function renderSessionPng(data: ShareData): Promise<Blob> {
-  const W = 1080;
-  const H = 1920;
-  const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d")!;
   try {
     await (document as unknown as { fonts?: { ready: Promise<unknown> } }).fonts?.ready;
   } catch {
     /* fonts optional */
   }
 
-  // background
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, "#22384e");
-  bg.addColorStop(0.5, "#132435");
-  bg.addColorStop(1, "#0b1622");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-
+  const W = 820;
   const cx = W / 2;
-  ctx.textAlign = "center";
+  const contentW = W - 104;
+  const gap = 52; // equal spacing between every row
+  const padTop = 56;
+  const padBottom = 60;
 
-  // logo wordmark
+  // Preload images first so their heights are known before sizing the canvas.
+  let logo: HTMLImageElement | null = null;
+  let map: HTMLImageElement | null = null;
   try {
-    const logo = await loadImage("/assets/logo-full-white.png");
-    const lw = 560;
-    const lh = (lw * logo.height) / logo.width;
-    ctx.drawImage(logo, cx - lw / 2, 150, lw, lh);
+    logo = await loadImage("/assets/logo-full-white.png");
   } catch {
-    ctx.fillStyle = "#f2f7fc";
-    ctx.font = "700 60px 'Barlow Condensed', sans-serif";
-    ctx.fillText("SPECIFIC STRENGTH", cx, 240);
+    /* text fallback */
+  }
+  try {
+    map = await loadImage(`data:image/svg+xml;utf8,${encodeURIComponent(muscleMapSvg(new Set(data.muscles)))}`);
+  } catch {
+    /* map optional */
   }
 
-  // heading
-  ctx.fillStyle = "#9ed0ff";
-  ctx.font = "600 30px 'Barlow', sans-serif";
-  ctx.fillText("S E S S I O N   C O M P L E T E", cx, 470);
+  const liftH = 106;
+  const statH = 130;
+  const mapW = 340;
+  const mapH = map ? Math.round((mapW * map.height) / map.width) : 0;
+  const logoW = 300;
+  const logoH = logo ? Math.round((logoW * logo.height) / logo.width) : 56;
 
-  ctx.fillStyle = "#f2f7fc";
-  let nameSize = 78;
-  ctx.font = `700 ${nameSize}px 'Barlow Condensed', sans-serif`;
-  while (ctx.measureText(data.sessionName).width > W - 140 && nameSize > 44) {
-    nameSize -= 4;
-    ctx.font = `700 ${nameSize}px 'Barlow Condensed', sans-serif`;
+  const rows: Row[] = [];
+
+  for (const lift of data.lifts) {
+    rows.push({
+      h: liftH,
+      draw: (ctx, yTop) => {
+        ctx.textBaseline = "top";
+        // name (+ PR badge) centred on one line
+        ctx.font = "700 54px 'Barlow Condensed', sans-serif";
+        const nameW = ctx.measureText(lift.name).width;
+        let badgeW = 0;
+        const badgeGap = 18;
+        if (lift.pr) {
+          ctx.font = "700 27px 'Barlow Condensed', sans-serif";
+          badgeW = ctx.measureText("PR").width + 40;
+        }
+        const total = nameW + (lift.pr ? badgeGap + badgeW : 0);
+        const sx = cx - total / 2;
+        ctx.textAlign = "left";
+        ctx.fillStyle = WHITE;
+        ctx.font = "700 54px 'Barlow Condensed', sans-serif";
+        ctx.fillText(lift.name, sx, yTop);
+        if (lift.pr) {
+          const bx = sx + nameW + badgeGap;
+          const by = yTop + 7;
+          const bh = 44;
+          ctx.fillStyle = ACCENT;
+          roundRect(ctx, bx, by, badgeW, bh, 12);
+          ctx.fillStyle = INK;
+          ctx.font = "700 27px 'Barlow Condensed', sans-serif";
+          ctx.fillText("PR", bx + 20, by + 11);
+        }
+        // sets line — shrink to fit the box width
+        let s = 33;
+        ctx.font = `600 ${s}px 'Barlow', sans-serif`;
+        while (ctx.measureText(lift.sets).width > contentW && s > 22) {
+          s -= 1;
+          ctx.font = `600 ${s}px 'Barlow', sans-serif`;
+        }
+        ctx.textAlign = "center";
+        ctx.fillStyle = LABEL;
+        ctx.fillText(lift.sets, cx, yTop + 62);
+      },
+    });
   }
-  ctx.fillText(data.sessionName, cx, 560);
 
-  ctx.fillStyle = "rgba(214,231,247,.7)";
-  ctx.font = "500 34px 'Barlow', sans-serif";
-  ctx.fillText(`${data.athleteName.toUpperCase()}  ·  ${data.dateLabel}`, cx, 620);
-
-  let y = 700;
-
-  // PR badge (only if any)
-  if (data.prCount > 0) {
-    const txt = `${data.prCount} NEW PR${data.prCount > 1 ? "S" : ""}`;
-    ctx.font = "700 42px 'Barlow Condensed', sans-serif";
-    const pw = ctx.measureText(txt).width + 90;
-    ctx.fillStyle = "#9ed0ff";
-    roundRect(ctx, cx - pw / 2, y, pw, 76, 20);
-    ctx.fill();
-    ctx.fillStyle = "#0b1622";
-    ctx.fillText(txt, cx, y + 53);
-    y += 140;
-  } else {
-    y = 760;
-  }
-
-  // top set per main lift — the hero
-  const n = Math.max(1, data.lifts.length);
-  const areaX = 90;
-  const areaW = W - 180;
-  const gap = 28;
-  const tileW = (areaW - gap * (n - 1)) / n;
-  const tileH = 330;
-  data.lifts.forEach((lift, i) => {
-    const x = areaX + i * (tileW + gap);
-    ctx.fillStyle = "rgba(158,208,255,.10)";
-    roundRect(ctx, x, y, tileW, tileH, 28);
-    ctx.fill();
-    ctx.strokeStyle = lift.pr ? "rgba(158,208,255,.65)" : "rgba(158,208,255,.25)";
-    ctx.lineWidth = lift.pr ? 4 : 2;
-    roundRect(ctx, x, y, tileW, tileH, 28);
-    ctx.stroke();
-
-    ctx.fillStyle = "rgba(214,231,247,.65)";
-    ctx.font = "600 34px 'Barlow', sans-serif";
-    ctx.fillText(lift.name, x + tileW / 2, y + 78);
-
-    ctx.fillStyle = "#f2f7fc";
-    const vsize = n >= 3 ? 66 : 88;
-    ctx.font = `700 ${vsize}px 'Barlow Condensed', sans-serif`;
-    ctx.fillText(lift.volume, x + tileW / 2, y + 78 + vsize + 22);
-
-    ctx.fillStyle = "rgba(214,231,247,.5)";
-    ctx.font = "600 25px 'Barlow', sans-serif";
-    ctx.fillText(`VOLUME · TOP ${lift.top}`, x + tileW / 2, y + tileH - 40);
+  const stat = (labelText: string, value: string): Row => ({
+    h: statH,
+    draw: (ctx, yTop) => {
+      ctx.textBaseline = "top";
+      ctx.textAlign = "center";
+      ctx.fillStyle = LABEL;
+      ctx.font = "600 26px 'Barlow', sans-serif";
+      ctx.fillText(spaced(labelText), cx, yTop);
+      ctx.fillStyle = WHITE;
+      ctx.font = "700 92px 'Barlow Condensed', sans-serif";
+      ctx.fillText(value, cx, yTop + 38);
+    },
   });
-  y += tileH + 90;
 
-  // session total volume — single line
-  ctx.fillStyle = "rgba(214,231,247,.6)";
-  ctx.font = "600 32px 'Barlow', sans-serif";
-  ctx.fillText("SESSION VOLUME", cx, y);
-  ctx.fillStyle = "#9ed0ff";
-  ctx.font = "700 100px 'Barlow Condensed', sans-serif";
-  ctx.fillText(data.volume, cx, y + 108);
+  rows.push(stat("TOTAL VOLUME", data.volume));
+  if (data.durationLabel) rows.push(stat("TIME", data.durationLabel));
 
-  // footer emblem
-  try {
-    const emblem = await loadImage("/assets/logo-emblem-white.png");
-    const eh = 104;
-    const ew = (eh * emblem.width) / emblem.height;
-    ctx.globalAlpha = 0.92;
-    ctx.drawImage(emblem, cx - ew / 2, H - 210, ew, eh);
-    ctx.globalAlpha = 1;
-  } catch {
-    /* no footer mark */
+  if (map) {
+    rows.push({ h: mapH, draw: (ctx, yTop) => ctx.drawImage(map!, cx - mapW / 2, yTop, mapW, mapH) });
+  }
+  rows.push({
+    h: logoH,
+    draw: (ctx, yTop) => {
+      if (logo) ctx.drawImage(logo, cx - logoW / 2, yTop, logoW, logoH);
+      else {
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillStyle = WHITE;
+        ctx.font = "700 48px 'Barlow Condensed', sans-serif";
+        ctx.fillText("SPECIFIC STRENGTH", cx, yTop);
+      }
+    },
+  });
+
+  const H = padTop + rows.reduce((s, r) => s + r.h, 0) + gap * (rows.length - 1) + padBottom;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d")!;
+  // Transparent background; a soft dark shadow keeps light text legible on photos.
+  ctx.shadowColor = "rgba(8,14,22,.55)";
+  ctx.shadowBlur = 16;
+  ctx.shadowOffsetY = 3;
+
+  let y = padTop;
+  for (const r of rows) {
+    r.draw(ctx, y);
+    y += r.h + gap;
   }
 
   return new Promise<Blob>((resolve, reject) =>

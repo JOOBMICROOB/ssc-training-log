@@ -8,7 +8,7 @@ import { buildShareData, renderSessionPng } from "../../lib/share/sessionCard";
  */
 export async function showShareSheet(athleteId: string, date: string) {
   const data = getDashboard(athleteId);
-  const shareData = buildShareData(getSessionFor(athleteId, date), data.prs, data.athlete.firstName);
+  const shareData = buildShareData(getSessionFor(athleteId, date), data.prs);
 
   const overlay = document.createElement("div");
   overlay.style.cssText =
@@ -16,8 +16,9 @@ export async function showShareSheet(athleteId: string, date: string) {
   overlay.innerHTML = `
     <div style="width:330px;max-width:94vw;background:#0f1e2c;border:1px solid rgba(158,208,255,.2);border-radius:20px;box-shadow:0 24px 60px rgba(9,17,28,.5);padding:16px;text-align:center;">
       <div style="font:600 10px/1 Barlow,sans-serif;letter-spacing:.16em;color:rgba(214,231,247,.6);">SHARE YOUR SESSION</div>
-      <div data-preview style="margin-top:12px;border-radius:14px;overflow:hidden;background:#132435;aspect-ratio:1080/1920;display:flex;align-items:center;justify-content:center;">
-        <span style="font:600 12px/1 Barlow,sans-serif;color:rgba(214,231,247,.5);">Generating…</span>
+      <div style="margin-top:6px;font:500 10px/1.3 Barlow,sans-serif;color:rgba(214,231,247,.45);">Transparent sticker — save it, then drag it anywhere on your story.</div>
+      <div data-preview style="margin-top:12px;min-height:140px;border-radius:14px;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:18px 10px;background-color:#6b7682;background-image:linear-gradient(45deg,#565f6a 25%,transparent 25%),linear-gradient(-45deg,#565f6a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#565f6a 75%),linear-gradient(-45deg,transparent 75%,#565f6a 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0;">
+        <span style="font:600 12px/1 Barlow,sans-serif;color:rgba(255,255,255,.75);">Generating…</span>
       </div>
       <button data-share style="width:100%;margin-top:14px;padding:14px;border:0;border-radius:12px;background:#9ed0ff;color:#0b1622;font:600 14px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">SHARE TO STORY</button>
       <button data-copy style="width:100%;margin-top:8px;padding:12px;border:1px solid rgba(158,208,255,.35);border-radius:12px;background:transparent;color:#dceaf6;font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;cursor:pointer;">COPY IMAGE</button>
@@ -46,7 +47,7 @@ export async function showShareSheet(athleteId: string, date: string) {
   url = URL.createObjectURL(blob);
   const file = new File([blob], "ssc-session.png", { type: "image/png" });
   const preview = overlay.querySelector<HTMLElement>("[data-preview]");
-  if (preview) preview.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;">`;
+  if (preview) preview.innerHTML = `<img src="${url}" style="width:100%;height:auto;display:block;">`;
 
   const download = () => {
     const a = document.createElement("a");
