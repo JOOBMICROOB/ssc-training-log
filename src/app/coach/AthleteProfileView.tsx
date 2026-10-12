@@ -129,8 +129,10 @@ function FullProfile({ client, coachUserId, onRosterChange }: { client: ClientRo
     const next = !nutri;
     setNutri(next);
     const res = await setAthleteNutrition(uid, next);
-    if (!res.ok) setNutri(!next); // revert on failure
-    else onRosterChange();
+    if (!res.ok) {
+      setNutri(!next); // revert
+      alert(`Could not update nutrition — ${res.error ?? "unknown error"}`);
+    } else onRosterChange();
   };
   const save = (patch: Parameters<typeof setAthleteInfo>[1]) => setAthleteInfo(athleteId, patch);
   const firstDefault = live ? a.firstName : client.name.split(" ")[0];
