@@ -87,30 +87,39 @@
 [data-theme="neon"] {
   --a-accent-rgb: 176, 108, 255;   /* neon purple */
   --a-accent2-rgb: 139, 92, 246;
-  --a-navy-rgb: 22, 20, 30;        /* dark surfaces: top bar, navy cards */
-  --a-ink-rgb: 233, 231, 242;      /* text that tracked navy → now light */
-  --a-text-rgb: 233, 231, 242;     /* body text → light */
-  --a-glass-rgb: 38, 35, 52;       /* frosted panels → dark */
-  --a-panel-bg: rgb(26, 24, 36);
+  --a-navy-rgb: 42, 42, 48;        /* dark-GREY surfaces: top bar, navy cards */
+  --a-ink-rgb: 236, 234, 242;      /* text that tracked navy → now light */
+  --a-text-rgb: 236, 234, 242;     /* body text → light */
+  --a-glass-rgb: 54, 54, 61;       /* frosted / white panels → dark grey */
+  --a-panel-bg: linear-gradient(150deg, #2d2d33, #212125);
 }
 [data-theme="neon"] .a-root {
-  --bg: #0e0d14;
-  --card: #1a1826;
-  --line: rgba(255, 255, 255, .06);
-  --text: #e9e7f2;
-  --muted: #9b97ad;
-  --navy-deep: #0a0910;
+  --bg: #1b1b1f;                   /* dark grey, not black */
+  --card: #26262c;                 /* grey card base */
+  --line: rgba(255, 255, 255, .07);
+  --text: #ecebf2;
+  --muted: #a7a4b4;                /* lighter grey — stays readable on grey */
+  --navy-deep: #141418;
 }
-/* Neumorphic depth on the token-driven cards + neon glow on the accents. */
+/* Widgets / info cards: a soft grey gradient + neumorphic depth (like the ref). */
 [data-theme="neon"] .a-root .a-card,
-[data-theme="neon"] .a-root .a-stat {
-  box-shadow: 6px 6px 16px rgba(0, 0, 0, .55), -5px -5px 14px rgba(255, 255, 255, .035);
+[data-theme="neon"] .a-root .a-stat,
+[data-theme="neon"] .a-root .a-btn,
+[data-theme="neon"] .a-root .a-seg {
+  background: linear-gradient(150deg, #2e2e35, #202026);
+  border-color: rgba(255, 255, 255, .05);
+  box-shadow: 6px 6px 16px rgba(0, 0, 0, .5), -5px -5px 14px rgba(255, 255, 255, .03);
 }
-[data-theme="neon"] .a-root .a-btn.primary {
-  box-shadow: 0 0 18px rgba(176, 108, 255, .5);
+/* Accent buttons keep their colour + get a glow (not the grey gradient). */
+[data-theme="neon"] .a-root .a-btn.primary,
+[data-theme="neon"] .a-root .a-btn.navy {
+  background: var(--accent);
+  box-shadow: 0 0 18px rgba(176, 108, 255, .45);
 }
+[data-theme="neon"] .a-root .a-btn.navy { background: linear-gradient(150deg, #34343c, #26262c); box-shadow: 6px 6px 16px rgba(0,0,0,.5); }
 [data-theme="neon"] .a-root .a-card.navy {
-  box-shadow: 0 0 0 1px rgba(176, 108, 255, .18), 6px 6px 18px rgba(0, 0, 0, .6);
+  background: linear-gradient(150deg, #313139, #22222a);
+  box-shadow: 6px 6px 18px rgba(0, 0, 0, .55), -4px -4px 12px rgba(255, 255, 255, .025);
 }
 
 * { box-sizing: border-box; }

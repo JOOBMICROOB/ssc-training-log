@@ -303,7 +303,7 @@ function editPrBaseline(athleteId: string, valueSpan: HTMLElement, lift: "squat"
   inp.value = current;
   inp.inputMode = "decimal";
   inp.style.cssText =
-    "width:74px;font:600 18px/1 'Barlow Condensed',sans-serif;color: rgb(var(--a-ink-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background:#fff;text-align:right;";
+    "width:74px;font:600 18px/1 'Barlow Condensed',sans-serif;color: rgb(var(--a-ink-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background: rgb(var(--a-glass-rgb));text-align:right;";
   valueSpan.style.display = "none";
   valueSpan.parentElement?.insertBefore(inp, valueSpan.nextSibling);
   inp.focus();
@@ -355,7 +355,7 @@ function openTileEditor(athleteId: string, span: HTMLElement, field: EditField, 
     editor = inp;
   }
   editor.style.cssText =
-    "font:600 16px/1 'Barlow Condensed',sans-serif;color: rgb(var(--a-ink-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background:#fff;max-width:100%;";
+    "font:600 16px/1 'Barlow Condensed',sans-serif;color: rgb(var(--a-ink-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:2px 6px;background: rgb(var(--a-glass-rgb));max-width:100%;";
   span.style.display = "none";
   parent.appendChild(editor);
   editor.focus();
@@ -414,7 +414,7 @@ function editCompTotal(athleteId: string, span: HTMLElement) {
   inp.size = 6;
   inp.placeholder = "kg";
   inp.style.cssText =
-    "font:600 28px/1 'Barlow Condensed',sans-serif;color: rgb(var(--a-ink-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:1px 6px;background:#fff;width:110px;max-width:100%;";
+    "font:600 28px/1 'Barlow Condensed',sans-serif;color: rgb(var(--a-ink-rgb));border:1px solid rgb(var(--a-accent-rgb));border-radius:8px;padding:1px 6px;background: rgb(var(--a-glass-rgb));width:110px;max-width:100%;";
   span.style.display = "none";
   parent.appendChild(inp);
   inp.focus();
@@ -672,9 +672,9 @@ function mountCalendarWidget(host: HTMLElement, athleteId: string): () => void {
     widget.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="flex:1 1 0;font:600 10px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(107,116,128);">YOUR CALENDAR</span>
-        <button data-cw="prev" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:#fff;color:rgb(var(--a-accent2-rgb));cursor:pointer;font-size:13px;">‹</button>
+        <button data-cw="prev" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background: rgb(var(--a-glass-rgb));color:rgb(var(--a-accent2-rgb));cursor:pointer;font-size:13px;">‹</button>
         <span style="font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.08em;color: rgb(var(--a-ink-rgb));min-width:96px;text-align:center;">${CAL_MONTHS[view.m]} ${view.y}</span>
-        <button data-cw="next" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background:#fff;color:rgb(var(--a-accent2-rgb));cursor:pointer;font-size:13px;">›</button>
+        <button data-cw="next" style="width:26px;height:26px;border:1px solid rgba(29,31,32,.14);border-radius:8px;background: rgb(var(--a-glass-rgb));color:rgb(var(--a-accent2-rgb));cursor:pointer;font-size:13px;">›</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.08em;color:#8a929c;text-align:center;margin-bottom:4px;">
         ${["M", "T", "W", "T", "F", "S", "S"].map((w) => `<div>${w}</div>`).join("")}
