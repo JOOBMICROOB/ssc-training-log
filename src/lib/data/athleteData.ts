@@ -18,6 +18,7 @@ import {
   type MonthCell,
   type SetLog,
   type DayLog,
+  type CardioLog,
   type WeekTemplate,
   type DayTemplate,
   type MainLift,
@@ -1035,6 +1036,21 @@ export function logSet(athleteId: string, date: string, key: string, patch: SetL
   save(athleteId, { ...data, programLogs: logs });
 }
 
+/** Log the athlete's actuals against a prescribed cardio item (type/time/distance/RPE). */
+export function logCardio(athleteId: string, date: string, cardioId: string, patch: Partial<CardioLog>) {
+  const data = getDashboard(athleteId);
+  const logs: ProgramLogs = { ...(data.programLogs ?? {}) };
+  const day = { ...(logs[date] ?? {}) };
+  const cur = day.cardio?.[cardioId] ?? {};
+  const merged: CardioLog = { ...cur, ...patch };
+  // Dropping a field (empty string) clears it rather than storing "".
+  for (const k of Object.keys(patch) as (keyof CardioLog)[]) if (patch[k] === undefined) delete merged[k];
+  day.cardio = { ...(day.cardio ?? {}), [cardioId]: merged };
+  day.editedAt = Date.now();
+  logs[date] = day;
+  save(athleteId, { ...data, programLogs: logs });
+}
+
 /** Set session-level fields (session RPE, pain, finished) for a date. */
 export function setSessionMeta(
   athleteId: string,
@@ -1307,7 +1323,7 @@ function mergeLogs(a: ProgramLogs = {}, b: ProgramLogs = {}, aC: Clears = {}, bC
     if (!da && !db) continue;
     if (!da) { out[date] = db!; continue; }
     if (!db) { out[date] = da; continue; }
-    out[date] = { ...da, ...db, sets: { ...(da.sets ?? {}), ...(db.sets ?? {}) } };
+    out[date] = { ...da, ...db, sets: { ...(da.sets ?? {}), ...(db.sets ?? {}) }, cardio: { ...(da.cardio ?? {}), ...(db.cardio ?? {}) } };
   }
   return out;
 }

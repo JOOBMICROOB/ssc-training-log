@@ -2640,3 +2640,4 @@
 .cc-view-cardio-ico { font-size: 14px; }
 .cc-view-cardio-kind { font: 600 9px/1 var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .cc-view-cardio-val { font: 600 13px/1.2 var(--font-heading); color: var(--navy); }
+.cc-view-cardio-log { margin-left: auto; font: 600 11px/1.2 var(--font-body); color: var(--good); }

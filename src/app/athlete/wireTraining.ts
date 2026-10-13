@@ -4,6 +4,7 @@ import {
   getMonthFor,
   getDashboardModel,
   logSet,
+  logCardio,
   setSessionMeta,
   subscribeDashboard,
   isDateWeekLocked,
@@ -285,20 +286,35 @@ function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selec
   </div>`;
   const altBlock = session.hasAlt ? altSelector(session) : "";
   const exercises = session.exercises.map((ex, ei) => exerciseBlock(ex, ei, isOpen(ei), session.confirmed, bests)).join("");
-  // Coach-prescribed cardio for the day (time / distance / interval).
+  // Coach-prescribed cardio — the athlete logs type / time / distance / RPE.
   const CARDIO_LABEL: Record<string, string> = { time: "TIME", distance: "DISTANCE", interval: "INTERVAL" };
+  const cro = session.confirmed ? "disabled" : "";
+  const cin = "height:34px;padding:0 9px;border-radius:9px;font:600 13px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;border:1px solid rgba(var(--a-accent-rgb),.3);background:rgba(var(--a-glass-rgb),.5);color:rgb(var(--a-navy-rgb));";
   const cardioBlock = session.cardio && session.cardio.length
     ? `<div style="flex:0 0 auto;margin-top:6px;">
         <div style="font:600 10px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(107,116,128);margin-bottom:8px;">CARDIO</div>
-        ${session.cardio.map((c) => `
-          <div style="display:flex;align-items:center;gap:11px;padding:12px 14px;margin-bottom:8px;border:1px solid rgba(29,31,32,.12);border-radius:14px;background:rgba(var(--a-glass-rgb),.62);">
-            <span style="font-size:18px;">🏃</span>
-            <div style="flex:1;min-width:0;">
-              <div style="font:600 9px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(138,146,156);">${CARDIO_LABEL[c.kind] ?? "CARDIO"}</div>
-              <div style="margin-top:3px;font:600 16px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(var(--a-navy-rgb));">${escapeHtml(c.value || "—")}</div>
-              ${c.note ? `<div style="margin-top:2px;font:400 11px/1.3 Barlow,sans-serif;color:rgb(107,116,128);">${escapeHtml(c.note)}</div>` : ""}
+        ${session.cardio.map((c) => {
+          const g = c.log ?? {};
+          return `
+          <div style="padding:12px 14px;margin-bottom:8px;border:1px solid rgba(29,31,32,.12);border-radius:14px;background:rgba(var(--a-glass-rgb),.62);">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:17px;">🏃</span>
+              <div style="flex:1;min-width:0;">
+                <div style="font:600 9px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(138,146,156);">${CARDIO_LABEL[c.kind] ?? "CARDIO"}</div>
+                <div style="margin-top:3px;font:600 15px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(var(--a-navy-rgb));">${escapeHtml(c.value || "—")}</div>
+                ${c.note ? `<div style="margin-top:2px;font:400 11px/1.3 Barlow,sans-serif;color:rgb(107,116,128);">${escapeHtml(c.note)}</div>` : ""}
+              </div>
             </div>
-          </div>`).join("")}
+            <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">
+              <select data-cid="${c.id}" data-cf="type" ${cro} style="flex:1 1 90px;${cin}">
+                ${["", "Run", "Bike", "Row", "Swim", "Walk", "Elliptical", "Ski", "Other"].map((o) => `<option value="${o}"${(g.type ?? "") === o ? " selected" : ""}>${o || "Type…"}</option>`).join("")}
+              </select>
+              <input data-cid="${c.id}" data-cf="time" ${cro} inputmode="text" placeholder="time" value="${escapeHtml(g.time ?? "")}" style="flex:1 1 70px;min-width:0;text-align:center;${cin}">
+              <input data-cid="${c.id}" data-cf="distance" ${cro} inputmode="text" placeholder="distance" value="${escapeHtml(g.distance ?? "")}" style="flex:1 1 80px;min-width:0;text-align:center;${cin}">
+              <input data-cid="${c.id}" data-cf="rpe" ${cro} inputmode="numeric" placeholder="RPE" value="${g.rpe ?? ""}" style="flex:0 0 58px;min-width:0;text-align:center;${cin}">
+            </div>
+          </div>`;
+        }).join("")}
       </div>`
     : "";
   return dayRow + title + altBlock + exercises + cardioBlock;
@@ -861,6 +877,18 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   body?.addEventListener("change", (e) => {
     const t = e.target as HTMLInputElement;
     if (isLocked()) return;
+    if (t.matches("[data-cf]")) {
+      const id = t.dataset.cid!;
+      const field = t.dataset.cf!;
+      const v = t.value.trim();
+      if (field === "rpe") {
+        const n = parseInt(v.replace(/[^0-9]/g, ""), 10);
+        logCardio(athleteId, selected, id, { rpe: v === "" || !Number.isFinite(n) ? undefined : Math.max(1, Math.min(10, n)) });
+      } else if (field === "type") logCardio(athleteId, selected, id, { type: v || undefined });
+      else if (field === "time") logCardio(athleteId, selected, id, { time: v || undefined });
+      else if (field === "distance") logCardio(athleteId, selected, id, { distance: v || undefined });
+      return;
+    }
     if (t.matches("[data-secs]")) {
       const v = parseInt(t.value.replace(/[^0-9]/g, ""), 10);
       if (t.value.trim() === "") logSet(athleteId, selected, t.dataset.secs!, { heldSeconds: null, done: false });

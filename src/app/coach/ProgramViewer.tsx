@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { loadProgram, saveProgram, weekOrder, dayDate, startWeekday, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, toTemplate, movementGroup, type Program, type Week, type ExRow, type DayDiff, type ExGroup, type CardioItem } from "./coachProgram";
+import { loadProgram, saveProgram, weekOrder, dayDate, startWeekday, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, toTemplate, movementGroup, type Program, type Week, type ExRow, type DayDiff, type ExGroup } from "./coachProgram";
 import { DiffLine } from "./DiffLine";
 import { ExDetail } from "./ExDetail";
 import { weekState, WEEK_STATE_LABEL } from "./coachStats";
@@ -7,7 +7,7 @@ import { getSessionFor, getDashboard, loggedDatesForWeek, clearWeekLogs, publish
 import { epleyE1rm } from "../../lib/calc/epley";
 import { fmtKg } from "../../lib/calc/records";
 import { Avatar } from "./Avatar";
-import type { MainLift } from "../../lib/program/program";
+import type { MainLift, SessionCardio } from "../../lib/program/program";
 
 /**
  * Program viewer (Program & Planner → 3 · Program, the review page). Shows a
@@ -31,7 +31,7 @@ const MG_LEGEND: { group: Exclude<ExGroup, "accessory">; label: string }[] = [
 
 type ViewSet = { reps: string; target: string; loggedKg: number | null; rpe: number | null; note: string; repsDone: number | null };
 type ViewEx = { rowId: string; name: string; mainLift: MainLift | null; colorGroup: ExGroup; scheme: string; sets: ViewSet[]; canSuggest: boolean; suggest: string };
-type ViewDay = { weekday: number; date: string | null; rest: boolean; exercises: ViewEx[]; sessionRpe: number | null; pain: number | null; diff: DayDiff; cardio: CardioItem[] };
+type ViewDay = { weekday: number; date: string | null; rest: boolean; exercises: ViewEx[]; sessionRpe: number | null; pain: number | null; diff: DayDiff; cardio: SessionCardio[] };
 
 const LIFTS: MainLift[] = ["squat", "bench", "deadlift"];
 const LIFT_LABEL: Record<MainLift, string> = { squat: "SQUAT", bench: "BENCH", deadlift: "DEADLIFT" };
@@ -123,7 +123,7 @@ function buildDays(week: Week, live: boolean, athleteId: string, prevWeek: Week 
       weekday: wd,
       date,
       rest,
-      cardio: dayCardio,
+      cardio: session ? session.cardio : dayCardio.map((c) => ({ ...c, log: {} })),
       diff: diffDay(d.exercises, prevRows),
       sessionRpe: session?.sessionRpe ?? null,
       pain: session?.pain ?? null,
@@ -388,13 +388,17 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
                     </span>
                   )}
                 </div>
-                {dv.cardio.map((c) => (
-                  <div key={c.id} className="cc-view-cardio">
-                    <span className="cc-view-cardio-ico">🏃</span>
-                    <span className="cc-view-cardio-kind">{c.kind}</span>
-                    <span className="cc-view-cardio-val">{c.value || "—"}{c.note ? ` · ${c.note}` : ""}</span>
-                  </div>
-                ))}
+                {dv.cardio.map((c) => {
+                  const logged = [c.log?.type, c.log?.time, c.log?.distance, c.log?.rpe != null ? `RPE ${c.log.rpe}` : null].filter(Boolean).join(" · ");
+                  return (
+                    <div key={c.id} className="cc-view-cardio">
+                      <span className="cc-view-cardio-ico">🏃</span>
+                      <span className="cc-view-cardio-kind">{c.kind}</span>
+                      <span className="cc-view-cardio-val">{c.value || "—"}{c.note ? ` · ${c.note}` : ""}</span>
+                      {logged && <span className="cc-view-cardio-log">logged · {logged}</span>}
+                    </div>
+                  );
+                })}
                 {dv.exercises.map((ex, i) => {
                   const rdiff = prevWeek ? dv.diff.diffs[i] : undefined;
                   return (

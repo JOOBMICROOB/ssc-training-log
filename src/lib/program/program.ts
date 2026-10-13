@@ -45,6 +45,9 @@ export type ExerciseTemplate = {
 // kind picks what the value means: a duration, a distance, or an interval scheme.
 export type CardioKind = "time" | "distance" | "interval";
 export type CardioItem = { id: string; kind: CardioKind; value: string; note?: string };
+// What the athlete logs against a prescribed cardio item (all optional).
+export type CardioLog = { type?: string; time?: string; distance?: string; rpe?: number | null; done?: boolean };
+export type SessionCardio = CardioItem & { log: CardioLog };
 
 export type DayTemplate = {
   rest: boolean;
@@ -69,6 +72,7 @@ export type SetLog = {
 };
 export type DayLog = {
   sets?: Record<string, SetLog>; // key `${exIdx}_${setIdx}`
+  cardio?: Record<string, CardioLog>; // key = cardio item id → what the athlete logged
   sessionRpe?: number;
   pain?: number;
   finished?: boolean;
@@ -130,7 +134,7 @@ export type Session = {
   hasAlt: boolean; // an Option B exists for this day
   note: string; // coach's info for the day (shown above the A/B picker)
   option: "A" | "B"; // which session this is
-  cardio: CardioItem[]; // coach-prescribed cardio for the day (may be empty)
+  cardio: SessionCardio[]; // coach-prescribed cardio + the athlete's log (may be empty)
 };
 
 const ORDER: MainLift[] = ["squat", "bench", "deadlift"];
@@ -349,7 +353,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
     hasAlt,
     note: day.note ?? "",
     option: useB ? "B" : "A",
-    cardio: day.cardio ?? [],
+    cardio: (day.cardio ?? []).map((c) => ({ ...c, log: dayLog.cardio?.[c.id] ?? {} })),
   };
 }
 
