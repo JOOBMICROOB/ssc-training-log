@@ -707,14 +707,18 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   // as they are and applies the new plan only to the still-open days.
   const doPublish = (onlyUpcoming: boolean) => {
     setPubPrompt(null);
-    if (live) publishProgramWeek(athleteId, toTemplate(week), { blockStart: week.startDate, weekStartsOn: startWeekday(week) ?? undefined, blockName: meso.name, weekName: week.name, onlyUpcoming });
+    // A week with no start date would publish to nowhere (the athlete sees nothing).
+    // Default it to THIS week so a freshly-built session goes live today, and persist
+    // the date onto the week so it stays dated.
+    const effStart = week.startDate ?? mondayOf(localIso(new Date()));
+    if (live) publishProgramWeek(athleteId, toTemplate(week), { blockStart: effStart, weekStartsOn: startWeekday({ ...week, startDate: effStart }) ?? undefined, blockName: meso.name, weekName: week.name, onlyUpcoming });
     // any exercises typed here should exist in the shared database (batched)
     ensureManyInDb(week.days.flatMap((d) => d.exercises.map((ex) => ({ name: ex.name, mainLift: ex.mainLift }))));
     mutProgram((p) => {
       const marked: Program = {
         ...p,
         mesocycles: p.mesocycles.map((m) =>
-          m.id === meso.id ? { ...m, weeks: m.weeks.map((w) => (w.id === week.id ? { ...w, status: "published" as const } : w)) } : m,
+          m.id === meso.id ? { ...m, weeks: m.weeks.map((w) => (w.id === week.id ? { ...w, status: "published" as const, startDate: w.startDate ?? effStart } : w)) } : m,
         ),
       };
       // "ON NOW" tracks the week containing today — not whichever we just published.

@@ -384,7 +384,7 @@ export function blankRow(): ExRow {
 // v2: reset every athlete to a blank program (old seeded weeks are orphaned).
 const progKey = (athleteId: string) => `ssc.coach.program.v2.${athleteId}`;
 
-const hasTraining = (w: Week) => w.days.some((d) => !d.rest && d.exercises.length > 0);
+const hasTraining = (w: Week) => w.days.some((d) => !d.rest && (d.exercises.length > 0 || (d.cardio?.length ?? 0) > 0));
 /**
  * Give any undated week that already has training content a date, so weeks built
  * before dating existed (or on an older app) still land on the calendar / grid.
