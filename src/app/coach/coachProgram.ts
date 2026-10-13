@@ -9,7 +9,7 @@ import { DEFAULT_WEEK } from "../../lib/program/seedProgram";
 import { addDays, looseLift } from "../../lib/program/program";
 export { looseLift };
 import { getSharedData, setSharedData, getDashboard } from "../../lib/data/athleteData";
-import { inferLift, nameInLiftFamily } from "../../lib/program/deriveRecords";
+import { inferLift } from "../../lib/program/deriveRecords";
 import type { ExerciseTemplate, MainLift, WeekTemplate } from "../../lib/program/program";
 import reneeProgram from "./reneeProgram.json";
 import liezeProgram from "./liezeProgram.json";
@@ -100,17 +100,30 @@ export function inferGroup(mainLift: MainLift | null): ExGroup {
 const PULL_RE =
   /\b(rows?|pulldowns?|lat\s*pull|pull-?ups?|chin-?ups?|face\s*pulls?|pull-?throughs?|pull-?ins?|pendlay|seal\s*row|t-?bar)\b/i;
 
+// Colour families — broad, by NAME, so every variation lands with its lift:
+//  · squat: paused/tempo/front/box/pin/pause/hack/belt/SSB/split squat…
+//  · bench: paused/tempo/midgrip/close-grip/larsen/spoto/floor/board bench&press…
+//  · deadlift: RDL, romanian, stiff-leg/SLDL, deficit, rack/block pull, sumo,
+//    snatch-grip, good-morning…
+// This drives COLOUR only (not PR attribution), so it can be generous without
+// risking inflated 1RMs. Deadlift is tested first so "rack pull" reads as a
+// deadlift variation, not generic back/pull.
+const SQUAT_RE = /\bsquat/i;
+const BENCH_RE = /\bbench|larsen|spoto|floor\s*press|board\s*press/i;
+const DEAD_RE = /dead\s*lift|deadlift|\brdl\b|romanian|\bsldl\b|stiff.?leg|deficit|rack\s*pull|block\s*pull|snatch.?grip|good\s*morning/i;
+
 /**
- * Movement group for colour-coding the viewer. Squat / bench / deadlift come
- * from the main-lift tag, but only when the exercise genuinely belongs to that
- * lift (same guard as the PRs) so a mis-tagged accessory — e.g. a leg press
- * saved as "bench" — is coloured neutral, not as a main lift. Then back/pull
- * work by name; everything else is an accessory.
+ * Movement group for colour-coding the viewer, by exercise NAME so that every
+ * variation (paused/tempo squats, larsen bench, RDLs, rack pulls…) colours with
+ * its main lift. A leg press / accessory matches none of the families and stays
+ * neutral. Independent of the stored main-lift tag, so a mis-tag can't mislead.
  */
 export function movementGroup(ex: { name: string; mainLift: MainLift | null; competition?: boolean }): ExGroup {
-  const lift = ex.mainLift ?? inferLift(ex.name);
-  if (lift && (ex.competition === true || nameInLiftFamily(ex.name, lift))) return lift;
-  if (PULL_RE.test(ex.name)) return "pull";
+  const n = ex.name;
+  if (DEAD_RE.test(n)) return "deadlift";
+  if (SQUAT_RE.test(n)) return "squat";
+  if (BENCH_RE.test(n)) return "bench";
+  if (PULL_RE.test(n)) return "pull";
   return "accessory";
 }
 

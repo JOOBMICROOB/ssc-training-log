@@ -63,4 +63,13 @@ describe("movementGroup (viewer colour-coding)", () => {
       expect(movementGroup({ name, mainLift: null })).toBe("accessory");
     }
   });
+
+  it("groups every S/B/D variation with its lift by name — even untagged", () => {
+    for (const name of ["Paused Squat", "Tempo Squat", "2CT paused squat", "Front Squat", "Box Squat", "Pin Squat", "Hack Squat"])
+      expect(movementGroup({ name, mainLift: null })).toBe("squat");
+    for (const name of ["Paused Bench", "Tempo benchpress", "Midgrip benchpress", "Close-Grip Bench", "Larsen Bench Press", "Spoto Press", "Floor Press"])
+      expect(movementGroup({ name, mainLift: null })).toBe("bench");
+    for (const name of ["RDL", "B-stance RDL", "Romanian Deadlift", "Stiff-leg deadlift", "Deficit Deadlift", "Rack Pull", "Block Pulls", "2CT paused deadlift"])
+      expect(movementGroup({ name, mainLift: null })).toBe("deadlift");
+  });
 });
