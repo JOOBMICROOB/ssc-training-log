@@ -12,6 +12,7 @@ import { getSharedData, setSharedData, getDashboard } from "../../lib/data/athle
 import { inferLift } from "../../lib/program/deriveRecords";
 import type { ExerciseTemplate, MainLift, WeekTemplate, CardioItem } from "../../lib/program/program";
 export type { CardioItem, CardioKind } from "../../lib/program/program";
+export { CARDIO_DISCIPLINES } from "../../lib/program/program";
 import reneeProgram from "./reneeProgram.json";
 import liezeProgram from "./liezeProgram.json";
 import stefProgram from "./stefProgram.json";

@@ -18,7 +18,7 @@ import {
   athleteHasProgramOn,
   type ExBest,
 } from "../../lib/data/athleteData";
-import { addDays, type Session, type SessionExercise, type LoggedSet, type SetLog } from "../../lib/program/program";
+import { addDays, CARDIO_DISCIPLINES, type Session, type SessionExercise, type LoggedSet, type SetLog } from "../../lib/program/program";
 import { fmtKg } from "../../lib/calc/records";
 import { showShareSheet } from "./shareSession";
 import { showToast } from "./toast";
@@ -276,11 +276,11 @@ function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selec
   const refToggle = `<button id="refToggle" title="Switch between last week's loads and your all-time bests" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid ${bestsOn ? "rgb(var(--a-accent-rgb))" : "rgba(var(--a-accent-rgb),.4)"};border-radius:9px;background:${bestsOn ? "rgba(var(--a-accent-rgb),.14)" : "transparent"};color:rgb(41,61,80);font:600 9.5px/1 Barlow,sans-serif;letter-spacing:.1em;cursor:pointer;">${bestsOn ? "BESTS" : "LAST WEEK"} ⇄</button>`;
   const title = `<div style="flex:0 0 auto;padding-bottom:10px;">
     <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
-      <span style="font:600 25px/1 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(var(--a-navy-rgb));">${session.name}</span>
+      <span style="font:600 25px/1 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(var(--a-navy-rgb));">${session.name || (session.cardio.length ? "CARDIO" : "SESSION")}</span>
       <button id="dayPickBtn" style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px 4px;border:1px solid rgb(var(--a-accent-rgb));border-radius:9px;background:rgba(var(--a-accent-rgb),.1);color:rgb(var(--a-navy-rgb));font:600 24px/1 'Barlow Condensed',sans-serif;letter-spacing:.02em;cursor:pointer;">${DAY_FULL[session.weekday]}<span style="font-size:12px;color:rgb(var(--a-accent2-rgb));">▾</span></button>
     </div>
     <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-      <span style="font:400 11px/1 Barlow,sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">${session.exercises.length} EXERCISES · ${session.loggedCount} / ${session.setCount} SETS LOGGED</span>
+      <span style="font:400 11px/1 Barlow,sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">${session.exercises.length === 0 && session.cardio.length ? `${session.cardio.length} CARDIO` : `${session.exercises.length} EXERCISES · ${session.loggedCount} / ${session.setCount} SETS LOGGED`}</span>
       ${refToggle}
     </div>
   </div>`;
@@ -300,14 +300,14 @@ function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selec
             <div style="display:flex;align-items:center;gap:10px;">
               <span style="font-size:17px;">🏃</span>
               <div style="flex:1;min-width:0;">
-                <div style="font:600 9px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(138,146,156);">${CARDIO_LABEL[c.kind] ?? "CARDIO"}</div>
+                <div style="font:600 9px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(138,146,156);">${c.discipline ? escapeHtml(c.discipline.toUpperCase()) + " · " : ""}${CARDIO_LABEL[c.kind] ?? "CARDIO"}</div>
                 <div style="margin-top:3px;font:600 15px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(var(--a-navy-rgb));">${escapeHtml(c.value || "—")}</div>
                 ${c.note ? `<div style="margin-top:2px;font:400 11px/1.3 Barlow,sans-serif;color:rgb(107,116,128);">${escapeHtml(c.note)}</div>` : ""}
               </div>
             </div>
             <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">
               <select data-cid="${c.id}" data-cf="type" ${cro} style="flex:1 1 90px;${cin}">
-                ${["", "Run", "Bike", "Row", "Swim", "Walk", "Elliptical", "Ski", "Other"].map((o) => `<option value="${o}"${(g.type ?? "") === o ? " selected" : ""}>${o || "Type…"}</option>`).join("")}
+                ${["", ...CARDIO_DISCIPLINES].map((o) => `<option value="${o}"${(g.type ?? c.discipline ?? "") === o ? " selected" : ""}>${o || "Discipline…"}</option>`).join("")}
               </select>
               <input data-cid="${c.id}" data-cf="time" ${cro} inputmode="text" placeholder="time" value="${escapeHtml(g.time ?? "")}" style="flex:1 1 70px;min-width:0;text-align:center;${cin}">
               <input data-cid="${c.id}" data-cf="distance" ${cro} inputmode="text" placeholder="distance" value="${escapeHtml(g.distance ?? "")}" style="flex:1 1 80px;min-width:0;text-align:center;${cin}">

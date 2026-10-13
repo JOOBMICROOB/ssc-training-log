@@ -28,6 +28,7 @@ import {
   looseLift,
   type DayDiff,
   type Program,
+  CARDIO_DISCIPLINES,
   type Week,
   type Day,
   type ExRow,
@@ -1108,13 +1109,14 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
           </div>
 
           {orderedDays.map((d) =>
-            d.rest || !d.exercises.length ? (
+            d.rest || (!d.exercises.length && !(d.cardio?.length)) ? (
               <div key={d.id} className={`cc-day${week.status === "published" ? " cc-day-published" : ""}${dayMeta(d.weekday).isToday ? " cc-day-today" : ""}`}>
                 <div className="cc-rest-day">
                   <span className="cc-day-name">{WEEKDAY_NAME[d.weekday]}{dayMeta(d.weekday).isToday ? <span className="cc-today-tag">TODAY</span> : null}</span>
                   <span className="cc-day-sub">rest day{dayDate(week, d.weekday) ? ` · ${fmtDay(dayDate(week, d.weekday)!)}` : ""}</span>
                   <div className="cc-day-actions">
                     <button className="cc-xbtn" onClick={() => makeTraining(d.id)}>+ Make training day</button>
+                    <button className="cc-xbtn" onClick={() => addCardio(d.id)}>+ Add cardio only</button>
                   </div>
                 </div>
               </div>
@@ -1291,6 +1293,10 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                 {(d.cardio ?? []).map((c) => (
                   <div key={c.id} className="cc-cardio-row">
                     <span className="cc-cardio-ico">🏃</span>
+                    <select className="cc-day-select cc-cardio-kind" value={c.discipline ?? ""} onChange={(e) => setCardio(d.id, c.id, { discipline: e.target.value || undefined })} title="Discipline">
+                      <option value="">Discipline…</option>
+                      {CARDIO_DISCIPLINES.map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
                     <select className="cc-day-select cc-cardio-kind" value={c.kind} onChange={(e) => setCardio(d.id, c.id, { kind: e.target.value as CardioItem["kind"] })}>
                       <option value="time">Time</option>
                       <option value="distance">Distance</option>

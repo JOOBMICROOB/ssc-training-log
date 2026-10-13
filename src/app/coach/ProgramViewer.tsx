@@ -393,7 +393,7 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
                   return (
                     <div key={c.id} className="cc-view-cardio">
                       <span className="cc-view-cardio-ico">🏃</span>
-                      <span className="cc-view-cardio-kind">{c.kind}</span>
+                      <span className="cc-view-cardio-kind">{c.discipline ? `${c.discipline} · ${c.kind}` : c.kind}</span>
                       <span className="cc-view-cardio-val">{c.value || "—"}{c.note ? ` · ${c.note}` : ""}</span>
                       {logged && <span className="cc-view-cardio-log">logged · {logged}</span>}
                     </div>

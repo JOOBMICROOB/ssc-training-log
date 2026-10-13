@@ -44,7 +44,9 @@ export type ExerciseTemplate = {
 // Coach-prescribed cardio for a day — alongside (or instead of) the lifting.
 // kind picks what the value means: a duration, a distance, or an interval scheme.
 export type CardioKind = "time" | "distance" | "interval";
-export type CardioItem = { id: string; kind: CardioKind; value: string; note?: string };
+// Cardio disciplines the coach can prescribe / the athlete can log.
+export const CARDIO_DISCIPLINES = ["Lopen", "Fietsen", "Zwemmen", "Wandelen", "Roeien", "Andere"] as const;
+export type CardioItem = { id: string; kind: CardioKind; value: string; note?: string; discipline?: string };
 // What the athlete logs against a prescribed cardio item (all optional).
 export type CardioLog = { type?: string; time?: string; distance?: string; rpe?: number | null; done?: boolean };
 export type SessionCardio = CardioItem & { log: CardioLog };
