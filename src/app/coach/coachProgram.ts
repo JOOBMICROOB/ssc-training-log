@@ -277,7 +277,7 @@ function rowToEx(row: ExRow): ExerciseTemplate {
 export function toTemplate(week: Week): WeekTemplate {
   return Array.from({ length: 7 }, (_, wd) => {
     const day = week.days.find((d) => d.weekday === wd);
-    const cardio = day?.cardio?.filter((c) => c.value.trim() || c.note?.trim());
+    const cardio = day?.cardio?.filter((c) => c.value.trim() || c.note?.trim() || c.discipline);
     // A day is training if it has exercises OR cardio — cardio-only days count too.
     if (!day || day.rest || (day.exercises.length === 0 && !(cardio && cardio.length))) return { rest: true, exercises: [] };
     const alt = day.alt && day.alt.length ? day.alt.map(rowToEx) : undefined;

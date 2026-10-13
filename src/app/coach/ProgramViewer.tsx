@@ -112,7 +112,7 @@ function buildDays(week: Week, live: boolean, athleteId: string, prevWeek: Week 
   return weekOrder(week).map((wd) => {
     const d = week.days.find((x) => x.weekday === wd)!;
     const date = dayDate(week, wd);
-    const dayCardio = (d.cardio ?? []).filter((c) => c.value.trim() || c.note?.trim());
+    const dayCardio = (d.cardio ?? []).filter((c) => c.value.trim() || c.note?.trim() || c.discipline);
     const rest = d.rest || (!d.exercises.length && !dayCardio.length);
     // The prescription always comes from what the coach BUILT (so drafts show);
     // the athlete's logged loads (if any) are overlaid on top, by position.

@@ -336,7 +336,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
     date,
     weekday,
     rest: day.rest,
-    name: day.rest ? "REST DAY" : sessionName(exSource),
+    name: day.rest ? "REST DAY" : exSource.length ? sessionName(exSource) : "CARDIO",
     exercises,
     setCount,
     loggedCount,
