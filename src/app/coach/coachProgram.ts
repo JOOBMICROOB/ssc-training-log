@@ -10,7 +10,8 @@ import { addDays, looseLift } from "../../lib/program/program";
 export { looseLift };
 import { getSharedData, setSharedData, getDashboard } from "../../lib/data/athleteData";
 import { inferLift } from "../../lib/program/deriveRecords";
-import type { ExerciseTemplate, MainLift, WeekTemplate } from "../../lib/program/program";
+import type { ExerciseTemplate, MainLift, WeekTemplate, CardioItem } from "../../lib/program/program";
+export type { CardioItem, CardioKind } from "../../lib/program/program";
 import reneeProgram from "./reneeProgram.json";
 import liezeProgram from "./liezeProgram.json";
 import stefProgram from "./stefProgram.json";
@@ -81,7 +82,7 @@ export function setExerciseRpe(name: string, mode: RpeMode) {
   if (i >= 0) { const next = [...list]; next[i] = { ...next[i], rpe: mode }; saveExercises(next); }
   else saveExercises([{ id: uid("ex"), name: name.trim(), group: inferGroup(inferLift(name)), rpe: mode }, ...list]);
 }
-export type Day = { id: string; weekday: number; rest: boolean; exercises: ExRow[]; alt?: ExRow[]; note?: string };
+export type Day = { id: string; weekday: number; rest: boolean; exercises: ExRow[]; alt?: ExRow[]; note?: string; cardio?: CardioItem[] };
 export type Week = { id: string; name: string; status: "draft" | "published"; days: Day[]; startDate?: string; hidden?: boolean };
 export type Mesocycle = { id: string; name: string; color: string; weeks: Week[]; hidden?: boolean };
 export type Program = { athleteId: string; mesocycles: Mesocycle[]; currentWeekId?: string; seedVersion?: number };
@@ -275,9 +276,11 @@ function rowToEx(row: ExRow): ExerciseTemplate {
 export function toTemplate(week: Week): WeekTemplate {
   return Array.from({ length: 7 }, (_, wd) => {
     const day = week.days.find((d) => d.weekday === wd);
-    if (!day || day.rest || day.exercises.length === 0) return { rest: true, exercises: [] };
+    const cardio = day?.cardio?.filter((c) => c.value.trim() || c.note?.trim());
+    // A day is training if it has exercises OR cardio — cardio-only days count too.
+    if (!day || day.rest || (day.exercises.length === 0 && !(cardio && cardio.length))) return { rest: true, exercises: [] };
     const alt = day.alt && day.alt.length ? day.alt.map(rowToEx) : undefined;
-    return { rest: false, exercises: day.exercises.map(rowToEx), alt, note: day.note?.trim() || undefined };
+    return { rest: false, exercises: day.exercises.map(rowToEx), alt, note: day.note?.trim() || undefined, cardio: cardio && cardio.length ? cardio : undefined };
   });
 }
 

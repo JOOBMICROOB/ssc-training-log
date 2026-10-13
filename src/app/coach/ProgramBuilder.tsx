@@ -31,6 +31,7 @@ import {
   type Week,
   type Day,
   type ExRow,
+  type CardioItem,
   type DbExercise,
   type ExGroup,
   type IntensityType,
@@ -463,6 +464,13 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   };
   const addRow = (dayId: string, row: ExRow, beforeExId?: string | null) =>
     mutDay(dayId, (d) => ({ ...d, rest: false, exercises: insertInto(d.exercises, row, beforeExId) }));
+  // --- cardio prescriptions on a day ---
+  const addCardio = (dayId: string) =>
+    mutDay(dayId, (d) => ({ ...d, rest: false, cardio: [...(d.cardio ?? []), { id: uid("cd"), kind: "time", value: "" } as CardioItem] }));
+  const setCardio = (dayId: string, cid: string, patch: Partial<CardioItem>) =>
+    mutDay(dayId, (d) => ({ ...d, cardio: (d.cardio ?? []).map((c) => (c.id === cid ? { ...c, ...patch } : c)) }));
+  const removeCardio = (dayId: string, cid: string) =>
+    mutDay(dayId, (d) => ({ ...d, cardio: (d.cardio ?? []).filter((c) => c.id !== cid) }));
   const removeRow = (dayId: string, exId: string) =>
     mutDay(dayId, (d) => ({ ...d, exercises: d.exercises.filter((e) => e.id !== exId) }));
   const dupRow = (dayId: string, exId: string) =>
@@ -1278,6 +1286,32 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                 <button className={`cc-add-ex${isDropEnd(d.id) ? " cc-drop-before" : ""}`} onClick={() => addRow(d.id, blankRow())}>
                   + Add exercise · or drag one from the database
                 </button>
+
+                {/* ---- cardio (time / distance / interval) ---- */}
+                {(d.cardio ?? []).map((c) => (
+                  <div key={c.id} className="cc-cardio-row">
+                    <span className="cc-cardio-ico">🏃</span>
+                    <select className="cc-day-select cc-cardio-kind" value={c.kind} onChange={(e) => setCardio(d.id, c.id, { kind: e.target.value as CardioItem["kind"] })}>
+                      <option value="time">Time</option>
+                      <option value="distance">Distance</option>
+                      <option value="interval">Interval</option>
+                    </select>
+                    <input
+                      className="cc-db-search cc-cardio-val"
+                      value={c.value}
+                      placeholder={c.kind === "time" ? "e.g. 30 min Z2" : c.kind === "distance" ? "e.g. 5 km easy" : "e.g. 6 × 400 m / 90 s rest"}
+                      onChange={(e) => setCardio(d.id, c.id, { value: e.target.value })}
+                    />
+                    <input
+                      className="cc-db-search cc-cardio-note"
+                      value={c.note ?? ""}
+                      placeholder="note (optional)"
+                      onChange={(e) => setCardio(d.id, c.id, { note: e.target.value })}
+                    />
+                    <button className="cc-xbtn" title="Remove cardio" onClick={() => removeCardio(d.id, c.id)}>✕</button>
+                  </div>
+                ))}
+                <button className="cc-add-ex cc-add-cardio" onClick={() => addCardio(d.id)}>+ Add cardio</button>
                 </div>
 
                 {/* ---- per-day note + Option B (alternate session) ---- */}

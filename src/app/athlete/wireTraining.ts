@@ -285,7 +285,23 @@ function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selec
   </div>`;
   const altBlock = session.hasAlt ? altSelector(session) : "";
   const exercises = session.exercises.map((ex, ei) => exerciseBlock(ex, ei, isOpen(ei), session.confirmed, bests)).join("");
-  return dayRow + title + altBlock + exercises;
+  // Coach-prescribed cardio for the day (time / distance / interval).
+  const CARDIO_LABEL: Record<string, string> = { time: "TIME", distance: "DISTANCE", interval: "INTERVAL" };
+  const cardioBlock = session.cardio && session.cardio.length
+    ? `<div style="flex:0 0 auto;margin-top:6px;">
+        <div style="font:600 10px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(107,116,128);margin-bottom:8px;">CARDIO</div>
+        ${session.cardio.map((c) => `
+          <div style="display:flex;align-items:center;gap:11px;padding:12px 14px;margin-bottom:8px;border:1px solid rgba(29,31,32,.12);border-radius:14px;background:rgba(var(--a-glass-rgb),.62);">
+            <span style="font-size:18px;">🏃</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font:600 9px/1 Barlow,sans-serif;letter-spacing:.14em;color:rgb(138,146,156);">${CARDIO_LABEL[c.kind] ?? "CARDIO"}</div>
+              <div style="margin-top:3px;font:600 16px/1.2 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(var(--a-navy-rgb));">${escapeHtml(c.value || "—")}</div>
+              ${c.note ? `<div style="margin-top:2px;font:400 11px/1.3 Barlow,sans-serif;color:rgb(107,116,128);">${escapeHtml(c.note)}</div>` : ""}
+            </div>
+          </div>`).join("")}
+      </div>`
+    : "";
+  return dayRow + title + altBlock + exercises + cardioBlock;
 }
 
 /** Option A / Option B toggle + the coach's note, shown when the day has an alternate session. */

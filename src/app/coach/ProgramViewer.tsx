@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { loadProgram, saveProgram, weekOrder, dayDate, startWeekday, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, toTemplate, movementGroup, type Program, type Week, type ExRow, type DayDiff, type ExGroup } from "./coachProgram";
+import { loadProgram, saveProgram, weekOrder, dayDate, startWeekday, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, toTemplate, movementGroup, type Program, type Week, type ExRow, type DayDiff, type ExGroup, type CardioItem } from "./coachProgram";
 import { DiffLine } from "./DiffLine";
 import { ExDetail } from "./ExDetail";
 import { weekState, WEEK_STATE_LABEL } from "./coachStats";
@@ -31,7 +31,7 @@ const MG_LEGEND: { group: Exclude<ExGroup, "accessory">; label: string }[] = [
 
 type ViewSet = { reps: string; target: string; loggedKg: number | null; rpe: number | null; note: string; repsDone: number | null };
 type ViewEx = { rowId: string; name: string; mainLift: MainLift | null; colorGroup: ExGroup; scheme: string; sets: ViewSet[]; canSuggest: boolean; suggest: string };
-type ViewDay = { weekday: number; date: string | null; rest: boolean; exercises: ViewEx[]; sessionRpe: number | null; pain: number | null; diff: DayDiff };
+type ViewDay = { weekday: number; date: string | null; rest: boolean; exercises: ViewEx[]; sessionRpe: number | null; pain: number | null; diff: DayDiff; cardio: CardioItem[] };
 
 const LIFTS: MainLift[] = ["squat", "bench", "deadlift"];
 const LIFT_LABEL: Record<MainLift, string> = { squat: "SQUAT", bench: "BENCH", deadlift: "DEADLIFT" };
@@ -112,7 +112,8 @@ function buildDays(week: Week, live: boolean, athleteId: string, prevWeek: Week 
   return weekOrder(week).map((wd) => {
     const d = week.days.find((x) => x.weekday === wd)!;
     const date = dayDate(week, wd);
-    const rest = d.rest || !d.exercises.length;
+    const dayCardio = (d.cardio ?? []).filter((c) => c.value.trim() || c.note?.trim());
+    const rest = d.rest || (!d.exercises.length && !dayCardio.length);
     // The prescription always comes from what the coach BUILT (so drafts show);
     // the athlete's logged loads (if any) are overlaid on top, by position.
     const session = live && date && !rest ? getSessionFor(athleteId, date) : null;
@@ -122,6 +123,7 @@ function buildDays(week: Week, live: boolean, athleteId: string, prevWeek: Week 
       weekday: wd,
       date,
       rest,
+      cardio: dayCardio,
       diff: diffDay(d.exercises, prevRows),
       sessionRpe: session?.sessionRpe ?? null,
       pain: session?.pain ?? null,
@@ -369,7 +371,7 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
           {!live && <div className="cc-cell-s" style={{ padding: "0 16px 8px" }}>{athleteName} is a demo athlete — prescribed plan, no logged loads.</div>}
           <div className="cc-wk-days">
           {days.map((dv) =>
-            dv.rest || !dv.exercises.length ? (
+            dv.rest || (!dv.exercises.length && !dv.cardio.length) ? (
               <div key={dv.weekday} className={`cc-view-day cc-view-rest${dv.date === todayIso ? " cc-view-today" : ""}`}>
                 <span className="cc-day-name">{WEEKDAY_NAME[dv.weekday]}{dv.date === todayIso ? <span className="cc-today-tag">TODAY</span> : null}</span>
                 <span className="cc-day-sub">rest{dv.date ? ` · ${fmtDay(dv.date)}` : ""}</span>
@@ -386,6 +388,13 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
                     </span>
                   )}
                 </div>
+                {dv.cardio.map((c) => (
+                  <div key={c.id} className="cc-view-cardio">
+                    <span className="cc-view-cardio-ico">🏃</span>
+                    <span className="cc-view-cardio-kind">{c.kind}</span>
+                    <span className="cc-view-cardio-val">{c.value || "—"}{c.note ? ` · ${c.note}` : ""}</span>
+                  </div>
+                ))}
                 {dv.exercises.map((ex, i) => {
                   const rdiff = prevWeek ? dv.diff.diffs[i] : undefined;
                   return (

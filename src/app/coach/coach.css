@@ -2625,3 +2625,18 @@
   border-radius: 10px;
 }
 .cc-view-day.cc-view-today .cc-day-name { color: var(--accent-700); }
+
+/* ---- cardio prescriptions in the builder --------------------------------- */
+.cc-cardio-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; margin-top: 6px;
+  border: 1px solid var(--divider); border-radius: var(--radius); background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.cc-cardio-ico { font-size: 15px; }
+.cc-cardio-kind { flex: 0 0 112px; }
+.cc-cardio-val { flex: 2 1 160px; }
+.cc-cardio-note { flex: 1 1 110px; }
+.cc-add-cardio { margin-top: 6px; }
+/* cardio shown in the program viewer (read-only) */
+.cc-view-cardio { display: flex; align-items: center; gap: 9px; padding: 8px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--divider) 55%, transparent); }
+.cc-view-cardio-ico { font-size: 14px; }
+.cc-view-cardio-kind { font: 600 9px/1 var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.cc-view-cardio-val { font: 600 13px/1.2 var(--font-heading); color: var(--navy); }

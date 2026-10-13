@@ -41,11 +41,17 @@ export type ExerciseTemplate = {
   sets: SetTemplate[];
   competition?: boolean; // the actual comp lift (not a paused/tempo/etc. variation)
 };
+// Coach-prescribed cardio for a day — alongside (or instead of) the lifting.
+// kind picks what the value means: a duration, a distance, or an interval scheme.
+export type CardioKind = "time" | "distance" | "interval";
+export type CardioItem = { id: string; kind: CardioKind; value: string; note?: string };
+
 export type DayTemplate = {
   rest: boolean;
   exercises: ExerciseTemplate[];
   alt?: ExerciseTemplate[]; // optional Option B session (e.g. an injury alternative)
   note?: string; // coach's word of info shown above the A/B picker
+  cardio?: CardioItem[]; // coach-prescribed cardio for the day
 };
 export type WeekTemplate = DayTemplate[]; // length 7, index by weekday 0=Sun … 6=Sat
 
@@ -124,6 +130,7 @@ export type Session = {
   hasAlt: boolean; // an Option B exists for this day
   note: string; // coach's info for the day (shown above the A/B picker)
   option: "A" | "B"; // which session this is
+  cardio: CardioItem[]; // coach-prescribed cardio for the day (may be empty)
 };
 
 const ORDER: MainLift[] = ["squat", "bench", "deadlift"];
@@ -342,6 +349,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
     hasAlt,
     note: day.note ?? "",
     option: useB ? "B" : "A",
+    cardio: day.cardio ?? [],
   };
 }
 
