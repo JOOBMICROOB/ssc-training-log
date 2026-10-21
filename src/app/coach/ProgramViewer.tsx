@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { loadProgram, saveProgram, weekOrder, dayDate, startWeekday, weekForToday, WEEKDAY_NAME, diffDay, rowPresc, isAmrapReps, toTemplate, movementGroup, type Program, type Week, type ExRow, type DayDiff, type ExGroup } from "./coachProgram";
 import { DiffLine } from "./DiffLine";
 import { ExDetail } from "./ExDetail";
@@ -179,6 +179,19 @@ export function ProgramViewer({ athleteId, athleteName, avatar, live, onOpenBuil
   // Held in state (not a bare memo) so the coach can tweak suggested loads right
   // here in the review view and see them reflected immediately.
   const [program, setProgram] = useState<Program>(() => loadProgram(athleteId));
+  // Re-read whenever the program is saved anywhere (a publish, a suggest-load, a
+  // cloud pull) or the tab regains focus — so a newly published week shows up here
+  // without a manual reload.
+  useEffect(() => {
+    const reload = () => setProgram(loadProgram(athleteId));
+    const onProg = (e: Event) => { const id = (e as CustomEvent).detail; if (!id || id === athleteId) reload(); };
+    const onVis = () => { if (document.visibilityState === "visible") reload(); };
+    reload();
+    window.addEventListener("ssc-program", onProg);
+    window.addEventListener("focus", reload);
+    document.addEventListener("visibilitychange", onVis);
+    return () => { window.removeEventListener("ssc-program", onProg); window.removeEventListener("focus", reload); document.removeEventListener("visibilitychange", onVis); };
+  }, [athleteId]);
   // The athlete's all-time bests per exercise — feeds the per-exercise RM / last-done
   // panel. Recomputed whenever the program state changes (cheap, local).
   const bests = useMemo<Map<string, ExBest> | null>(() => (live ? exerciseBests(athleteId) : null), [live, athleteId, program]);

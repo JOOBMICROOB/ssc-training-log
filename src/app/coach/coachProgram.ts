@@ -525,6 +525,13 @@ export function saveProgramLocalOnly(p: Program) {
   } catch {
     /* storage may be unavailable */
   }
+  // Tell any open viewer/builder for this athlete to re-read (so a just-published
+  // week shows up without a manual reload).
+  try {
+    window.dispatchEvent(new CustomEvent("ssc-program", { detail: p.athleteId }));
+  } catch {
+    /* no window (SSR/tests) */
+  }
 }
 export function saveProgram(p: Program) {
   saveProgramLocalOnly(p);
