@@ -41,6 +41,10 @@ const untyped = coachSupabase as unknown as {
 let coachUserId: string | null = null;
 let pending: Record<string, Entry> = {}; // edits made this session, keyed by athlete
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
+// Athletes the coach has edited this session. Their LOCAL copy is authoritative —
+// a cloud pull must never auto-overwrite live work the coach is building right now
+// (that's what made a just-built week vanish when the console re-pulled on focus).
+const touched = new Set<string>();
 
 const tsKey = (aid: string) => `ssc.coach.program.ts.${aid}`;
 const localTs = (aid: string): string => {
@@ -59,6 +63,7 @@ export function enableCoachProgramSync(userId: string) {
 export function disableCoachProgramSync() {
   coachUserId = null;
   pending = {};
+  touched.clear();
   if (pushTimer) { clearTimeout(pushTimer); pushTimer = null; }
   setProgramSaveHook(null);
 }
@@ -72,6 +77,10 @@ export async function pullCoachPrograms(): Promise<void> {
     const programs = data.data.coachPrograms ?? {};
     for (const [aid, entry] of Object.entries(programs)) {
       if (!entry?.program) continue;
+      // Never auto-overwrite an athlete the coach is actively building this session —
+      // their local copy wins until they sign out (otherwise a re-pull on focus wipes
+      // the week they just made).
+      if (touched.has(aid)) continue;
       // Cloud wins only if it's newer than what this device last wrote locally AND it
       // isn't a lower-content copy: a stale 1-week seed edited on a fresh device must
       // never wipe a full multi-week block that's synced everywhere. (This device can
@@ -90,6 +99,7 @@ export async function pullCoachPrograms(): Promise<void> {
 function pushProgram(p: Program) {
   if (!coachUserId) return;
   const updatedAt = new Date().toISOString();
+  touched.add(p.athleteId);
   pending[p.athleteId] = { program: p, updatedAt };
   setLocalTs(p.athleteId, updatedAt);
   if (pushTimer) clearTimeout(pushTimer);
@@ -109,11 +119,11 @@ async function flush() {
     const merged: Record<string, Entry> = { ...(base.coachPrograms ?? {}) };
     for (const [aid, entry] of Object.entries(batch)) {
       const existing = merged[aid];
-      // Never let a near-empty copy (a bare 0/1-week seed loaded on a fresh device
-      // and lightly edited) overwrite a richer multi-week block already in the cloud.
-      // Normal edits and incremental deletions (which keep ≥2 training weeks) still
-      // push through; only a wholesale wipe against a bigger cloud copy is refused.
-      if (existing && trainingWeeks(entry.program) <= 1 && trainingWeeks(entry.program) < trainingWeeks(existing.program)) continue;
+      // Only refuse a push that would wipe a real block to NOTHING (0 training weeks)
+      // — that's almost always an accident on a fresh device. A deliberate new block
+      // (1+ training weeks) always pushes, even if it's smaller than the old cloud copy,
+      // so the coach's new week isn't held hostage by a stale bigger block.
+      if (existing && trainingWeeks(entry.program) === 0 && trainingWeeks(existing.program) > 0) continue;
       if (!existing || entry.updatedAt >= existing.updatedAt) merged[aid] = entry;
     }
     const nextData: CoachData = { ...base, coachPrograms: merged };
