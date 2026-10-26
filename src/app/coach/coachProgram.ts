@@ -518,42 +518,16 @@ let saveHook: ((p: Program) => void) | null = null;
 export function setProgramSaveHook(fn: ((p: Program) => void) | null) {
   saveHook = fn;
 }
-/** Free space when localStorage is full by dropping re-fetchable caches (every
- *  athlete's hydrated dashboard re-hydrates from the cloud on the next sync), so a
- *  program save is never silently lost to a quota error. Returns true if it freed any. */
-function freeReFetchableStorage(): boolean {
-  const drop: string[] = [];
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith("ssc.dashboard.")) drop.push(k);
-    }
-    for (const k of drop) localStorage.removeItem(k);
-  } catch {
-    /* ignore */
-  }
-  return drop.length > 0;
-}
-
-/** Write to this device only — no cloud push. */
+/** Write to this device only — no cloud push.
+ *  NOTE: never evict `ssc.dashboard.*` here. A freed dashboard reads back as the
+ *  BLANK default (female / −69 class / empty totals) and could then be pushed to
+ *  the cloud, overwriting an athlete's real profile. We keep this a pure local
+ *  write; quota is handled by caching slim dashboards (see athleteData). */
 export function saveProgramLocalOnly(p: Program) {
-  const json = JSON.stringify(p);
   try {
-    localStorage.setItem(progKey(p.athleteId), json);
+    localStorage.setItem(progKey(p.athleteId), JSON.stringify(p));
   } catch {
-    // Storage full → free the re-fetchable athlete-dashboard caches and retry once.
-    freeReFetchableStorage();
-    try {
-      localStorage.setItem(progKey(p.athleteId), json);
-    } catch {
-      try {
-        window.alert(
-          "Je browseropslag zit vol — dit programma kon niet lokaal bewaard worden.\n\nHet staat wel in de cloud, maar om het hier betrouwbaar te zien: wis de site-data (of gebruik een incognito-venster) en log opnieuw in.",
-        );
-      } catch {
-        /* no window */
-      }
-    }
+    /* storage full / unavailable — the program still pushes to the cloud via saveHook */
   }
   // Tell any open viewer/builder for this athlete to re-read (so a just-published
   // week shows up without a manual reload).

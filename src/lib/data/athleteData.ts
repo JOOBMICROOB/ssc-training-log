@@ -1375,15 +1375,22 @@ function mergeNotes(a: DashboardData["notes"] | undefined, b: DashboardData["not
  */
 function mergeDashboard(server: Partial<DashboardData>, incoming: DashboardData): DashboardData {
   const obj = <K extends keyof DashboardData>(k: K) => ({ ...(server[k] as object), ...(incoming[k] as object) });
+  // A blank/un-hydrated incoming (firstName still the "ATHLETE" placeholder) must
+  // NEVER overwrite a real profile that's in the cloud — that's what reset everyone
+  // to "female / −69 / empty totals". When incoming is blank and the server is real,
+  // keep the server's profile + comp fields untouched.
+  const incomingBlank = (incoming.athlete?.firstName ?? "ATHLETE") === "ATHLETE";
+  const serverReal = !!server.athlete?.firstName && server.athlete.firstName !== "ATHLETE";
+  const keepServerProfile = incomingBlank && serverReal;
   return {
     ...server,
     ...incoming,
-    athlete: obj("athlete") as DashboardData["athlete"],
+    athlete: keepServerProfile ? (server.athlete as DashboardData["athlete"]) : (obj("athlete") as DashboardData["athlete"]),
     program: obj("program") as DashboardData["program"],
-    compPr: (incoming.compPr ?? server.compPr) as DashboardData["compPr"],
-    totals: obj("totals") as DashboardData["totals"],
+    compPr: keepServerProfile ? (server.compPr as DashboardData["compPr"]) : ((incoming.compPr ?? server.compPr) as DashboardData["compPr"]),
+    totals: keepServerProfile ? (server.totals as DashboardData["totals"]) : (obj("totals") as DashboardData["totals"]),
     gl: obj("gl") as DashboardData["gl"],
-    bodyweight: obj("bodyweight") as DashboardData["bodyweight"],
+    bodyweight: keepServerProfile ? (server.bodyweight as DashboardData["bodyweight"]) : (obj("bodyweight") as DashboardData["bodyweight"]),
     checkin: obj("checkin") as DashboardData["checkin"],
     notes: mergeNotes(server.notes, incoming.notes),
     programLogs: mergeLogs(server.programLogs, incoming.programLogs, server.logClears, incoming.logClears),
@@ -1438,6 +1445,10 @@ export function hasPendingSync(): boolean {
 // Serialize pushes per athlete so read-merge-write steps never race each other.
 const pushChain: Record<string, Promise<void>> = {};
 function pushToServer(athleteId: string, data: DashboardData) {
+  // Safety net: never push a blank/un-hydrated dashboard (firstName still the
+  // "ATHLETE" placeholder). Such a push is always a mistake — it was overwriting
+  // real profiles in the cloud with defaults (female / −69 / empty totals).
+  if ((data?.athlete?.firstName ?? "ATHLETE") === "ATHLETE") return;
   const t = syncTargets[athleteId];
   if (!t) { queuePending(athleteId); return; } // not synced yet → remember + retry
   const sb = untyped(t.raw);
