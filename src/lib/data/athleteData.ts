@@ -379,7 +379,9 @@ function computeStreak(data: DashboardData, today: Date): number {
   const beyondProgram = (d: string) => !!lastWeekStart && d > addDays(lastWeekStart, 6);
   for (let guard = 0; guard < 400; guard++) {
     if (floor && cursor < floor) break; // don't count backfilled history before the floor
-    const s = getSession(templateForDate(data, cursor), logs, cursor);
+    // Read each past day against the template it was LOGGED against (frozen), so a
+    // coach re-publishing an already-logged week can't make it look unlogged.
+    const s = getSession(templateForDate(data, cursor), logs, cursor, data.sessionChoice?.[cursor] ?? "A", undefined, undefined, data.loggedDays, todayIso);
     if (s.rest || s.exercises.length === 0) {
       cursor = addDays(cursor, -1);
       continue; // rest day — doesn't break, doesn't count
@@ -422,7 +424,7 @@ export function weekCompletionPct(data: DashboardData, weekStartISO: string, tod
   for (let i = 0; i < 7; i++) {
     const date = addDays(weekStartISO, i);
     if (date > todayISO) break;
-    const s = getSession(templateForDate(data, date), logs, date);
+    const s = getSession(templateForDate(data, date), logs, date, data.sessionChoice?.[date] ?? "A", undefined, undefined, data.loggedDays, todayISO);
     if (s.rest || s.exercises.length === 0) continue;
     let total = 0;
     let logged = 0;

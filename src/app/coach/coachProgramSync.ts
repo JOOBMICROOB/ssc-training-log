@@ -20,8 +20,10 @@
  */
 import { coachSupabase } from "../../lib/supabase";
 import {
-  setProgramSaveHook, saveProgramLocalOnly, peekStoredProgram, clearProgramMemory, LEGACY_PROG_PREFIX, type Program,
+  setProgramSaveHook, saveProgramLocalOnly, peekStoredProgram, clearProgramMemory, loadProgram, publishedWeeksAsProgram,
+  LEGACY_PROG_PREFIX, type Program,
 } from "./coachProgram";
+import { getDashboard } from "../../lib/data/athleteData";
 
 /** How many weeks in a program actually hold training (a day with exercises or cardio). */
 const trainingWeeks = (p: Program): number =>
@@ -189,6 +191,11 @@ export async function pullCoachPrograms(): Promise<void> {
     migrationTried = true;
     await migrateLegacy(base, tsBefore);
   }
+  // An old per-device copy that couldn't be moved yet (still on disk) for an athlete
+  // the cloud has nothing for: show it rather than a stale seed.
+  for (const [aid, p] of Object.entries(readPrefixed<Program>(LEGACY_PROG_PREFIX))) {
+    if (p?.mesocycles && !programs[aid] && !touched.has(aid) && !peekStoredProgram(aid)) saveProgramLocalOnly(p);
+  }
 
   // Edits a previous session buffered but never got confirmed: if they're newer
   // than the cloud, restore them and send them again; otherwise they're done.
@@ -226,7 +233,10 @@ async function migrateLegacy(base: CoachData, tsBefore: Record<string, string>):
     const c = cloud[aid];
     if (trainingWeeks(local) === 0) continue; // nothing to keep (still backed up below)
     const ts = tsBefore[aid] ?? "";
-    const localWins = !c || (!!ts && ts > c.updatedAt) || trainingWeeks(local) > trainingWeeks(c.program);
+    // Newest wins. (Not "most weeks": an old, longer block must never replace the
+    // current one. Anything that loses is still in the backup, and
+    // repairProgramsFromPublished restores it if it turns out to be the right one.)
+    const localWins = !c || (!!ts && ts > c.updatedAt);
     if (localWins) upload[aid] = { program: local, updatedAt: savedAt };
   }
 
@@ -322,4 +332,69 @@ async function flush() {
     pending = { ...batch, ...pending };
     schedule(15000);
   }
+}
+
+const weekHasTraining = (w: Program["mesocycles"][number]["weeks"][number]) =>
+  w.days.some((d) => !d.rest && (d.exercises.length > 0 || (d.cardio?.length ?? 0) > 0));
+const coversWeek = (p: Program, start: string) => p.mesocycles.some((m) => m.weeks.some((w) => w.startDate === start));
+const lastWeekStart = (p: Program): string =>
+  p.mesocycles.flatMap((m) => m.weeks).filter(weekHasTraining).map((w) => w.startDate ?? "").sort().at(-1) ?? "";
+
+/**
+ * Safety net, run once the roster is loaded: the builder program must contain the
+ * athlete's most recently PUBLISHED week. If it doesn't (a stale/older version won
+ * somewhere), restore the newest saved version that does — from the migration
+ * backups, parked edits or an old local copy — and failing that, add the athlete's
+ * published weeks back into the program. The replaced version is parked, never
+ * dropped. Returns the athletes that were repaired.
+ */
+export async function repairProgramsFromPublished(athleteIds: string[]): Promise<string[]> {
+  if (!coachUserId || !cloudLoaded) return [];
+  let base: CoachData;
+  try { base = (await readCoachRow()) ?? {}; } catch { return []; }
+  const legacy = readPrefixed<Program>(LEGACY_PROG_PREFIX);
+  const fixes: Record<string, Program> = {};
+  for (const aid of athleteIds) {
+    if (touched.has(aid)) continue;
+    const pub = getDashboard(aid).publishedWeeks ?? {};
+    const latest = Object.keys(pub)
+      .filter((k) => (pub[k]?.week ?? []).some((d) => d && !d.rest && (d.exercises?.length ?? 0) > 0))
+      .sort()
+      .at(-1);
+    if (!latest) continue;
+    const held = loadProgram(aid); // exactly what the builder / viewer show
+    if (coversWeek(held, latest)) continue;
+
+    const cands: Entry[] = [];
+    for (const b of Object.values(base.coachProgramsBackups ?? {})) {
+      if (b?.local?.[aid]) cands.push(b.local[aid]);
+      if (b?.cloudReplaced?.[aid]) cands.push(b.cloudReplaced[aid]);
+    }
+    for (const e of base.coachProgramsConflicts?.[aid] ?? []) cands.push(e);
+    if (legacy[aid]) cands.push({ program: legacy[aid], updatedAt: "" });
+    const best = cands
+      .filter((c) => c?.program?.mesocycles && coversWeek(c.program, latest))
+      .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""))[0];
+    if (best) { fixes[aid] = { ...best.program, athleteId: aid }; continue; }
+
+    const missing = publishedWeeksAsProgram(aid, lastWeekStart(held));
+    if (missing) fixes[aid] = { ...held, mesocycles: [...held.mesocycles, ...missing.mesocycles] };
+  }
+  const ids = Object.keys(fixes);
+  if (!ids.length) return [];
+  const updatedAt = new Date().toISOString();
+  const ok = await writeCoachRow((cur) => {
+    const programs = { ...(cur.coachPrograms ?? {}) };
+    const conflicts = { ...(cur.coachProgramsConflicts ?? {}) };
+    for (const aid of ids) {
+      if (programs[aid]) conflicts[aid] = [...(conflicts[aid] ?? []), programs[aid]].slice(-5);
+      programs[aid] = { program: fixes[aid], updatedAt };
+    }
+    return { ...cur, coachPrograms: programs, coachProgramsConflicts: conflicts };
+  });
+  for (const aid of ids) {
+    saveProgramLocalOnly(fixes[aid]);
+    if (ok) { setLocalTs(aid, updatedAt); cloudBased.add(aid); }
+  }
+  return ids;
 }

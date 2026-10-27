@@ -28,7 +28,7 @@ import {
 import { getStaffSession, signInCoach, signOutCoach, startCoachSync, listCoaches, sendProfileNoticeOnce, type CoachSession, type CoachAthlete } from "../lib/auth/coachAuth";
 import { NutritionConsole } from "./NutritionConsole";
 import { setAthleteCoachLabel } from "../lib/data/athleteData";
-import { enableCoachProgramSync, pullCoachPrograms, disableCoachProgramSync } from "./coach/coachProgramSync";
+import { enableCoachProgramSync, repairProgramsFromPublished, pullCoachPrograms, disableCoachProgramSync } from "./coach/coachProgramSync";
 
 /**
  * Apply a freshly-synced roster: register the live rows (the whole team, tagged by
@@ -41,11 +41,12 @@ function applyRoster(list: CoachAthlete[], coach: { code: string; name: string }
 }
 
 /** Pull the real coach list + the full roster together, then apply both. */
-async function syncRoster(session: CoachSession): Promise<void> {
+async function syncRoster(session: CoachSession): Promise<CoachAthlete[]> {
   const [coaches, list] = await Promise.all([listCoaches(), startCoachSync(session.userId)]);
   setCoaches(coaches);
   applyRoster(list, session);
   void sendProfileNoticeOnce(session.userId, list.filter((a) => a.owned).map((a) => a.athleteId));
+  return list;
 }
 
 /**
@@ -88,7 +89,10 @@ export function CoachConsole() {
       await pullCoachPrograms().catch(() => {});
       // Athlete dashboards now live in memory only (not localStorage), so load them
       // before the console renders — otherwise it would flash blank profiles.
-      await syncRoster(s).catch(() => {});
+      const list = await syncRoster(s).catch(() => [] as CoachAthlete[]);
+      // Make sure every builder program still holds the athlete's latest published
+      // week (restores it from the backups if a stale version won somewhere).
+      await repairProgramsFromPublished(list.filter((a) => a.owned || a.shared).map((a) => a.athleteId)).catch(() => {});
     }
     setSession(s);
   };

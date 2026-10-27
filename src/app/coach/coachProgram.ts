@@ -447,10 +447,10 @@ function daysFromTemplate(week: WeekTemplate): Day[] {
  * clear…) the athlete's `publishedWeeks` still hold the whole block, so we rebuild the
  * builder view from those. Returns null when the athlete has nothing published.
  */
-function programFromPublished(athleteId: string): Program | null {
+function programFromPublished(athleteId: string, after = ""): Program | null {
   let published: NonNullable<ReturnType<typeof getDashboard>["publishedWeeks"]>;
   try { published = getDashboard(athleteId).publishedWeeks ?? {}; } catch { return null; }
-  const keys = Object.keys(published).sort();
+  const keys = Object.keys(published).filter((k) => k > after).sort();
   if (!keys.length) return null;
   const weeks: Week[] = keys.map((startDate, i) => ({
     id: uid("wk"),
@@ -462,6 +462,12 @@ function programFromPublished(athleteId: string): Program | null {
   if (!weeks.some(hasTraining)) return null;
   const blockName = published[keys[0]].blockName || "BLOCK 1";
   return { athleteId, currentWeekId: weeks[0].id, mesocycles: [{ id: uid("meso"), name: blockName, color: "#5980a6", weeks }] };
+}
+
+/** The athlete's published weeks starting after `after`, rebuilt as builder weeks
+ *  (one block) — used to put published weeks back into a builder program that lost them. */
+export function publishedWeeksAsProgram(athleteId: string, after = ""): Program | null {
+  return programFromPublished(athleteId, after);
 }
 
 /** If a program has no training, try to recover it from the athlete's published weeks. */

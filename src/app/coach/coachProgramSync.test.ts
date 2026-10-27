@@ -61,7 +61,7 @@ describe("coach program migration off localStorage", () => {
       coachPrograms: {
         B: { program: prog("B", 3, "cloud"), updatedAt: newer }, // cloud newer + bigger → cloud wins
         C: { program: prog("C", 2, "cloud"), updatedAt: old },   // local newer → local wins
-        D: { program: prog("D", 1, "cloud"), updatedAt: newer }, // local has more weeks → local wins
+        D: { program: prog("D", 1, "cloud"), updatedAt: newer }, // cloud newer (fewer weeks) → cloud still wins
       },
     };
     localStorage.setItem(LEG + "A", JSON.stringify(prog("A", 2, "local"))); // only local
@@ -80,18 +80,19 @@ describe("coach program migration off localStorage", () => {
     expect(cp.A.program.mesocycles[0].name).toBe("BLOCKlocal");
     expect(cp.B.program.mesocycles[0].name).toBe("BLOCKcloud");
     expect(cp.C.program.mesocycles[0].name).toBe("BLOCKlocal");
-    expect(cp.D.program.mesocycles[0].weeks.length).toBe(4);
+    expect(cp.D.program.mesocycles[0].weeks.length).toBe(1);
     expect(cloud.row?.other).toBe("keep me");
     // Backup holds every local copy AND the cloud copies that were replaced.
     const backups = Object.values(cloud.row?.coachProgramsBackups as Record<string, { local: Record<string, unknown>; cloudReplaced: Record<string, { program: P }> }>);
     expect(backups).toHaveLength(1);
     expect(Object.keys(backups[0].local).sort()).toEqual(["A", "B", "C", "D"]);
-    expect(Object.keys(backups[0].cloudReplaced).sort()).toEqual(["C", "D"]);
-    expect(backups[0].cloudReplaced.D.program.mesocycles[0].name).toBe("BLOCKcloud");
+    expect(Object.keys(backups[0].cloudReplaced).sort()).toEqual(["C"]);
+    expect(backups[0].cloudReplaced.C.program.mesocycles[0].name).toBe("BLOCKcloud");
+    expect((backups[0].local as Record<string, { program: P }>).D.program.mesocycles[0].weeks.length).toBe(4);
     // Local copies are gone; memory shows the winners.
     expect([...Array(localStorage.length)].map((_, i) => localStorage.key(i)).filter((k) => k?.startsWith(LEG))).toEqual([]);
     expect(store.peekStoredProgram("B")?.mesocycles[0].name).toBe("BLOCKcloud");
-    expect(store.peekStoredProgram("D")?.mesocycles[0].weeks.length).toBe(4);
+    expect(store.peekStoredProgram("D")?.mesocycles[0].weeks.length).toBe(1);
   });
 
   it("keeps the local copies when the cloud can't be written", async () => {
@@ -153,5 +154,54 @@ describe("coach program migration off localStorage", () => {
     expect(coachPrograms().A.program.mesocycles[0].name).toBe("BLOCKnext");
     const keys = [...Array(localStorage.length)].map((_, i) => localStorage.key(i));
     expect(keys.filter((k) => k?.includes("program.v2") || k?.includes("pending"))).toEqual([]);
+  });
+
+  // --- repair against what the athlete actually has published -----------------
+  const dayT = { rest: false, exercises: [{ name: "Squat", sets: [{ targetReps: "5", targetRpe: "8" }] }] };
+  const restT = { rest: true, exercises: [] };
+  const weekT = [restT, dayT, restT, restT, restT, restT, restT];
+  const publish = (aid: string, starts: string[]) =>
+    localStorage.setItem(`ssc.dashboard.${aid}`, JSON.stringify({
+      athlete: { firstName: "Lieze" },
+      publishedWeeks: Object.fromEntries(starts.map((d) => [d, { week: weekT, blockName: "CURRENT" }])),
+    }));
+
+  it("restores the backed-up version that holds the latest published week", async () => {
+    // prog() weeks start 2026-10-05, -12, -19, -26 …
+    publish("LV", ["2026-10-19"]);
+    cloud.row = {
+      coachPrograms: { LV: { program: prog("LV", 1, "stale"), updatedAt: "2026-10-25T00:00:00.000Z" } },
+      coachProgramsBackups: { b: { savedAt: new Date().toISOString(), local: { LV: { program: prog("LV", 3, "good"), updatedAt: "2026-10-20T00:00:00.000Z" } }, cloudReplaced: {} } },
+    };
+    const { sync, store } = await load();
+    sync.enableCoachProgramSync("coach");
+    await sync.pullCoachPrograms();
+    expect(await sync.repairProgramsFromPublished(["LV"])).toEqual(["LV"]);
+    expect(store.peekStoredProgram("LV")?.mesocycles[0].name).toBe("BLOCKgood");
+    expect(coachPrograms().LV.program.mesocycles[0].name).toBe("BLOCKgood");
+    // the version it replaced is parked, not lost
+    expect((cloud.row?.coachProgramsConflicts as Record<string, { program: P }[]>).LV[0].program.mesocycles[0].name).toBe("BLOCKstale");
+  });
+
+  it("with no saved version, adds the published weeks back into the builder", async () => {
+    publish("LV", ["2026-10-19", "2026-10-26"]);
+    cloud.row = { coachPrograms: { LV: { program: prog("LV", 1, "stale"), updatedAt: "2026-10-25T00:00:00.000Z" } } };
+    const { sync, store } = await load();
+    sync.enableCoachProgramSync("coach");
+    await sync.pullCoachPrograms();
+    await sync.repairProgramsFromPublished(["LV"]);
+    const p = store.peekStoredProgram("LV")!;
+    const starts = p.mesocycles.flatMap((m) => m.weeks.map((w) => w.startDate));
+    expect(starts).toEqual(["2026-10-05", "2026-10-19", "2026-10-26"]);
+  });
+
+  it("leaves a program alone when it already holds the latest published week", async () => {
+    publish("LV", ["2026-10-12"]);
+    cloud.row = { coachPrograms: { LV: { program: prog("LV", 2, "ok"), updatedAt: "2026-10-25T00:00:00.000Z" } } };
+    const { sync } = await load();
+    sync.enableCoachProgramSync("coach");
+    await sync.pullCoachPrograms();
+    expect(await sync.repairProgramsFromPublished(["LV"])).toEqual([]);
+    expect(cloud.row?.coachProgramsConflicts).toBeUndefined();
   });
 });
