@@ -265,6 +265,45 @@ function maybeAvatarPrompt(athleteId: string, hasAvatar: boolean): (() => void) 
   return () => root.remove();
 }
 
+/**
+ * One-time notice (Oct 2026): a bug reset some athletes' profile fields to the
+ * defaults. Ask everyone to check their dashboard and fix it with a double-tap.
+ * Shown once per athlete per device, and not at all after NOTICE_UNTIL.
+ */
+const NOTICE_UNTIL = "2026-11-30";
+function maybeDataNotice(athleteId: string): (() => void) | undefined {
+  const flag = `ssc.athlete.notice.profileReset.${athleteId}`;
+  let seen = false;
+  try { seen = localStorage.getItem(flag) === "1"; } catch { /* ignore */ }
+  const today = new Date().toISOString().slice(0, 10);
+  if (seen || today > NOTICE_UNTIL) return undefined;
+
+  const root = document.createElement("div");
+  root.style.cssText = "position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(9,17,28,.55);backdrop-filter:blur(3px);padding:20px;";
+  const close = () => {
+    try { localStorage.setItem(flag, "1"); } catch { /* ignore */ }
+    root.remove();
+  };
+  root.innerHTML = `
+    <div style="width:100%;max-width:340px;background:var(--a-panel-bg,#fbfdff);border-radius:20px;box-shadow:0 24px 60px rgba(9,17,28,.4);padding:22px 20px 18px;text-align:center;">
+      <div style="width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:rgba(var(--a-accent-rgb),.14);display:grid;place-items:center;font-size:30px;">🛠️</div>
+      <div style="font:600 20px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.01em;color: rgb(var(--a-ink-rgb));">Even je gegevens nakijken</div>
+      <div style="margin-top:8px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(107,116,128);text-align:left;">
+        <p style="margin:0 0 8px;">Door een klein probleem in de app zijn bij sommigen de persoonlijke gegevens veranderd, zoals gewichtsklasse, training age of comp total. Je programma's en PR's zijn niet aangetast.</p>
+        <p style="margin:0 0 8px;">Kijk je even na of alles op je dashboard nog klopt? <b style="color:rgb(var(--a-ink-rgb));">Dubbeltik op een gegeven om het aan te passen.</b></p>
+        <p style="margin:0 0 8px;">Klopt je naam of geslacht niet? Laat het dan even weten aan je coach, dat kan je zelf niet wijzigen.</p>
+        <p style="margin:0;">Sorry voor het ongemak!</p>
+      </div>
+      <button data-ok style="width:100%;margin-top:16px;padding:13px;border:1px solid rgb(var(--a-navy-rgb));border-radius:12px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">OKÉ, IK KIJK HET NA</button>
+    </div>`;
+  root.addEventListener("click", (e) => {
+    const t = e.target as HTMLElement;
+    if (t.closest("[data-ok]")) close();
+  });
+  document.body.appendChild(root);
+  return () => root.remove();
+}
+
 function pickAvatar(athleteId: string, onDone?: () => void) {
   const inp = document.createElement("input");
   inp.type = "file";
@@ -602,8 +641,11 @@ export function wireDashboard(
 
   const unThemeWidget = mountThemeWidget(host);
   const unCalWidget = mountCalendarWidget(host, athleteId);
+  // One-time notice about the profile-data reset; the avatar nudge waits its turn
+  // so two popups never stack.
+  const unDataNotice = maybeDataNotice(athleteId);
   // Friendly one-time nudge to add a profile picture (only if they have none).
-  const unAvatarPrompt = maybeAvatarPrompt(athleteId, !!getDashboardModel(athleteId).athlete.avatar);
+  const unAvatarPrompt = unDataNotice ? undefined : maybeAvatarPrompt(athleteId, !!getDashboardModel(athleteId).athlete.avatar);
 
   const unsub = subscribeDashboard(() => applyModel(host, getDashboardModel(athleteId)));
   return () => {
@@ -612,6 +654,7 @@ export function wireDashboard(
     unThemeWidget();
     unCalWidget();
     unAvatarPrompt?.();
+    unDataNotice?.();
   };
 }
 

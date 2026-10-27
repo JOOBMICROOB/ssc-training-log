@@ -193,6 +193,59 @@ const BLANK: DashboardData = {
 
 const key = (athleteId: string) => `ssc.dashboard.${athleteId}`;
 const listeners = new Set<() => void>();
+
+// Where dashboards live. On an athlete's phone: localStorage (their own one, works
+// offline). On a coach / nutritionist device the console holds EVERY athlete, and
+// ~30 full dashboards blew the ~5 MB localStorage quota — after which nothing could
+// be saved (vanishing weeks, blanked profiles). So in staff mode those copies live
+// in memory only; Supabase is the truth and is re-pulled on every console open.
+// The device's own signed-in athlete (if any) always stays in localStorage.
+let staffMode = false;
+let ownAthleteId: string | null = null;
+const memDash = new Map<string, string>();
+const inMemory = (athleteId: string) => staffMode && athleteId !== ownAthleteId;
+function readDash(athleteId: string): string | null {
+  return inMemory(athleteId) ? memDash.get(athleteId) ?? null : localStorage.getItem(key(athleteId));
+}
+/** Throws like localStorage.setItem would (callers already guard it). */
+function writeDash(athleteId: string, data: unknown) {
+  const json = JSON.stringify(data);
+  if (inMemory(athleteId)) memDash.set(athleteId, json);
+  else localStorage.setItem(key(athleteId), json);
+}
+/** Switch to staff mode: move every other athlete's cached dashboard out of
+ *  localStorage into memory, freeing the quota for good. */
+function enterStaffMode() {
+  staffMode = true;
+  try {
+    ownAthleteId = (JSON.parse(localStorage.getItem("ssc.athlete.session") || "null") as { athleteId?: string } | null)?.athleteId ?? null;
+  } catch {
+    ownAthleteId = null;
+  }
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("ssc.dashboard.")) keys.push(k);
+    }
+    for (const k of keys) {
+      const id = k.slice("ssc.dashboard.".length);
+      if (id === ownAthleteId) continue;
+      const v = localStorage.getItem(k);
+      if (v && !memDash.has(id)) memDash.set(id, v);
+      localStorage.removeItem(k);
+    }
+  } catch {
+    /* storage unavailable — memory mode still works */
+  }
+}
+/** Back to athlete mode (the athlete app signing in on this device). */
+function leaveStaffMode(athleteId: string) {
+  if (!staffMode) return;
+  const v = memDash.get(athleteId);
+  staffMode = false;
+  if (v) { try { localStorage.setItem(key(athleteId), v); } catch { /* ignore */ } }
+}
 // Local-date string (toISOString is UTC and shifts the day in +TZ).
 const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -221,7 +274,7 @@ function bwDaysThisWeek(data: DashboardData, today = new Date()): number {
 
 export function getDashboard(athleteId: string): DashboardData {
   try {
-    const raw = localStorage.getItem(key(athleteId));
+    const raw = readDash(athleteId);
     if (raw) {
       const s = JSON.parse(raw) as Partial<DashboardData>;
       // Deep-merge nested objects onto the BLANK default so missing fields fill
@@ -256,7 +309,7 @@ export function getDashboard(athleteId: string): DashboardData {
 
 function save(athleteId: string, data: DashboardData) {
   try {
-    localStorage.setItem(key(athleteId), JSON.stringify(data));
+    writeDash(athleteId, data);
   } catch {
     /* storage may be unavailable */
   }
@@ -1298,6 +1351,7 @@ const untyped = (c: RawClient) => c as unknown as UntypedClient;
 let coachRaw: RawClient = supabase;
 let sharedRaw: RawClient = supabase;
 export function enableCoachSync() {
+  enterStaffMode();
   coachRaw = coachSupabase;
   sharedRaw = coachSupabase;
 }
@@ -1472,7 +1526,7 @@ function pushToServer(athleteId: string, data: DashboardData) {
       await sb.from("app_state").upsert({ user_id: t.userId, data: merged }, { onConflict: "user_id" });
       // Reflect the merged truth locally so this device stops carrying stale fields.
       try {
-        localStorage.setItem(key(athleteId), JSON.stringify(merged));
+        writeDash(athleteId, merged);
       } catch {
         /* ignore */
       }
@@ -1498,7 +1552,7 @@ async function hydrateTarget(athleteId: string, userId: string, seedIfEmpty: boo
     // server win on profile/scalars. Coach view: take the server as-is.
     const next = seedIfEmpty ? mergeDashboard(getDashboard(athleteId), server) : server;
     try {
-      localStorage.setItem(key(athleteId), JSON.stringify(next));
+      writeDash(athleteId, next);
     } catch {
       /* ignore */
     }
@@ -1519,7 +1573,7 @@ async function hydrateTarget(athleteId: string, userId: string, seedIfEmpty: boo
         if (!remote) return;
         const next = seedIfEmpty ? mergeDashboard(getDashboard(athleteId), remote) : remote;
         try {
-          localStorage.setItem(key(athleteId), JSON.stringify(next));
+          writeDash(athleteId, next);
         } catch {
           /* ignore */
         }
@@ -1539,6 +1593,7 @@ export async function hydrateFromServer(athleteId: string): Promise<void> {
   const { data: userRes } = await supabase.auth.getUser();
   const uid = userRes.user?.id ?? null;
   if (!uid) return; // no session → stay local-only
+  leaveStaffMode(athleteId);
   await hydrateTarget(athleteId, uid, true, supabase);
   // Lock every already-logged session to the template it currently reads against,
   // so a later coach edit can't misalign its position-keyed logs. freezeExistingLogs
@@ -1552,7 +1607,7 @@ export async function hydrateFromServer(athleteId: string): Promise<void> {
 
 /** Coach-side: connect each of the coach's athletes' rows (read + live). */
 export async function hydrateAthletes(list: { athleteId: string; userId: string }[]): Promise<void> {
-  for (const a of list) await hydrateTarget(a.athleteId, a.userId, false, coachRaw);
+  await Promise.all(list.map((a) => hydrateTarget(a.athleteId, a.userId, false, coachRaw).catch(() => {})));
 }
 
 /**
@@ -1568,7 +1623,7 @@ export async function hydrateAthletesReadonly(list: { athleteId: string; userId:
     const { data } = await sb.from("app_state").select("user_id,data").in("user_id", list.map((a) => a.userId));
     for (const row of data ?? []) {
       const aid = byUser.get(row.user_id);
-      if (aid && row.data) { try { localStorage.setItem(key(aid), JSON.stringify(row.data)); } catch { /* storage full/unavailable */ } }
+      if (aid && row.data) { try { writeDash(aid, row.data); } catch { /* storage full/unavailable */ } }
     }
     listeners.forEach((cb) => cb());
   } catch {

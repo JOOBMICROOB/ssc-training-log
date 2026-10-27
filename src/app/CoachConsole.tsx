@@ -25,7 +25,7 @@ import {
   type ClientRow,
   type Coach,
 } from "./coach/coachData";
-import { getStaffSession, signInCoach, signOutCoach, startCoachSync, listCoaches, type CoachSession, type CoachAthlete } from "../lib/auth/coachAuth";
+import { getStaffSession, signInCoach, signOutCoach, startCoachSync, listCoaches, sendProfileNoticeOnce, type CoachSession, type CoachAthlete } from "../lib/auth/coachAuth";
 import { NutritionConsole } from "./NutritionConsole";
 import { setAthleteCoachLabel } from "../lib/data/athleteData";
 import { enableCoachProgramSync, pullCoachPrograms, disableCoachProgramSync } from "./coach/coachProgramSync";
@@ -45,6 +45,7 @@ async function syncRoster(session: CoachSession): Promise<void> {
   const [coaches, list] = await Promise.all([listCoaches(), startCoachSync(session.userId)]);
   setCoaches(coaches);
   applyRoster(list, session);
+  void sendProfileNoticeOnce(session.userId, list.filter((a) => a.owned).map((a) => a.athleteId));
 }
 
 /**
@@ -85,9 +86,11 @@ export function CoachConsole() {
       // renders, so the builder/calendar show the same on every device.
       enableCoachProgramSync(s.userId);
       await pullCoachPrograms().catch(() => {});
+      // Athlete dashboards now live in memory only (not localStorage), so load them
+      // before the console renders — otherwise it would flash blank profiles.
+      await syncRoster(s).catch(() => {});
     }
     setSession(s);
-    if (s && s.role === "coach") void syncRoster(s);
   };
   useEffect(() => { void load(); }, []);
 

@@ -249,6 +249,45 @@ export async function notifyAthlete(athleteCode: string, title: string, body: st
     /* notifications are a bonus, never block a publish */
   }
 }
+/**
+ * One-off broadcast (Oct 2026): push the profile-reset notice to every athlete this
+ * coach OWNS (notify-athlete only allows the owner, so shared athletes get it from
+ * their own coach). Sent once per coach account — the flag lives in the coach's own
+ * app_state row, so a second device doesn't send it again. Only athletes with
+ * notifications on actually receive it; everyone still sees the in-app popup.
+ */
+const PROFILE_NOTICE_ID = "profileReset-2026-10";
+let profileNoticeRunning = false;
+export async function sendProfileNoticeOnce(coachUserId: string, ownedCodes: string[]): Promise<void> {
+  if (profileNoticeRunning || !ownedCodes.length || new Date().toISOString().slice(0, 10) > "2026-11-30") return;
+  profileNoticeRunning = true; // roster re-syncs (focus etc.) must not race a second send
+  const st = coachSupabase as unknown as {
+    from: (t: string) => {
+      select: (c: string) => { eq: (col: string, v: string) => { maybeSingle: () => Promise<{ data: { data?: Record<string, unknown> } | null; error: unknown }> } };
+      upsert: (v: unknown, o?: unknown) => Promise<{ error: unknown }>;
+    };
+  };
+  try {
+    const { data, error } = await st.from("app_state").select("data").eq("user_id", coachUserId).maybeSingle();
+    if (error) return;
+    const base = data?.data ?? {};
+    const sent = (base.noticesSent as string[] | undefined) ?? [];
+    if (sent.includes(PROFILE_NOTICE_ID)) return;
+    // Claim the flag BEFORE sending so a second open can't double-send.
+    const { error: wErr } = await st.from("app_state").upsert(
+      { user_id: coachUserId, data: { ...base, noticesSent: [...sent, PROFILE_NOTICE_ID] } },
+      { onConflict: "user_id" },
+    );
+    if (wErr) return;
+    for (const code of ownedCodes) {
+      await notifyAthlete(code, "Even je gegevens nakijken",
+        "Door een klein probleem zijn sommige persoonlijke gegevens veranderd. Open de app en dubbeltik om ze recht te zetten.");
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
 export const notifyAthletePublished = (athleteCode: string, blockName: string) =>
   notifyAthlete(athleteCode, "Your coach added a new program", blockName);
 
