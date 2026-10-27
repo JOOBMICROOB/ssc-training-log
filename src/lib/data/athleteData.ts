@@ -1442,13 +1442,26 @@ export function hasPendingSync(): boolean {
   return pendingPush.size > 0;
 }
 
+// True only for the un-hydrated BLANK default: the placeholder name AND no real
+// content anywhere. A real athlete (logs, published weeks, PRs or weigh-ins) is
+// never "untouched blank", even if their profile fields are momentarily default.
+function isUntouchedBlank(data: DashboardData): boolean {
+  if ((data?.athlete?.firstName ?? "ATHLETE") !== "ATHLETE") return false;
+  const hasLogs = Object.keys(data?.programLogs ?? {}).length > 0;
+  const hasWeeks = Object.keys(data?.publishedWeeks ?? {}).length > 0;
+  const hasBw = (data?.bwEntries ?? []).length > 0;
+  const hasPrs = (data?.prs ?? []).length > 0;
+  return !hasLogs && !hasWeeks && !hasBw && !hasPrs;
+}
+
 // Serialize pushes per athlete so read-merge-write steps never race each other.
 const pushChain: Record<string, Promise<void>> = {};
 function pushToServer(athleteId: string, data: DashboardData) {
-  // Safety net: never push a blank/un-hydrated dashboard (firstName still the
-  // "ATHLETE" placeholder). Such a push is always a mistake — it was overwriting
-  // real profiles in the cloud with defaults (female / −69 / empty totals).
-  if ((data?.athlete?.firstName ?? "ATHLETE") === "ATHLETE") return;
+  // Safety net: never push a TRULY blank/un-hydrated dashboard — the default name
+  // AND no real content at all. That's the eviction-blank that reset profiles to
+  // defaults. A real athlete whose profile fields are being corrected (name still
+  // the placeholder, but with logs/weeks/PRs) must still push, so corrections land.
+  if (isUntouchedBlank(data)) return;
   const t = syncTargets[athleteId];
   if (!t) { queuePending(athleteId); return; } // not synced yet → remember + retry
   const sb = untyped(t.raw);
