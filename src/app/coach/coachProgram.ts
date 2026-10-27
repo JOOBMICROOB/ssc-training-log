@@ -381,8 +381,27 @@ export function blankRow(): ExRow {
 }
 
 // --- persistence -------------------------------------------------------------
-// v2: reset every athlete to a blank program (old seeded weeks are orphaned).
-const progKey = (athleteId: string) => `ssc.coach.program.v2.${athleteId}`;
+// Programs live in MEMORY on this device. The cloud (the coach's own
+// app_state.coachPrograms) is the truth and is pulled before the console renders;
+// localStorage only buffers edits the cloud hasn't confirmed yet (coachProgramSync).
+// Keeping ~30 full programs in localStorage is what filled the ~5 MB quota.
+// `ssc.coach.program.v2.*` is the OLD per-device copy — coachProgramSync backs it up
+// to the cloud and then clears it (never read here any more).
+export const LEGACY_PROG_PREFIX = "ssc.coach.program.v2.";
+const progMem = new Map<string, string>();
+/** The program currently held for this athlete, exactly as stored (no seeding). */
+export function peekStoredProgram(athleteId: string): Program | null {
+  try {
+    const raw = progMem.get(athleteId);
+    return raw ? (JSON.parse(raw) as Program) : null;
+  } catch {
+    return null;
+  }
+}
+/** Forget every held program (sign-out — the next coach starts clean). */
+export function clearProgramMemory() {
+  progMem.clear();
+}
 
 const hasTraining = (w: Week) => w.days.some((d) => !d.rest && (d.exercises.length > 0 || (d.cardio?.length ?? 0) > 0));
 /**
@@ -455,7 +474,7 @@ function recoverIfEmpty(athleteId: string, program: Program): Program {
 
 export function loadProgram(athleteId: string): Program {
   try {
-    const raw = localStorage.getItem(progKey(athleteId));
+    const raw = progMem.get(athleteId);
     if (raw) {
       const parsed = JSON.parse(raw) as Program;
       // Merel's program was revised — force the newer seed to replace a cached older
@@ -495,7 +514,7 @@ export function loadProgram(athleteId: string): Program {
 /** Read a saved program without creating a seed — for read-only planning views. */
 export function peekProgram(athleteId: string): Program | null {
   try {
-    const raw = localStorage.getItem(progKey(athleteId));
+    const raw = progMem.get(athleteId);
     if (raw) return ensureDated(JSON.parse(raw) as Program);
   } catch {
     /* ignore */
@@ -518,17 +537,9 @@ let saveHook: ((p: Program) => void) | null = null;
 export function setProgramSaveHook(fn: ((p: Program) => void) | null) {
   saveHook = fn;
 }
-/** Write to this device only — no cloud push.
- *  NOTE: never evict `ssc.dashboard.*` here. A freed dashboard reads back as the
- *  BLANK default (female / −69 class / empty totals) and could then be pushed to
- *  the cloud, overwriting an athlete's real profile. We keep this a pure local
- *  write; quota is handled by caching slim dashboards (see athleteData). */
+/** Hold on this device only — no cloud push (seeds, migrations, cloud pulls). */
 export function saveProgramLocalOnly(p: Program) {
-  try {
-    localStorage.setItem(progKey(p.athleteId), JSON.stringify(p));
-  } catch {
-    /* storage full / unavailable — the program still pushes to the cloud via saveHook */
-  }
+  progMem.set(p.athleteId, JSON.stringify(p));
   // Tell any open viewer/builder for this athlete to re-read (so a just-published
   // week shows up without a manual reload).
   try {
