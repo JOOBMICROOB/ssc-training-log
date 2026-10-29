@@ -63,6 +63,7 @@ const touched = new Set<string>();
 const cloudBased = new Set<string>();
 let cloudLoaded = false;
 let migrationTried = false; // one attempt per session (each attempt writes a backup)
+let failStreak = 0; // consecutive failed flushes → retry backoff
 
 const BACKUP_DAYS = 30;
 const tsKey = (aid: string) => `ssc.coach.program.ts.${aid}`;
@@ -114,6 +115,43 @@ async function writeCoachRow(mutate: (cur: CoachData) => CoachData): Promise<boo
     return !error;
   } catch {
     return false;
+  }
+}
+
+const sameProgram = (a: Program | undefined, b: Program | undefined) => !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Keep the coach's row lean: drop backup / parked copies that are identical to the
+ * current program (nothing to restore) and empty backups. Writes only if it shrank.
+ */
+async function compactRow(): Promise<void> {
+  let changed = false;
+  const shrink = (cur: CoachData): CoachData => {
+    changed = false;
+    const programs = cur.coachPrograms ?? {};
+    const backups: Record<string, Backup> = {};
+    for (const [k, b] of Object.entries(pruneBackups(cur.coachProgramsBackups))) {
+      const keep = (m: Record<string, Entry> | undefined) =>
+        Object.fromEntries(Object.entries(m ?? {}).filter(([aid, e]) => !sameProgram(programs[aid]?.program, e?.program)));
+      const local = keep(b.local), cloudReplaced = keep(b.cloudReplaced);
+      if (Object.keys(local).length || Object.keys(cloudReplaced).length) backups[k] = { ...b, local, cloudReplaced };
+    }
+    const conflicts: Record<string, Entry[]> = {};
+    for (const [aid, list] of Object.entries(cur.coachProgramsConflicts ?? {})) {
+      const kept = (list ?? []).filter((e) => !sameProgram(programs[aid]?.program, e?.program));
+      if (kept.length) conflicts[aid] = kept;
+    }
+    changed = JSON.stringify(backups) !== JSON.stringify(cur.coachProgramsBackups ?? {})
+      || JSON.stringify(conflicts) !== JSON.stringify(cur.coachProgramsConflicts ?? {});
+    return { ...cur, coachProgramsBackups: backups, coachProgramsConflicts: conflicts };
+  };
+  try {
+    const cur = await readCoachRow();
+    if (!cur) return;
+    shrink(cur);
+    if (changed) await writeCoachRow(shrink);
+  } catch {
+    /* best-effort */
   }
 }
 
@@ -190,6 +228,7 @@ export async function pullCoachPrograms(): Promise<void> {
   if (!migrationTried) {
     migrationTried = true;
     await migrateLegacy(base, tsBefore);
+    await compactRow();
   }
   // An old per-device copy that couldn't be moved yet (still on disk) for an athlete
   // the cloud has nothing for: show it rather than a stale seed.
@@ -243,7 +282,11 @@ async function migrateLegacy(base: CoachData, tsBefore: Record<string, string>):
   // 1. Backup first.
   const backup: Backup = {
     savedAt,
-    local: Object.fromEntries(ids.map((aid) => [aid, { program: legacy[aid], updatedAt: tsBefore[aid] || savedAt }])),
+    // Only copies that differ from the cloud — an identical one adds nothing but weight
+    // to a row that's read + written on every save.
+    local: Object.fromEntries(ids
+      .filter((aid) => !cloud[aid] || !sameProgram(cloud[aid].program, legacy[aid]))
+      .map((aid) => [aid, { program: legacy[aid], updatedAt: tsBefore[aid] || savedAt }])),
     cloudReplaced: Object.fromEntries(Object.keys(upload).filter((aid) => cloud[aid]).map((aid) => [aid, cloud[aid]])),
   };
   const backedUp = await writeCoachRow((cur) => ({
@@ -284,7 +327,8 @@ function pushProgram(p: Program) {
   // Buffer locally until the cloud confirms it (survives a closed tab / no signal).
   try { localStorage.setItem(pendKey(aid), JSON.stringify(entry)); } catch { /* still flushes from memory */ }
   setLocalTs(aid, updatedAt);
-  schedule(800);
+  // Every flush reads + writes the coach's whole program row; batch rapid edits.
+  if (failStreak === 0) schedule(2500);
 }
 
 function schedule(ms: number) {
@@ -328,10 +372,14 @@ async function flush() {
     // The cloud now holds (or deliberately parked/ignored) every edit in the batch.
     for (const [aid, e] of Object.entries(batch)) clearPending(aid, e.updatedAt);
   } else {
-    // Failed — keep them (newer edits made meanwhile win) and retry shortly.
+    // Failed — keep them (newer edits made meanwhile win) and retry with backoff, so
+    // a struggling database isn't hammered every few seconds.
     pending = { ...batch, ...pending };
-    schedule(15000);
+    failStreak++;
+    schedule(Math.min(15000 * 2 ** (failStreak - 1), 5 * 60 * 1000));
+    return;
   }
+  failStreak = 0;
 }
 
 const weekHasTraining = (w: Program["mesocycles"][number]["weeks"][number]) =>

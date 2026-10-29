@@ -81,20 +81,26 @@ export function CoachConsole() {
   const [session, setSession] = useState<CoachSession | null | "loading">("loading");
 
   const load = async () => {
+    setSession("loading"); // straight to the loading screen after signing in
     const s = await getStaffSession();
+    let repair: (() => void) | null = null;
     if (s && s.role === "coach") {
-      // Pull the coach's cloud programs into localStorage BEFORE the console
-      // renders, so the builder/calendar show the same on every device.
+      // Pull the coach's cloud programs into memory BEFORE the console renders, so
+      // the builder/calendar show the same on every device.
       enableCoachProgramSync(s.userId);
-      await pullCoachPrograms().catch(() => {});
-      // Athlete dashboards now live in memory only (not localStorage), so load them
-      // before the console renders — otherwise it would flash blank profiles.
-      const list = await syncRoster(s).catch(() => [] as CoachAthlete[]);
+      await withTimeout(pullCoachPrograms(), LOAD_TIMEOUT_MS);
+      // Athlete dashboards live in memory only (not localStorage), so load them
+      // before the console renders — otherwise it would flash blank profiles. A slow
+      // database must never lock the coach out, so both steps are time-capped.
+      const list = (await withTimeout(syncRoster(s), LOAD_TIMEOUT_MS)) ?? [];
       // Make sure every builder program still holds the athlete's latest published
-      // week (restores it from the backups if a stale version won somewhere).
-      await repairProgramsFromPublished(list.filter((a) => a.owned || a.shared).map((a) => a.athleteId)).catch(() => {});
+      // week (restores it from the backups if a stale version won somewhere) — in the
+      // background, so it never delays opening the console.
+      const ids = list.filter((a) => a.owned || a.shared).map((a) => a.athleteId);
+      repair = () => void repairProgramsFromPublished(ids).catch(() => {});
     }
     setSession(s);
+    repair?.();
   };
   useEffect(() => { void load(); }, []);
 
@@ -144,6 +150,12 @@ function CoachLogin({ onSignedIn }: { onSignedIn: () => void }) {
   );
 }
 
+const RESYNC_MIN_MS = 3 * 60 * 1000;
+const LOAD_TIMEOUT_MS = 20000;
+/** Resolve with the result, or undefined once `ms` passes (the work keeps running). */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | undefined> {
+  return Promise.race([p.catch(() => undefined), new Promise<undefined>((r) => setTimeout(() => r(undefined), ms))]);
+}
 const NAV_KEY = "ssc.coach.nav";
 const navToday = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
 /** Resume the coach's last page on reopen, unless a new day has begun. */
@@ -197,8 +209,14 @@ function ConsoleShell({ session, onSignOut }: { session: CoachSession; onSignOut
   // Keep the console current with the cloud on its own: re-pull the roster +
   // programs whenever it's reopened or refocused. New athletes and programs
   // then appear without any manual refresh or cache clearing.
+  // Throttled: focus + visibilitychange both fire on every window switch, and a full
+  // resync reads every athlete + the coach's whole program row — doing that on each
+  // click back into the window overloaded the (small) database.
   useEffect(() => {
+    let last = Date.now();
     const resync = () => {
+      if (Date.now() - last < RESYNC_MIN_MS) return;
+      last = Date.now();
       void pullCoachPrograms();
       void syncRoster(session);
     };

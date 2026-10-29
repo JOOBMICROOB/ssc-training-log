@@ -1543,8 +1543,12 @@ function pushToServer(athleteId: string, data: DashboardData) {
 }
 
 async function hydrateTarget(athleteId: string, userId: string, seedIfEmpty: boolean, raw: RawClient): Promise<void> {
-  syncTargets[athleteId]?.channel?.unsubscribe();
-  syncTargets[athleteId] = { userId, channel: null, raw };
+  // Already live for this same user + client: the channel keeps it current, so a
+  // resync only re-reads the row instead of tearing down and re-joining realtime.
+  const existing = syncTargets[athleteId];
+  const keepChannel = !!existing?.channel && existing.userId === userId && existing.raw === raw;
+  if (!keepChannel) existing?.channel?.unsubscribe();
+  syncTargets[athleteId] = { userId, channel: keepChannel ? existing!.channel : null, raw };
   const sb = untyped(raw);
 
   const { data: row, error } = await sb.from("app_state").select("data").eq("user_id", userId).maybeSingle();
@@ -1565,6 +1569,7 @@ async function hydrateTarget(athleteId: string, userId: string, seedIfEmpty: boo
     await sb.from("app_state").upsert({ user_id: userId, data: getDashboard(athleteId) }, { onConflict: "user_id" });
   }
 
+  if (keepChannel) return;
   const channel = raw
     .channel(`app_state:${userId}`)
     .on(
@@ -1609,7 +1614,13 @@ export async function hydrateFromServer(athleteId: string): Promise<void> {
 
 /** Coach-side: connect each of the coach's athletes' rows (read + live). */
 export async function hydrateAthletes(list: { athleteId: string; userId: string }[]): Promise<void> {
-  await Promise.all(list.map((a) => hydrateTarget(a.athleteId, a.userId, false, coachRaw).catch(() => {})));
+  // A few at a time — firing every athlete's query + live channel at once spikes the
+  // database (and a resync must not hammer it).
+  const queue = [...list];
+  const worker = async () => {
+    for (let a = queue.shift(); a; a = queue.shift()) await hydrateTarget(a.athleteId, a.userId, false, coachRaw).catch(() => {});
+  };
+  await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
 }
 
 /**

@@ -85,7 +85,8 @@ describe("coach program migration off localStorage", () => {
     // Backup holds every local copy AND the cloud copies that were replaced.
     const backups = Object.values(cloud.row?.coachProgramsBackups as Record<string, { local: Record<string, unknown>; cloudReplaced: Record<string, { program: P }> }>);
     expect(backups).toHaveLength(1);
-    expect(Object.keys(backups[0].local).sort()).toEqual(["A", "B", "C", "D"]);
+    // A and C ARE the current cloud copies now, so (compacted) only the ones that lost stay.
+    expect(Object.keys(backups[0].local).sort()).toEqual(["B", "D"]);
     expect(Object.keys(backups[0].cloudReplaced).sort()).toEqual(["C"]);
     expect(backups[0].cloudReplaced.C.program.mesocycles[0].name).toBe("BLOCKcloud");
     expect((backups[0].local as Record<string, { program: P }>).D.program.mesocycles[0].weeks.length).toBe(4);
@@ -113,7 +114,7 @@ describe("coach program migration off localStorage", () => {
     await m.sync.pullCoachPrograms();
     cloud.failWrites = true;
     m.store.saveProgram(prog("A", 3, "edited") as never);
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(3000);
     expect(coachPrograms().A.program.mesocycles[0].weeks.length).toBe(1); // didn't land
     expect(localStorage.getItem("ssc.coach.program.pending.A")).not.toBeNull();
 
@@ -123,7 +124,7 @@ describe("coach program migration off localStorage", () => {
     m.sync.enableCoachProgramSync("coach");
     await m.sync.pullCoachPrograms();
     expect(m.store.peekStoredProgram("A")?.mesocycles[0].name).toBe("BLOCKedited");
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(3000);
     expect(coachPrograms().A.program.mesocycles[0].name).toBe("BLOCKedited");
     expect(localStorage.getItem("ssc.coach.program.pending.A")).toBeNull();
   });
@@ -137,7 +138,7 @@ describe("coach program migration off localStorage", () => {
     await sync.pullCoachPrograms(); // offline: nothing held
     cloud.failReads = false;
     store.saveProgram(prog("A", 1, "fallback") as never);
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(3000);
     expect(coachPrograms().A.program.mesocycles[0].name).toBe("BLOCKreal");
     const parked = (cloud.row?.coachProgramsConflicts as Record<string, { program: P }[]>).A;
     expect(parked[0].program.mesocycles[0].name).toBe("BLOCKfallback");
@@ -150,7 +151,7 @@ describe("coach program migration off localStorage", () => {
     sync.enableCoachProgramSync("coach");
     await sync.pullCoachPrograms();
     store.saveProgram(prog("A", 2, "next") as never);
-    await vi.advanceTimersByTimeAsync(1000);
+    await vi.advanceTimersByTimeAsync(3000);
     expect(coachPrograms().A.program.mesocycles[0].name).toBe("BLOCKnext");
     const keys = [...Array(localStorage.length)].map((_, i) => localStorage.key(i));
     expect(keys.filter((k) => k?.includes("program.v2") || k?.includes("pending"))).toEqual([]);
