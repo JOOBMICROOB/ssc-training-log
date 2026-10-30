@@ -914,26 +914,35 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   let pressFired = false;
   let pressAt: [number, number] = [0, 0];
   const cancelPress = () => { if (pressTimer != null) { clearTimeout(pressTimer); pressTimer = null; } };
+  const openRmFor = (exBtn: HTMLElement) => {
+    cancelPress();
+    if (pressFired) return; // already open from this press
+    pressFired = true;
+    const ex = getSessionFor(athleteId, selected).exercises[Number(exBtn.dataset.ex)];
+    if (ex) rmPopup.open(ex.name, exerciseBests(athleteId).get(ex.name.trim().toLowerCase()));
+    try { navigator.vibrate?.(15); } catch { /* not supported */ }
+  };
   body?.addEventListener("pointerdown", (e) => {
     const exBtn = (e.target as HTMLElement).closest<HTMLElement>("[data-ex]");
     cancelPress();
     pressFired = false;
     if (!exBtn) return;
     pressAt = [e.clientX, e.clientY];
-    pressTimer = window.setTimeout(() => {
-      pressTimer = null;
-      pressFired = true;
-      const ex = getSessionFor(athleteId, selected).exercises[Number(exBtn.dataset.ex)];
-      if (ex) rmPopup.open(ex.name, exerciseBests(athleteId).get(ex.name.trim().toLowerCase()));
-      try { navigator.vibrate?.(15); } catch { /* not supported */ }
-    }, 500);
+    pressTimer = window.setTimeout(() => openRmFor(exBtn), 450);
   });
   body?.addEventListener("pointermove", (e) => {
     if (pressTimer != null && Math.hypot(e.clientX - pressAt[0], e.clientY - pressAt[1]) > 10) cancelPress();
   });
   body?.addEventListener("pointerup", cancelPress);
   body?.addEventListener("pointercancel", cancelPress);
-  body?.addEventListener("contextmenu", (e) => { if ((e.target as HTMLElement).closest("[data-ex]")) e.preventDefault(); });
+  // Android Chrome claims a held finger for its own long-press (it fires pointercancel,
+  // then contextmenu) before our timer runs — so contextmenu opens the popup too.
+  body?.addEventListener("contextmenu", (e) => {
+    const exBtn = (e.target as HTMLElement).closest<HTMLElement>("[data-ex]");
+    if (!exBtn) return;
+    e.preventDefault();
+    openRmFor(exBtn);
+  });
 
   body?.addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
