@@ -25,6 +25,7 @@ import {
   type ClientRow,
   type Coach,
 } from "./coach/coachData";
+import { showToast } from "./athlete/toast";
 import { getStaffSession, signInCoach, signOutCoach, startCoachSync, listCoaches, sendBroadcastsOnce, type CoachSession, type CoachAthlete } from "../lib/auth/coachAuth";
 import { NutritionConsole } from "./NutritionConsole";
 import { setAthleteCoachLabel } from "../lib/data/athleteData";
@@ -45,7 +46,14 @@ async function syncRoster(session: CoachSession): Promise<CoachAthlete[]> {
   const [coaches, list] = await Promise.all([listCoaches(), startCoachSync(session.userId)]);
   setCoaches(coaches);
   applyRoster(list, session);
-  void sendBroadcastsOnce(session.userId, list.filter((a) => a.owned).map((a) => a.athleteId));
+  // One-off pushes (release notes etc.): tell the coach how it went.
+  void sendBroadcastsOnce(session.userId, list.filter((a) => a.owned).map((a) => a.athleteId)).then((results) => {
+    const lines = results.map((r) => {
+      const parts = [`${r.sent} ontvangen`, r.off ? `${r.off} zonder meldingen aan` : "", r.failed ? `${r.failed} mislukt` : ""].filter(Boolean);
+      return `Pushmelding “${r.title}” verstuurd: ${parts.join(" · ")}`;
+    });
+    if (lines.length) showToast(lines.join("  |  "), 9000);
+  });
   return list;
 }
 

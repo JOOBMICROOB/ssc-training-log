@@ -240,13 +240,21 @@ export function athleteLoginEmail(athleteId: string): string {
  * deployed or the athlete never opted in, publishing still succeeds silently.
  */
 export async function notifyAthlete(athleteCode: string, title: string, body: string): Promise<void> {
+  await notifyAthleteResult(athleteCode, title, body);
+}
+
+/** Same, but says what happened: delivered, athlete has notifications off, or failed. */
+export async function notifyAthleteResult(athleteCode: string, title: string, body: string): Promise<"sent" | "off" | "failed"> {
   try {
     const fns = coachSupabase as unknown as {
-      functions: { invoke: (name: string, opts: { body: unknown }) => Promise<unknown> };
+      functions: { invoke: (name: string, opts: { body: unknown }) => Promise<{ data: { ok?: boolean; sent?: boolean } | null; error: unknown }> };
     };
-    await fns.functions.invoke("notify-athlete", { body: { code: athleteCode.trim().toUpperCase(), title, body, url: "/" } });
+    const { data, error } = await fns.functions.invoke("notify-athlete", { body: { code: athleteCode.trim().toUpperCase(), title, body, url: "/" } });
+    if (error || !data) return "failed";
+    if (data.sent) return "sent";
+    return data.ok ? "off" : "failed";
   } catch {
-    /* notifications are a bonus, never block a publish */
+    return "failed"; // notifications are a bonus, never block a publish
   }
 }
 /**
@@ -271,8 +279,9 @@ const BROADCASTS: { id: string; until: string; title: string; body: string }[] =
   },
 ];
 let broadcastsRunning = false;
-export async function sendBroadcastsOnce(coachUserId: string, ownedCodes: string[]): Promise<void> {
-  if (broadcastsRunning || !ownedCodes.length) return;
+export type BroadcastResult = { title: string; sent: number; off: number; failed: number };
+export async function sendBroadcastsOnce(coachUserId: string, ownedCodes: string[]): Promise<BroadcastResult[]> {
+  if (broadcastsRunning || !ownedCodes.length) return [];
   broadcastsRunning = true; // roster re-syncs (focus etc.) must not race a second send
   const today = new Date().toISOString().slice(0, 10);
   const st = coachSupabase as unknown as {
@@ -283,20 +292,26 @@ export async function sendBroadcastsOnce(coachUserId: string, ownedCodes: string
   };
   try {
     const { data, error } = await st.from("app_state").select("data").eq("user_id", coachUserId).maybeSingle();
-    if (error) return;
+    if (error) return [];
     const base = data?.data ?? {};
     const sent = (base.noticesSent as string[] | undefined) ?? [];
     const due = BROADCASTS.filter((b) => today <= b.until && !sent.includes(b.id));
-    if (!due.length) return;
+    if (!due.length) return [];
     // Claim the flags BEFORE sending so a second open can't double-send.
     const { error: wErr } = await st.from("app_state").upsert(
       { user_id: coachUserId, data: { ...base, noticesSent: [...sent, ...due.map((b) => b.id)] } },
       { onConflict: "user_id" },
     );
-    if (wErr) return;
-    for (const b of due) for (const code of ownedCodes) await notifyAthlete(code, b.title, b.body);
+    if (wErr) return [];
+    const results: BroadcastResult[] = [];
+    for (const b of due) {
+      const r: BroadcastResult = { title: b.title, sent: 0, off: 0, failed: 0 };
+      for (const code of ownedCodes) r[await notifyAthleteResult(code, b.title, b.body)]++;
+      results.push(r);
+    }
+    return results;
   } catch {
-    /* best-effort */
+    return []; // best-effort
   }
 }
 
