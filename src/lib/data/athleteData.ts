@@ -1075,9 +1075,10 @@ export function logSet(athleteId: string, date: string, key: string, patch: SetL
   const logs: ProgramLogs = { ...(data.programLogs ?? {}) };
   const day = { ...(logs[date] ?? {}) };
   const merged: SetLog = { ...(day.sets?.[key] ?? {}), ...patch };
-  // The athlete confirming/entering a weight (or a fail) turns a coach prefill
-  // into a real log, so it now counts toward "done".
-  if (patch.weightKg !== undefined || patch.failed !== undefined || patch.done !== undefined || patch.heldSeconds !== undefined || patch.repsDone !== undefined) merged.prefill = false;
+  // The athlete confirming/entering a weight (or a fail, or their reps) turns a coach
+  // prefill into a real log, so it now counts toward "done". Clearing reps back to
+  // "as prescribed" (null) is not a confirmation, so it leaves a prefill as it was.
+  if (patch.weightKg !== undefined || patch.failed !== undefined || patch.done !== undefined || patch.heldSeconds !== undefined || patch.repsDone != null) merged.prefill = false;
   day.sets = { ...(day.sets ?? {}), [key]: merged };
   // Session clock: a real log is a touch. The clock STARTS on the 2nd logged set
   // (one tap could be a misclick); the auto-lock counts 2h from the last touch.

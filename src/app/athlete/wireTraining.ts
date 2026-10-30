@@ -191,7 +191,7 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
     : "";
   const header = `<div style="display:flex;align-items:center;gap:8px;">
       <span style="flex:0 0 auto;width:44px;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">SET ${si + 1}</span>
-      <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">${st.targetReps} reps${targetShort(st) ? ` @ ${targetShort(st)}` : ""}${st.targetSuggest && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">Suggested load: ${st.targetSuggest} kg</span>` : ""}${st.backoffPct != null && si === 0 ? ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">TOP SET</span>' : ""}${st.backoffPct != null && si >= 1 && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">−${st.backoffPct}% of set 1</span>` : ""}${st.linkPct != null && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">−${st.linkPct}% linked</span>` : ""}${st.fixedLoad ? ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">FIXED</span>' : ""}${badge}</span>
+      <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">${repsLabel(st, key)}${targetShort(st) ? ` @ ${targetShort(st)}` : ""}${st.targetSuggest && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">Suggested load: ${st.targetSuggest} kg</span>` : ""}${st.backoffPct != null && si === 0 ? ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">TOP SET</span>' : ""}${st.backoffPct != null && si >= 1 && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">−${st.backoffPct}% of set 1</span>` : ""}${st.linkPct != null && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">−${st.linkPct}% linked</span>` : ""}${st.fixedLoad ? ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">FIXED</span>' : ""}${badge}</span>
     </div>`;
   const loadRow = `<div style="display:flex;align-items:center;gap:5px;">
       ${step("−", `data-dec="${key}"`)}
@@ -222,6 +222,77 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
     ${noteInput}
     ${last}
   </div>`;
+}
+
+/** Lowest whole number in a reps prescription ("5" → 5, "8-10" → 8), else NaN. */
+const repsLowOf = (s: string): number => { const m = String(s ?? "").match(/\d+/); return m ? parseInt(m[0], 10) : NaN; };
+
+/**
+ * The set's reps, double-tappable to log how many were actually done. Untouched it
+ * reads as the prescription ("5 reps", dotted = editable); once logged, a different
+ * count shows the prescription struck through next to the real number.
+ */
+function repsLabel(st: { targetReps: string; repsDone: number | null }, key: string): string {
+  const tap = `data-repsedit="${key}" title="Double-tap to log the reps you did" style="cursor:pointer;-webkit-user-select:none;user-select:none;`;
+  if (st.repsDone == null) return `<span ${tap}border-bottom:1px dotted rgba(95,104,115,.6);">${st.targetReps} reps</span>`;
+  const low = repsLowOf(st.targetReps);
+  const short = isFinite(low) && st.repsDone < low;
+  const matches = String(st.repsDone) === String(st.targetReps).trim();
+  return `<span ${tap}">${matches ? "" : `<s style="opacity:.55;">${st.targetReps}</s> `}<b style="font-weight:700;color:${short ? "#c98a1e" : "#2e7d5a"};">${st.repsDone} reps</b></span>`;
+}
+
+/**
+ * Small centered popup to log the reps actually done on a set: − / + around a big
+ * number, quick picks around the prescription, SAVE, or back to "as prescribed".
+ */
+function buildRepsEditor(onSave: (key: string, reps: number | null) => void): { root: HTMLElement; open: (key: string, target: string, current: number | null) => void } {
+  const root = document.createElement("div");
+  root.style.cssText =
+    "position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(9,17,28,.55);backdrop-filter:blur(3px);z-index:1000;padding:16px;";
+  let key = "";
+  let value = 0;
+  const btn = "border-radius:12px;cursor:pointer;font:700 22px/1 'Barlow Condensed',sans-serif;border:1.5px solid rgba(var(--a-accent-rgb),.35);background:rgba(var(--a-accent-rgb),.08);color:rgb(var(--a-navy-rgb));";
+  const paint = (target: string) => {
+    const low = repsLowOf(target);
+    const base = isFinite(low) ? low : value;
+    const picks = Array.from(new Set([base - 3, base - 2, base - 1, base, base + 1, base + 2].filter((n) => n >= 0)));
+    root.innerHTML = `<div style="width:320px;max-width:96vw;background:#f4f8fc;border:1px solid rgba(29,31,32,.12);border-radius:20px;box-shadow:0 24px 60px rgba(9,17,28,.4);padding:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="font:600 18px/1 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(var(--a-navy-rgb));">REPS DONE</div>
+        <button data-rx-close style="border:none;background:rgba(29,31,32,.06);width:30px;height:30px;border-radius:50%;font-size:13px;color:#5f6873;cursor:pointer;">✕</button>
+      </div>
+      <div style="margin-top:4px;font:400 11px/1.4 Barlow,sans-serif;color:rgb(107,116,128);">Prescribed: ${target} reps. How many did you actually do?</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px;">
+        <button data-rx-step="-1" style="width:52px;height:52px;${btn}">−</button>
+        <div data-rx-val style="min-width:70px;text-align:center;font:700 44px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${value}</div>
+        <button data-rx-step="1" style="width:52px;height:52px;${btn}">+</button>
+      </div>
+      <div style="display:flex;gap:6px;justify-content:center;margin-top:12px;">${picks.map((n) => `<button data-rx-pick="${n}" style="flex:1 1 0;height:36px;font-size:16px;${btn}${n === value ? "background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);border-color:rgb(var(--a-navy-rgb));" : ""}">${n}</button>`).join("")}</div>
+      <button data-rx-save style="width:100%;margin-top:14px;padding:13px;border:1px solid rgb(var(--a-navy-rgb));border-radius:12px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">SAVE</button>
+      <button data-rx-clear style="width:100%;margin-top:8px;padding:11px;border:none;background:transparent;color:rgb(138,146,156);font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;cursor:pointer;">AS PRESCRIBED (CLEAR)</button>
+    </div>`;
+  };
+  let target = "";
+  const close = () => { root.style.display = "none"; };
+  root.addEventListener("click", (e) => {
+    const t = e.target as HTMLElement;
+    if (t === root || t.closest("[data-rx-close]")) return close();
+    const step = t.closest<HTMLElement>("[data-rx-step]");
+    if (step) { value = Math.max(0, Math.min(100, value + Number(step.dataset.rxStep))); return paint(target); }
+    const pick = t.closest<HTMLElement>("[data-rx-pick]");
+    if (pick) { value = Number(pick.dataset.rxPick); return paint(target); }
+    if (t.closest("[data-rx-save]")) { onSave(key, value); return close(); }
+    if (t.closest("[data-rx-clear]")) { onSave(key, null); return close(); }
+  });
+  const open = (k: string, tgt: string, current: number | null) => {
+    key = k;
+    target = tgt;
+    const low = repsLowOf(tgt);
+    value = current ?? (isFinite(low) ? low : 0);
+    paint(tgt);
+    root.style.display = "flex";
+  };
+  return { root, open };
 }
 
 function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locked: boolean, bests: Map<string, ExBest> | null): string {
@@ -636,6 +707,9 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     { title: "ANY PAIN TODAY?", sub: "Optional — 0 is none, 10 is severe. Leave it if you're pain-free.", values: PAIN_VALUES, wordOf: painWord, fmt: (v) => String(v) },
     (v) => { if (!isLocked() && v != null) setSessionMeta(athleteId, selected, { pain: v }); },
   );
+  // Reps actually done on a set — opened by double-tapping the set's "N reps".
+  const repsEditor = buildRepsEditor((k, reps) => { if (!isLocked()) logSet(athleteId, selected, k, { repsDone: reps }); });
+  document.body.appendChild(repsEditor.root);
   document.body.appendChild(rpeSheet.root);
   document.body.appendChild(sessRpeSheet.root);
   document.body.appendChild(painSheet.root);
@@ -797,6 +871,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     return isFinite(f) ? Math.min(kg, f) : kg;
   };
 
+  let lastRepsTap = { key: "", at: 0 };
   body?.addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
     const dayBtn = t.closest<HTMLElement>("[data-day]");
@@ -825,6 +900,20 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       if (willOpen) session.exercises.forEach((_, j) => manualOpen.set(j, j === i));
       else manualOpen.set(i, false);
       return render();
+    }
+
+    // Double-tap a set's reps → log how many were actually done.
+    const repsEl = t.closest<HTMLElement>("[data-repsedit]");
+    if (repsEl) {
+      const k = repsEl.dataset.repsedit!;
+      const now = Date.now();
+      if (lastRepsTap.key !== k || now - lastRepsTap.at > 450) { lastRepsTap = { key: k, at: now }; return; }
+      lastRepsTap = { key: "", at: 0 };
+      if (!unlockGate()) return;
+      let target = "";
+      let cur: number | null = null;
+      getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === k) { target = st.targetReps; cur = st.repsDone; } }));
+      return repsEditor.open(k, target, cur);
     }
 
     // edits are gated when the session is confirmed/locked
@@ -988,6 +1077,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     unsub();
     calendar.root.remove();
     rpeSheet.root.remove();
+    repsEditor.root.remove();
     sessRpeSheet.root.remove();
     painSheet.root.remove();
   };

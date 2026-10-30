@@ -449,7 +449,7 @@ function WeekBlock({ week, prevWeek, live, athleteId, current, athleteName, layo
                           <div className="cc-view-set">
                             <span className="cc-vs-n">S{si + 1}</span>
                             <span className="cc-vs-target">{s.reps}{s.target ? ` @ ${s.target}` : ""}</span>
-                            <span className={`cc-vs-logged${s.loggedKg != null || s.repsDone != null ? " cc-vs-hit" : ""}`}>{s.repsDone != null ? `${s.repsDone} reps` : s.loggedKg != null ? `${fmtKg(s.loggedKg)} kg${s.rpe != null ? ` @${s.rpe}` : ""}` : "—"}</span>
+                            <span className={`cc-vs-logged${s.loggedKg != null || s.repsDone != null ? " cc-vs-hit" : ""}`}>{s.loggedKg != null ? `${fmtKg(s.loggedKg)} kg${s.repsDone != null ? ` × ${s.repsDone}` : ""}${s.rpe != null ? ` @${s.rpe}` : ""}` : s.repsDone != null ? `${s.repsDone} reps` : "—"}</span>
                           </div>
                           {s.note && <div className="cc-vs-note">“{s.note}”</div>}
                         </div>
