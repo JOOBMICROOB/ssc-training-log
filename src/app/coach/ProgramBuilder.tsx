@@ -45,13 +45,15 @@ import {
   setExerciseRpe,
 } from "./coachProgram";
 import { getClients } from "./coachData";
-import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel, exerciseBests, bestLabel, clearAthleteProgram, loggedDatesForWeek } from "../../lib/data/athleteData";
+import { publishProgramWeek, setProgramLabels, getSessionFor, getDashboardModel, exerciseBests, bestLabel, clearAthleteProgram, loggedDatesForWeek, getDashboard } from "../../lib/data/athleteData";
 import { notifyAthletePublished } from "../../lib/auth/coachAuth";
 import { DiffLine } from "./DiffLine";
 import { ExDetail } from "./ExDetail";
 import { fmtKg } from "../../lib/calc/records";
 import { weekState, WEEK_STATE_LABEL, weekLiftStats } from "./coachStats";
 import { Avatar } from "./Avatar";
+import { BlockNotesEditor } from "./BlockNotesEditor";
+import { noteHasContent } from "../../lib/program/blockNotes";
 
 const LIFT_LABEL: Record<"squat" | "bench" | "deadlift", string> = { squat: "SQUAT", bench: "BENCH", deadlift: "DEADLIFT" };
 const tons = (kg: number) => (kg >= 1000 ? `${(kg / 1000).toFixed(1)} t` : `${Math.round(kg)} kg`);
@@ -98,6 +100,7 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
   const [newExName, setNewExName] = useState("");
   const [newExVideo, setNewExVideo] = useState("");
   const [renaming, setRenaming] = useState<{ kind: "meso" | "week"; id: string } | null>(null);
+  const [notesFor, setNotesFor] = useState<string | null>(null); // block id whose notes editor is open
   const [repRange, setRepRange] = useState(false);
   const [showDiff, setShowDiff] = useState(true);
   const [progress, setProgress] = useState<{ dayId: string; exId: string } | null>(null);
@@ -895,6 +898,14 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
                       </div>
                     ))}
                   {m.id === meso.id && <button className="cc-dash-add" onClick={addWeek}>+ Week</button>}
+                  {m.id === meso.id && (() => {
+                    const has = noteHasContent(getDashboard(athleteId).blockNotes?.[m.id]);
+                    return (
+                      <button className="cc-dash-add" style={{ marginTop: 6 }} title="Notes for this block (e.g. your Loom summary) — the athlete reads them in their app" onClick={() => setNotesFor(m.id)}>
+                        📝 Block notes{has ? " ✓" : ""}
+                      </button>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -1479,6 +1490,10 @@ export function ProgramBuilder({ athleteId, athleteName, avatar, live, coachName
         <CopyWeekModal currentAthleteId={athleteId} onCopy={copyWeekInto} onClose={() => setCopyFrom(false)} />
       )}
 
+      {notesFor && (() => {
+        const m = program.mesocycles.find((x) => x.id === notesFor);
+        return m ? <BlockNotesEditor athleteId={athleteId} athleteName={athleteName} meso={m} onClose={() => setNotesFor(null)} /> : null;
+      })()}
       {rpePrompt && (
         <div className="cc-modal-scrim" onClick={() => setRpePrompt(null)}>
           <div className="cc-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>

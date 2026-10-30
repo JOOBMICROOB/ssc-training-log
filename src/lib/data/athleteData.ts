@@ -24,6 +24,7 @@ import {
   type MainLift,
 } from "../program/program";
 import { epleyE1rm } from "../calc/epley";
+import { mergeBlockNotes, type BlockNote } from "../program/blockNotes";
 
 /**
  * Athlete dashboard data.
@@ -106,6 +107,9 @@ export type DashboardData = {
   // resolves the week whose start is on/before a given date, so making weeks in
   // advance never changes what's "current" — the date does.
   publishedWeeks?: Record<string, { week: WeekTemplate; blockName?: string; weekName?: string }>;
+  // The coach's notes per block (e.g. a Loom summary), split per lift. Keyed by the
+  // coach's block id; merged per block by updatedAt so no device can drop a newer one.
+  blockNotes?: Record<string, BlockNote>;
   // Bumped whenever the coach clears the program. On sync, the side with the
   // higher epoch wins publishedWeeks outright (no union), so a "clear" can't be
   // resurrected by stale weeks still sitting on the server.
@@ -1008,6 +1012,12 @@ export function clearAthleteProgram(athleteId: string) {
   });
 }
 
+/** Coach saves (or, with `deleted`, removes) the notes for one block. */
+export function saveBlockNote(athleteId: string, note: BlockNote) {
+  const d = getDashboard(athleteId);
+  save(athleteId, { ...d, blockNotes: { ...(d.blockNotes ?? {}), [note.id]: { ...note, updatedAt: Date.now() } } });
+}
+
 /** Coach renames the block / current week — updates the athlete's label live. */
 export function setProgramLabels(athleteId: string, patch: { blockName?: string; weekName?: string }) {
   const d = getDashboard(athleteId);
@@ -1471,6 +1481,7 @@ function mergeDashboard(server: Partial<DashboardData>, incoming: DashboardData)
     bodyweight: keepServerProfile ? (server.bodyweight as DashboardData["bodyweight"]) : (obj("bodyweight") as DashboardData["bodyweight"]),
     checkin: obj("checkin") as DashboardData["checkin"],
     notes: mergeNotes(server.notes, incoming.notes),
+    blockNotes: mergeBlockNotes(server.blockNotes, incoming.blockNotes),
     programLogs: mergeLogs(server.programLogs, incoming.programLogs, server.logClears, incoming.logClears),
     // Frozen logged-day snapshots union by date (each is written once per date and is
     // identical across devices), minus any dropped by a newer per-date clear.

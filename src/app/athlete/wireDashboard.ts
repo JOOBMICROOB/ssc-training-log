@@ -1,3 +1,5 @@
+import { openBlockNotes, blocksFor, currentBlock } from "./blockNotesSheet";
+import { noteHasContent } from "../../lib/program/blockNotes";
 import {
   getDashboard,
   getDashboardModel,
@@ -669,6 +671,7 @@ export function wireDashboard(
   // Double-tap the avatar to pick a new profile picture.
   host.querySelector<HTMLElement>("#profilePic")?.addEventListener("dblclick", () => pickAvatar(athleteId));
 
+  const unBlockTile = mountBlockNotesTile(host, athleteId);
   const unThemeWidget = mountThemeWidget(host);
   const unCalWidget = mountCalendarWidget(host, athleteId);
   // One-time notices (profile reset, release notes); the avatar nudge waits its turn
@@ -677,7 +680,7 @@ export function wireDashboard(
   // Friendly one-time nudge to add a profile picture (only if they have none).
   const unAvatarPrompt = unDataNotice ? undefined : maybeAvatarPrompt(athleteId, !!getDashboardModel(athleteId).athlete.avatar);
 
-  const unsub = subscribeDashboard(() => applyModel(host, getDashboardModel(athleteId)));
+  const unsub = subscribeDashboard(() => { applyModel(host, getDashboardModel(athleteId)); unBlockTile.refresh(); });
   return () => {
     unsub();
     modal.root.remove();
@@ -685,7 +688,40 @@ export function wireDashboard(
     unCalWidget();
     unAvatarPrompt?.();
     unDataNotice?.();
+    unBlockTile.remove();
   };
+}
+
+/**
+ * "Block notes" tile under Competitions / Team shop, plus the header block label:
+ * both open the athlete's blocks with the coach's notes. The subtitle flags when the
+ * current block has notes.
+ */
+function mountBlockNotesTile(host: HTMLElement, athleteId: string): { refresh: () => void; remove: () => void } {
+  const row = host.querySelector<HTMLElement>("#competitionsBtn")?.parentElement;
+  const tile = document.createElement("button");
+  tile.id = "blockNotesBtn";
+  tile.style.cssText =
+    "width:100%;margin-top:8px;display:flex;align-items:center;gap:12px;padding:13px;border:1px solid rgba(var(--a-accent-rgb),.45);border-radius:12px;background:rgba(var(--a-accent-rgb),.08);cursor:pointer;text-align:left;";
+  const refresh = () => {
+    const blocks = blocksFor(athleteId);
+    const cur = currentBlock(blocks);
+    const fresh = cur && noteHasContent(cur.note);
+    const sub = fresh ? `${cur!.name} · new notes from your coach` : cur ? `${cur.name} · your blocks & coach notes` : "Your blocks & coach notes";
+    tile.innerHTML = `<span style="flex:0 0 auto;font-size:20px;">📘</span>
+      <span style="flex:1 1 0;display:flex;flex-direction:column;gap:5px;min-width:0;">
+        <span style="font:600 15px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.05em;color:rgb(var(--a-ink-rgb));">BLOCK NOTES</span>
+        <span style="font:400 10.5px/1.35 Barlow,sans-serif;color:${fresh ? "rgb(var(--a-accent2-rgb))" : "rgb(107,116,128)"};${fresh ? "font-weight:600;" : ""}">${sub.replace(/</g, "&lt;")}</span>
+      </span>
+      <span style="flex:0 0 auto;color:rgb(var(--a-accent2-rgb));">›</span>`;
+  };
+  refresh();
+  tile.addEventListener("click", () => openBlockNotes(athleteId));
+  row?.insertAdjacentElement("afterend", tile);
+  const label = host.querySelector<HTMLElement>("#blockLabel");
+  const onLabel = () => openBlockNotes(athleteId);
+  if (label) { label.style.cursor = "pointer"; label.addEventListener("click", onLabel); }
+  return { refresh, remove: () => { tile.remove(); label?.removeEventListener("click", onLabel); } };
 }
 
 const CAL_MONTHS = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];

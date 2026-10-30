@@ -23,6 +23,7 @@ import { addDays, CARDIO_DISCIPLINES, type Session, type SessionExercise, type L
 import { fmtKg } from "../../lib/calc/records";
 import { showShareSheet } from "./shareSession";
 import { showToast } from "./toast";
+import { openBlockNotes } from "./blockNotesSheet";
 
 /** Parse a coach load field: "105" → {lo:105,hi:105}; "80-90" → {lo:80,hi:90}. */
 function parseLoadRange(s?: string): { lo: number; hi: number } | null {
@@ -719,6 +720,10 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   if (blockEl) {
     const m = getDashboardModel(athleteId);
     blockEl.textContent = `${m.blockLabel} · ${m.athlete.firstName}`;
+    // Tap the block label → the athlete's blocks with the coach's notes.
+    blockEl.style.cursor = "pointer";
+    blockEl.title = "Block notes";
+    blockEl.addEventListener("click", () => openBlockNotes(athleteId));
   }
 
   const calendar = buildCalendar(athleteId, () => selected, (date) => {
