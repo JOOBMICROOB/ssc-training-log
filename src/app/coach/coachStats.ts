@@ -80,7 +80,7 @@ export function weekLiftStats(athleteId: string, week: Week, live: boolean): Wee
           const b = base[ex.mainLift];
           b.planned++;
           if (!logged) continue;
-          const reps = parseReps(st.targetReps);
+          const reps = st.repsDone != null && st.repsDone > 0 ? st.repsDone : parseReps(st.targetReps); // reps done win
           b.loggedSets++;
           b.vol += (st.weightKg as number) * reps;
           b.e1rm = Math.max(b.e1rm, epleyE1rm(st.weightKg as number, reps));

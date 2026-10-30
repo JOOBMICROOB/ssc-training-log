@@ -134,91 +134,110 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
     </div>`;
   }
 
-  // AMRAP set — coach fixed the load + a goal RPE; the athlete only logs the reps
-  // they hit at that weight. No RPE to rate, no load to enter.
-  if (st.amrap) {
-    const on = st.repsDone != null;
-    const repsVal = st.repsDone != null ? String(st.repsDone) : "";
-    // Load is optional — a bodyweight AMRAP (e.g. pull-ups) just has a goal RPE.
-    const goal = [st.targetLoad ? `${st.targetLoad} kg` : "", st.targetRpe ? `RPE ${st.targetRpe}` : ""].filter(Boolean).join(" @ ");
-    return `<div style="margin-left:12px;padding:7px 10px 8px 12px;${on ? "border-left:2px solid #4f9d69;background:rgba(79,157,105,.05);" : "border-left:2px solid rgba(var(--a-accent-rgb),.45);"}">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="flex:0 0 auto;width:44px;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">SET ${si + 1}</span>
-        <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">AMRAP${goal ? ` · ${goal}` : ""}${on ? ` · <span style="color:#2e7d5a;font-weight:700;">${st.repsDone} reps ✓</span>` : ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">as many reps as possible</span>'}</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
-        <input data-reps="${key}" ${ro} inputmode="numeric" placeholder="reps you hit" value="${repsVal}" style="flex:1 1 0;min-width:0;height:40px;padding:0 10px;text-align:center;border-radius:9px;font:600 16px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;border:1px solid ${on ? "#4f9d69" : "rgba(var(--a-accent-rgb),.45)"};background:${on ? "rgba(79,157,105,.10)" : "rgba(var(--a-accent-rgb),.08)"};color:rgb(var(--a-navy-rgb));">
-        <span style="flex:0 0 auto;font:600 11px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(138,146,156);">REPS</span>
-      </div>
-      <input data-note="${key}" ${ro} placeholder="Notes" value="${st.note.replace(/"/g, "&quot;")}" style="width:100%;margin-top:6px;padding:7px 10px;background:rgb(242,242,243);border:1px solid rgba(29,31,32,.16);color:rgb(29,31,32);font-size:12.5px;border-radius:10px;">
-    </div>`;
-  }
-
-  const inStyle = st.failed
-    ? "border:1px solid #d98a8a;background:rgba(217,138,138,.12);color:#b45454;"
-    : "border:1px solid rgba(var(--a-accent-rgb),.45);background:rgba(var(--a-accent-rgb),.08);color:rgb(var(--a-navy-rgb));";
-  const step = (label: string, attr: string) =>
-    `<button ${attr} ${dis} style="flex:0 0 auto;width:32px;height:36px;border:1px solid rgba(29,31,32,.14);border-radius:9px;background:#fff;color:rgb(var(--a-accent2-rgb));font:600 17px/1 'Barlow Condensed',sans-serif;cursor:pointer;">${label}</button>`;
-  // A set reads as LOGGED (green) once its weight/fail/done is in and — if required
-  // — its RPE is rated; a weight in but RPE missing shows amber ("rate RPE").
+  // One line per set: REPS · RPE · KG, each in its own box, then ↺ (same load as the
+  // set before) or ✓ (confirm a prescribed load). Notes / velocity sit underneath.
+  // A box with a solid accent border + ✎ is something to fill in; a flat grey box is
+  // just the coach's prescription for reference.
   const hasWeight = (st.weightKg != null && !st.prefill) || st.failed || st.done;
-  const rpeOk = !st.requiresRpe || st.rpe != null;
-  const isLogged = hasWeight && rpeOk;
-  const partial = hasWeight && !rpeOk;
-  // Fixed load / %1RM: the load is known, so RATING RPE is the main action — tapping
-  // it logs the prescribed/suggested load too. Otherwise the athlete logs their load.
+  const rpeOk = !st.requiresRpe || st.rpe != null || st.failed; // a failed attempt needs no RPE
+  const isLogged = st.amrap ? st.repsDone != null : hasWeight && rpeOk;
+  const partial = !st.amrap && hasWeight && !rpeOk;
+  // Fixed load / %1RM: the load is known, so rating RPE (or ✓) also logs it.
   const rpePrimary = hasFixed || !!st.percentOfMax || !!st.targetPercent;
   const rpeFixKg = hasFixed ? doneKg : isFinite(sugNum) ? sugNum : NaN;
-  // The coach controls whether this set asks perceived RPE (st.requiresRpe). A fixed/%
-  // set that ISN'T asking RPE still needs a one-tap "done" to confirm the prescribed
-  // load, so it gets a plain DONE button instead of the RPE button.
-  const showRpe = st.requiresRpe;
-  const doneFixBtn = () =>
-    `<button data-donefix="${key}" ${isFinite(rpeFixKg) ? `data-fixkg="${rpeFixKg}"` : ""} ${dis} style="width:100%;height:44px;font-size:14px;border-radius:10px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.06em;box-sizing:border-box;${hasWeight ? "border:1px solid #4f9d69;background:rgba(79,157,105,.16);color:#2e7d5a;" : "border:1px solid rgb(var(--a-accent-rgb));background:rgba(var(--a-accent-rgb),.12);color:rgb(var(--a-accent2-rgb));"}">${hasWeight ? "DONE ✓" : "TAP WHEN DONE"}</button>`;
-  const rpeText = st.failed ? "FAILED" : st.rpe != null ? `RPE ${fmtRpeShort(st.rpe)} ✓` : rpePrimary ? "TAP TO RATE RPE" : "RATE RPE";
-  const rpeStyle = st.failed
-    ? "border:1px solid #d98a8a;background:rgba(217,138,138,.14);color:#b45454;"
-    : st.rpe != null
-      ? "border:1px solid rgb(var(--a-navy-rgb));background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);"
-      : "border:1px solid rgb(var(--a-accent-rgb));background:rgba(var(--a-accent-rgb),.12);color:rgb(var(--a-accent2-rgb));";
-  // The RPE button opens the big slider popup. Primary (fixed/%) = full-width CTA.
-  const rpeBtn = (primary: boolean) =>
-    `<button data-rpeopen="${key}" ${isFinite(rpeFixKg) ? `data-fixkg="${rpeFixKg}"` : ""} ${dis} style="${primary ? "width:100%;height:44px;font-size:14px;" : "flex:1 1 0;height:36px;font-size:12px;"}border-radius:10px;cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:.06em;box-sizing:border-box;${rpeStyle}">${rpeText}</button>`;
-  const badge = isLogged ? ' · <span style="color:#2e7d5a;font-weight:700;">✓ LOGGED</span>' : partial ? ' · <span style="color:#c98a1e;font-weight:700;">RATE RPE</span>' : "";
+  const fixAttr = isFinite(rpeFixKg) ? `data-fixkg="${rpeFixKg}"` : "";
+
+  const GREEN = "46,125,90", AMBER = "201,138,30", RED = "180,84,84";
+  const boxStyle = {
+    fill: "border:1.5px solid rgba(var(--a-accent-rgb),.5);background:rgba(var(--a-accent-rgb),.09);cursor:pointer;",
+    info: "border:1px solid rgba(29,31,32,.07);background:rgba(29,31,32,.035);",
+    tone: (rgb: string) => `border:1.5px solid rgba(${rgb},.6);background:rgba(${rgb},.11);cursor:pointer;`,
+    navy: "border:1.5px solid rgb(var(--a-navy-rgb));background:rgb(var(--a-navy-rgb));cursor:pointer;",
+  };
+  const cap = (t: string, color = "rgb(120,129,140)") =>
+    `<span style="font:600 8.5px/1 Barlow,sans-serif;letter-spacing:.12em;color:${color};white-space:nowrap;">${t}</span>`;
+  const big = (t: string, color: string) =>
+    `<span style="font:700 18px/1 'Barlow Condensed',sans-serif;color:${color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;">${t}</span>`;
+  const box = (attrs: string, style: string, flex: string, inner: string, tag = "div") =>
+    `<${tag} ${attrs} style="flex:${flex};min-width:0;height:50px;padding:0 4px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation;${style}">${inner}</${tag}>`;
+  const PEN = '<span style="opacity:.6;">✎</span>';
+  const navyTxt = "rgb(var(--a-navy-rgb))", muted = "rgb(120,129,140)";
+
+  // REPS — always one tap to log what was actually done. Shows the prescription
+  // until then; afterwards the real count (amber if fewer, green if hit), with the
+  // prescription struck through in the caption when it differs.
+  const tgtLow = repsLowOf(st.targetReps);
+  let repsBox: string;
+  if (st.repsDone == null) {
+    repsBox = box(`data-repsedit="${key}"`, st.amrap ? boxStyle.tone(AMBER) : boxStyle.fill, "1 1 0",
+      cap(`${st.amrap ? "AMRAP" : "REPS"} ${PEN}`, st.amrap ? `rgb(${AMBER})` : "rgb(var(--a-accent2-rgb))") + big(st.amrap ? "?" : st.targetReps, navyTxt));
+  } else {
+    const tone = isFinite(tgtLow) && st.repsDone < tgtLow ? AMBER : GREEN;
+    const differs = String(st.repsDone) !== String(st.targetReps).trim();
+    repsBox = box(`data-repsedit="${key}"`, boxStyle.tone(tone), "1 1 0",
+      cap(`REPS${differs && !st.amrap ? ` · <s>${st.targetReps}</s>` : ""} ${PEN}`, `rgb(${tone})`) + big(String(st.repsDone), `rgb(${tone})`));
+  }
+
+  // RPE — a fill-in button only when the coach asks for it; otherwise the coach's
+  // target RPE as a plain reference.
+  const tgtRpe = st.targetRpe ? `@${st.targetRpe}` : "";
+  let rpeBox: string;
+  if (st.failed) {
+    rpeBox = box(`data-rpeopen="${key}" ${fixAttr}`, boxStyle.tone(RED), "1 1 0", cap("RPE ✎", `rgb(${RED})`) + big("FAILED", `rgb(${RED})`));
+  } else if (st.requiresRpe && st.rpe != null) {
+    rpeBox = box(`data-rpeopen="${key}" ${fixAttr}`, boxStyle.navy, "1 1 0",
+      cap(`RPE${tgtRpe ? ` · ${tgtRpe}` : ""} ${PEN}`, "rgba(242,242,243,.7)") + big(fmtRpeShort(st.rpe), "rgb(242,242,243)"));
+  } else if (st.requiresRpe) {
+    rpeBox = box(`data-rpeopen="${key}" ${fixAttr}`, partial ? boxStyle.tone(AMBER) : boxStyle.fill, "1 1 0",
+      cap(`RATE RPE ${PEN}`, partial ? `rgb(${AMBER})` : "rgb(var(--a-accent2-rgb))") + big(tgtRpe || "TAP", partial ? `rgb(${AMBER})` : navyTxt));
+  } else {
+    const ref = st.toFailure ? "FAIL" : tgtRpe || "—";
+    rpeBox = box("", boxStyle.info, "1 1 0", cap(st.toFailure ? "TARGET" : "RPE") + big(ref, muted));
+  }
+
+  // KG — the athlete's own load is an input; a fixed / prescribed load reads as a
+  // reference (still editable to go lighter, capped as before). AMRAP: reference only.
+  const loadPh = st.targetLoad ? fmtKg(parseFloat(st.targetLoad.replace(",", ".")) || 0) || st.targetLoad : st.targetSuggest ? st.targetSuggest : isFinite(rpeFixKg) ? fmtKg(rpeFixKg) : "—";
+  const loadCap = hasFixed ? "KG · FIXED" : st.targetPercent ? `KG · ${st.targetPercent}%` : st.targetSuggest ? "KG · SUGG." : "KG ✎";
+  let loadBox: string;
+  if (st.amrap) {
+    loadBox = box("", boxStyle.info, "1.25 1 0", cap("KG") + big(st.targetLoad ? `${st.targetLoad}` : "—", muted));
+  } else {
+    const logged = st.weightKg != null && !st.prefill;
+    const style = st.failed ? boxStyle.tone(RED) : logged ? boxStyle.tone(GREEN) : hasFixed || st.targetPercent || st.targetSuggest ? boxStyle.info + "cursor:text;" : boxStyle.fill + "cursor:text;";
+    const txt = st.failed ? `rgb(${RED})` : logged ? `rgb(${GREEN})` : navyTxt;
+    const input = `<input data-wi="${key}" ${isFinite(capKg) ? `data-fixed="${capKg}"` : ""} ${isFinite(minKg) ? `data-fixmin="${minKg}"` : ""} ${ro} inputmode="decimal" enterkeyhint="next" placeholder="${loadPh}" value="${val}" data-seed="${seed}" style="width:100%;min-width:0;border:none;outline:none;background:transparent;padding:0;text-align:center;font:700 18px/1 'Barlow Condensed',sans-serif;color:${txt};">`;
+    loadBox = box("", style, "1.25 1 0", cap(loadCap, logged ? `rgb(${GREEN})` : hasFixed || st.targetPercent || st.targetSuggest ? muted : "rgb(var(--a-accent2-rgb))") + input, "label");
+  }
+
+  // ↺ same load as the set before, or ✓ to confirm a prescribed load (no RPE asked).
+  const sideBtn = (attrs: string, glyph: string, on: boolean, title: string) =>
+    `<button ${attrs} ${dis} title="${title}" style="flex:0 0 auto;width:40px;height:50px;border-radius:10px;cursor:pointer;font:600 17px/1 'Barlow Condensed',sans-serif;border:1px solid ${on ? "#4f9d69" : "rgba(29,31,32,.14)"};background:${on ? "rgba(79,157,105,.16)" : "transparent"};color:${on ? "#2e7d5a" : "rgb(var(--a-accent2-rgb))"};-webkit-tap-highlight-color:transparent;">${glyph}</button>`;
+  const side = st.amrap
+    ? '<span style="flex:0 0 auto;width:40px;"></span>'
+    : rpePrimary && !st.requiresRpe
+      ? sideBtn(`data-donefix="${key}" ${fixAttr}`, "✓", hasWeight, "Done at the prescribed load")
+      : sideBtn(`data-same="${key}"`, "↺", false, "Same load as the set before");
+
+  // Header: set number + the coach's load notes (top set, back-off, link) + status.
+  const tags = [
+    st.backoffPct != null && si === 0 ? "TOP SET" : "",
+    st.backoffPct != null && si >= 1 && !st.targetLoad ? `−${st.backoffPct}% of set 1` : "",
+    st.linkPct != null && !st.targetLoad ? `−${st.linkPct}% linked` : "",
+  ].filter(Boolean).map((t) => `<span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">${t}</span>`).join(" · ");
+  const badge = isLogged ? '<span style="color:#2e7d5a;font-weight:700;">✓ LOGGED</span>' : partial ? '<span style="color:#c98a1e;font-weight:700;">RATE RPE</span>' : "";
+  const header = `<div style="display:flex;align-items:center;gap:8px;min-height:14px;">
+      <span style="flex:0 0 auto;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">SET ${si + 1}</span>
+      <span style="flex:1 1 0;font:400 10.5px/1.2 Barlow,sans-serif;color:rgb(95,104,115);">${[tags, badge].filter(Boolean).join(" · ")}</span>
+    </div>`;
   const rowTint = isLogged ? "border-left:2px solid #4f9d69;background:rgba(79,157,105,.05);" : partial ? "border-left:2px solid #d9a441;" : "border-left:2px solid rgba(var(--a-accent-rgb),.45);";
   const last = st.lastWeek && !hideLastWeek
     ? `<div style="margin-top:6px;font:400 10.5px/1 Barlow,sans-serif;letter-spacing:.06em;color:rgb(138,146,156);">LAST WEEK · ${st.lastWeek}</div>`
     : "";
-  const header = `<div style="display:flex;align-items:center;gap:8px;">
-      <span style="flex:0 0 auto;width:44px;font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">SET ${si + 1}</span>
-      <span style="flex:1 1 0;font:400 11.5px/1 Barlow,sans-serif;color:rgb(95,104,115);">${repsLabel(st, key)}${targetShort(st) ? ` @ ${targetShort(st)}` : ""}${st.targetSuggest && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">Suggested load: ${st.targetSuggest} kg</span>` : ""}${st.backoffPct != null && si === 0 ? ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">TOP SET</span>' : ""}${st.backoffPct != null && si >= 1 && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">−${st.backoffPct}% of set 1</span>` : ""}${st.linkPct != null && !st.targetLoad ? ` · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">−${st.linkPct}% linked</span>` : ""}${st.fixedLoad ? ' · <span style="color:rgb(var(--a-accent2-rgb));font-weight:600;">FIXED</span>' : ""}${badge}</span>
-    </div>`;
-  const loadRow = `<div style="display:flex;align-items:center;gap:5px;">
-      ${step("−", `data-dec="${key}"`)}
-      <input data-wi="${key}" ${isFinite(capKg) ? `data-fixed="${capKg}"` : ""} ${isFinite(minKg) ? `data-fixmin="${minKg}"` : ""} ${ro} inputmode="decimal" enterkeyhint="next" placeholder="${st.targetLoad ? `${st.targetLoad} kg` : st.targetSuggest ? `${st.targetSuggest} kg` : "kg"}" value="${val}" data-seed="${seed}" style="flex:1 1 0;min-width:0;height:36px;padding:0 8px;text-align:center;border-radius:9px;font:600 15px/1 'Barlow Condensed',sans-serif;box-sizing:border-box;${inStyle}">
-      ${step("+", `data-inc="${key}"`)}
-      <button data-same="${key}" ${dis} title="Same load as the set before" style="flex:0 0 auto;width:36px;height:36px;border:1px solid rgba(29,31,32,.14);border-radius:9px;background:transparent;color:rgb(var(--a-accent2-rgb));font-size:13px;cursor:pointer;">↺</button>
-    </div>`;
-  const noteInput = `<input data-note="${key}" ${ro} placeholder="Notes / velocity" value="${st.note.replace(/"/g, "&quot;")}" style="width:100%;margin-top:6px;padding:7px 10px;background:rgb(242,242,243);border:1px solid rgba(29,31,32,.16);color:rgb(29,31,32);font-size:12.5px;border-radius:10px;">`;
-
-  if (rpePrimary) {
-    // Load is prescribed → the big main action confirms it: rate RPE (if the coach
-    // asks for it on this set) or a plain DONE. The load sits below, compact, for the
-    // rare "I went lighter" adjust (it still logs on change).
-    return `<div style="margin-left:12px;padding:7px 10px 8px 12px;${rowTint}">
-      ${header}
-      <div style="margin-top:7px;">${st.requiresRpe ? rpeBtn(true) : doneFixBtn()}</div>
-      <div style="margin-top:8px;font:400 8.5px/1 Barlow,sans-serif;letter-spacing:.12em;color:rgb(138,146,156);">LOAD${st.targetLoad ? ` · ${st.targetLoad} kg` : isFinite(rpeFixKg) ? ` · ${fmtKg(rpeFixKg)} kg` : ""} — change only if you went lighter</div>
-      <div style="margin-top:4px;">${loadRow}</div>
-      ${noteInput}
-      ${last}
-    </div>`;
-  }
-  // Athlete logs their own load → load is the main row; RPE (if any) sits below.
-  return `<div style="margin-left:12px;padding:7px 10px 8px 12px;${rowTint}">
+  const noteInput = `<input data-note="${key}" ${ro} placeholder="Notes / velocity" value="${st.note.replace(/"/g, "&quot;")}" style="width:100%;margin-top:7px;padding:7px 10px;background:rgb(242,242,243);border:1px solid rgba(29,31,32,.16);color:rgb(29,31,32);font-size:12.5px;border-radius:10px;box-sizing:border-box;">`;
+  return `<div style="margin-left:12px;padding:8px 10px 9px 12px;${rowTint}">
     ${header}
-    <div style="margin-top:5px;">${loadRow}</div>
-    ${showRpe ? `<div style="margin-top:7px;display:flex;align-items:center;gap:6px;"><span style="flex:0 0 auto;width:28px;font:400 9px/1 Barlow,sans-serif;letter-spacing:.08em;color:${st.rpe == null && st.requiresRpe ? "#b45454" : "rgb(138,146,156)"};">RPE</span>${rpeBtn(false)}</div>` : ""}
+    <div style="display:flex;align-items:stretch;gap:6px;margin-top:7px;">${repsBox}${rpeBox}${loadBox}${side}</div>
     ${noteInput}
     ${last}
   </div>`;
@@ -226,24 +245,6 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
 
 /** Lowest whole number in a reps prescription ("5" → 5, "8-10" → 8), else NaN. */
 const repsLowOf = (s: string): number => { const m = String(s ?? "").match(/\d+/); return m ? parseInt(m[0], 10) : NaN; };
-
-/**
- * The set's reps, double-tappable to log how many were actually done. Untouched it
- * reads as the prescription ("5 reps", dotted = editable); once logged, a different
- * count shows the prescription struck through next to the real number.
- */
-function repsLabel(st: { targetReps: string; repsDone: number | null }, key: string): string {
-  // A real tap target (≈34px tall chip), not just the small header text.
-  const chip = (border: string, bg: string) =>
-    `data-repsedit="${key}" title="Double-tap to log the reps you did" style="display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:0 11px;margin:-4px 6px -4px 0;border-radius:9px;border:1.5px solid ${border};background:${bg};cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;font:600 14px/1 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(var(--a-navy-rgb));vertical-align:middle;"`;
-  const pen = `<span style="font-size:11px;opacity:.55;">✎</span>`;
-  if (st.repsDone == null) return `<span ${chip("rgba(var(--a-accent-rgb),.35)", "rgba(var(--a-accent-rgb),.07)")}>${st.targetReps} REPS ${pen}</span>`;
-  const low = repsLowOf(st.targetReps);
-  const short = isFinite(low) && st.repsDone < low;
-  const matches = String(st.repsDone) === String(st.targetReps).trim();
-  const col = short ? "201,138,30" : "46,125,90";
-  return `<span ${chip(`rgba(${col},.55)`, `rgba(${col},.10)`)}>${matches ? "" : `<s style="opacity:.5;font-weight:400;">${st.targetReps}</s>`}<b style="font-weight:700;color:rgb(${col});">${st.repsDone} REPS</b>${pen}</span>`;
-}
 
 /**
  * Small centered popup to log the reps actually done on a set: − / + around a big
@@ -265,7 +266,7 @@ function buildRepsEditor(onSave: (key: string, reps: number | null) => void): { 
         <div style="font:600 18px/1 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(var(--a-navy-rgb));">REPS DONE</div>
         <button data-rx-close style="border:none;background:rgba(29,31,32,.06);width:30px;height:30px;border-radius:50%;font-size:13px;color:#5f6873;cursor:pointer;">✕</button>
       </div>
-      <div style="margin-top:4px;font:400 11px/1.4 Barlow,sans-serif;color:rgb(107,116,128);">Prescribed: ${target} reps. How many did you actually do?</div>
+      <div style="margin-top:4px;font:400 11px/1.4 Barlow,sans-serif;color:rgb(107,116,128);">Prescribed: ${isFinite(repsLowOf(target)) ? `${target} reps` : "as many as possible"}. How many did you actually do?</div>
       <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px;">
         <button data-rx-step="-1" style="width:52px;height:52px;${btn}">−</button>
         <div data-rx-val style="min-width:70px;text-align:center;font:700 44px/1 'Barlow Condensed',sans-serif;color:rgb(var(--a-navy-rgb));">${value}</div>
@@ -292,7 +293,7 @@ function buildRepsEditor(onSave: (key: string, reps: number | null) => void): { 
     key = k;
     target = tgt;
     const low = repsLowOf(tgt);
-    value = current ?? (isFinite(low) ? low : 0);
+    value = current ?? (isFinite(low) ? low : 5);
     paint(tgt);
     root.style.display = "flex";
   };
@@ -711,7 +712,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     { title: "ANY PAIN TODAY?", sub: "Optional — 0 is none, 10 is severe. Leave it if you're pain-free.", values: PAIN_VALUES, wordOf: painWord, fmt: (v) => String(v) },
     (v) => { if (!isLocked() && v != null) setSessionMeta(athleteId, selected, { pain: v }); },
   );
-  // Reps actually done on a set — opened by double-tapping the set's "N reps".
+  // Reps actually done on a set — opened by tapping the set's REPS box.
   const repsEditor = buildRepsEditor((k, reps) => { if (!isLocked()) logSet(athleteId, selected, k, { repsDone: reps }); });
   document.body.appendChild(repsEditor.root);
   document.body.appendChild(rpeSheet.root);
@@ -843,13 +844,6 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     if (confirm("This session is confirmed and locked. Unlock to make changes?")) setSessionMeta(athleteId, selected, { finished: false });
     return false;
   };
-  const seedOf = (key: string): number => {
-    const el = body?.querySelector<HTMLInputElement>(`[data-wi="${key}"]`);
-    const cur = parseKg(el?.value || "");
-    if (isFinite(cur) && cur > 0) return cur;
-    const s = parseKg(el?.dataset.seed || "");
-    return isFinite(s) ? s : 0;
-  };
   // The heaviest weight we have any evidence this athlete handles on this exercise
   // — all-time best, last week, the prescribed/suggested load. A log far above it
   // is almost always a typo (10 → 100), so we confirm before writing it.
@@ -869,13 +863,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     ].filter((n) => isFinite(n) && n > 0);
     return nums.length ? Math.max(...nums) : 0;
   };
-  // Fixed loads cap the "+" stepper — the athlete can't step above the fixed weight.
-  const capFixed = (key: string, kg: number): number => {
-    const f = parseFloat(body?.querySelector<HTMLInputElement>(`[data-wi="${key}"]`)?.dataset.fixed ?? "");
-    return isFinite(f) ? Math.min(kg, f) : kg;
-  };
 
-  let lastRepsTap = { key: "", at: 0 };
   body?.addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
     const dayBtn = t.closest<HTMLElement>("[data-day]");
@@ -906,13 +894,10 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       return render();
     }
 
-    // Double-tap a set's reps → log how many were actually done.
+    // Tap a set's REPS box → log how many were actually done.
     const repsEl = t.closest<HTMLElement>("[data-repsedit]");
     if (repsEl) {
       const k = repsEl.dataset.repsedit!;
-      const now = Date.now();
-      if (lastRepsTap.key !== k || now - lastRepsTap.at > 500) { lastRepsTap = { key: k, at: now }; return; }
-      lastRepsTap = { key: "", at: 0 };
       if (!unlockGate()) return;
       let target = "";
       let cur: number | null = null;
@@ -921,7 +906,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     }
 
     // edits are gated when the session is confirmed/locked
-    if (t.closest("[data-inc],[data-dec],[data-same],[data-done],[data-donefix],[data-rpeopen],[data-secs],[data-wi],[data-note]") && !unlockGate()) return;
+    if (t.closest("[data-same],[data-done],[data-donefix],[data-rpeopen],[data-secs],[data-wi],[data-note]") && !unlockGate()) return;
 
     // Plain DONE for a fixed/%1RM set the coach isn't asking RPE for: confirm the
     // prescribed load in one tap (tap again to un-confirm).
@@ -954,10 +939,6 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       getSessionFor(athleteId, selected).exercises.forEach((ex) => ex.sets.forEach((st) => { if (st.key === k) cur = st.done; }));
       return logSet(athleteId, selected, k, { done: !cur });
     }
-    const inc = t.closest<HTMLElement>("[data-inc]");
-    if (inc) { const k = inc.dataset.inc!; return logSet(athleteId, selected, k, { weightKg: clampKg(capFixed(k, seedOf(k) + 2.5)), failed: false }); }
-    const dec = t.closest<HTMLElement>("[data-dec]");
-    if (dec) { const k = dec.dataset.dec!; return logSet(athleteId, selected, k, { weightKg: clampKg(seedOf(k) - 2.5), failed: false }); }
     const same = t.closest<HTMLElement>("[data-same]");
     if (same) {
       const k = same.dataset.same!;
@@ -986,12 +967,6 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       const v = parseInt(t.value.replace(/[^0-9]/g, ""), 10);
       if (t.value.trim() === "") logSet(athleteId, selected, t.dataset.secs!, { heldSeconds: null, done: false });
       else if (Number.isFinite(v) && v > 0) logSet(athleteId, selected, t.dataset.secs!, { heldSeconds: v, done: true });
-    }
-    else if (t.matches("[data-reps]")) {
-      const v = parseInt(t.value.replace(/[^0-9]/g, ""), 10);
-      if (t.value.trim() === "") logSet(athleteId, selected, t.dataset.reps!, { repsDone: null });
-      else if (Number.isFinite(v) && v >= 0 && v <= 100) logSet(athleteId, selected, t.dataset.reps!, { repsDone: v });
-      else { showToast("Enter the number of reps you hit (0–100)."); render(); }
     }
     else if (t.matches("[data-wi]")) {
       const v = t.value.trim();

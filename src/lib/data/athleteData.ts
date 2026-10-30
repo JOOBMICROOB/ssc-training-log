@@ -795,9 +795,10 @@ export function exerciseBests(athleteId: string): Map<string, ExBest> {
         ex.sets.forEach((st, si) => {
           const log = dayLog.sets![`${prefix}${ei}_${si}`];
           if (!log || log.weightKg == null || log.prefill) return;
-          const reps = repsLow(st.targetReps);
+          // Reps actually done win over the prescription (4 prescribed, 3 done → a 3RM).
+          const reps = log.repsDone ?? repsLow(st.targetReps);
           add(ex.name, ex.mainLift, log.weightKg, reps);
-          addLast(ex.name, date, { kg: log.weightKg, reps: log.repsDone ?? (reps > 0 ? reps : null), rpe: log.rpe ?? null });
+          addLast(ex.name, date, { kg: log.weightKg, reps: reps > 0 ? reps : null, rpe: log.rpe ?? null });
         }),
       );
     scan(day.exercises, "");

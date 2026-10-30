@@ -83,7 +83,7 @@ export function buildShareData(session: Session, prs: Pr[], weekSessions: Sessio
   for (const e of session.exercises)
     for (const s of e.sets)
       if (s.weightKg != null && !s.prefill && !s.failed) {
-        vol += s.weightKg * (parseInt(s.targetReps, 10) || 1);
+        vol += s.weightKg * (s.repsDone != null ? s.repsDone : parseInt(s.targetReps, 10) || 1);
         setsCount += 1;
       }
 

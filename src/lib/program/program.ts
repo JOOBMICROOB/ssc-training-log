@@ -89,6 +89,18 @@ export type DayLog = {
 };
 export type ProgramLogs = Record<string, DayLog>; // key = ISO date
 
+/**
+ * Reps actually performed on a set: what the athlete logged (repsDone), else the low
+ * end of the prescription ("3-5" → 3). NaN when neither is a number ("AMRAP" unlogged).
+ * Every RM / PR / e1RM / volume calculation goes through this, so a prescribed 4 that
+ * was really 3 counts as a 3.
+ */
+export function setReps(st: { repsDone?: number | null; targetReps?: string }): number {
+  if (st.repsDone != null) return st.repsDone;
+  const m = String(st.targetReps ?? "").match(/\d+/);
+  return m ? parseInt(m[0], 10) : NaN;
+}
+
 // --- merged (concrete) session ----------------------------------------------
 
 export type LoggedSet = SetTemplate & {

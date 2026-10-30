@@ -2,7 +2,7 @@ import { epleyE1rm } from "../calc/epley";
 import { ipfGlPoints, type Sex } from "../calc/scores";
 import { currentWeekWindow, type Weekday } from "../calc/adherence";
 import { fmtKg, fmtGl } from "../calc/records";
-import { getSession, addDays, type WeekTemplate, type ProgramLogs, type MainLift } from "./program";
+import { getSession, addDays, setReps, type WeekTemplate, type ProgramLogs, type MainLift } from "./program";
 import { inferLift, countsForLift } from "./deriveRecords";
 
 /**
@@ -47,7 +47,7 @@ function weekE1rm(template: WeekTemplate, logs: ProgramLogs, lift: MainLift, wee
       if (exLift !== lift || !(ex.competition || inferLift(ex.name) === lift)) continue;
       for (const st of ex.sets) {
         if (st.weightKg == null || st.failed || st.prefill) continue; // real logs only
-        const reps = parseInt(st.targetReps, 10); // min of a range ("3-5" → 3)
+        const reps = setReps(st); // reps done, else min of a range ("3-5" → 3)
         if (!Number.isFinite(reps) || reps < 1) continue;
         if (reps < lowestReps || (reps === lowestReps && st.weightKg > weightAtLowest)) {
           lowestReps = reps;
@@ -107,8 +107,9 @@ export function liftProgress(
       const isCompLift = ex.competition || inferLift(ex.name) === lift;
       for (const st of ex.sets) {
         if (st.weightKg == null || st.failed || st.prefill) continue;
-        // Min of a rep range (a "3-5" set proves at least a 3RM at that weight).
-        const reps = parseInt(st.targetReps, 10);
+        // Reps actually done (a prescribed 4 done as 3 is a 3RM); else the min of a
+        // rep range (a "3-5" set proves at least a 3RM at that weight).
+        const reps = setReps(st);
         if (!Number.isFinite(reps) || reps < 1) continue;
         points.push({ reps, weight: st.weightKg });
         if (!isCompLift) {
@@ -161,7 +162,7 @@ export function weekTonnage(
       let t = 0;
       for (const ex of s.exercises) {
         if (ex.mainLift !== lift) continue;
-        for (const st of ex.sets) if (st.weightKg != null) t += st.weightKg * (parseInt(st.targetReps, 10) || 1);
+        for (const st of ex.sets) if (st.weightKg != null) t += st.weightKg * (setReps(st) || 1);
       }
       if (t > 0) {
         const wd = new Date(`${d}T00:00:00`).getDay();
