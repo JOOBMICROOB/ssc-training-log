@@ -15,6 +15,7 @@ import {
   setSessionChoice,
   exerciseBests,
   bestLabel,
+  repMaxRows,
   athleteHasProgramOn,
   type ExBest,
 } from "../../lib/data/athleteData";
@@ -94,7 +95,7 @@ function dayButtons(week: ReturnType<typeof getWeekFor>, selected: string): stri
 
 function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, locked: boolean, hideLastWeek = false): string {
   const key = `${ei}_${si}`;
-  const lwNum = parseFloat(st.lastWeek.replace(",", "."));
+  const lwNum = st.lastWeekKg ?? NaN;
   const loadNum = st.targetLoad ? parseFloat(st.targetLoad.replace(",", ".")) : NaN;
   // Advisory suggested load (RPE / % rows) — a starting hint, never a cap.
   const sugNum = st.targetSuggest ? parseFloat(st.targetSuggest.replace(",", ".")) : NaN;
@@ -300,6 +301,46 @@ function buildRepsEditor(onSave: (key: string, reps: number | null) => void): { 
   return { root, open };
 }
 
+/** Centered popup: an exercise's rep-maxes 1–12 with the date each was done. */
+function buildRmPopup(): { root: HTMLElement; open: (name: string, b: ExBest | undefined) => void } {
+  const root = document.createElement("div");
+  root.style.cssText =
+    "position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(9,17,28,.55);backdrop-filter:blur(3px);z-index:1000;padding:16px;";
+  const fmtDate = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const open = (name: string, b: ExBest | undefined) => {
+    const rows = repMaxRows(b, 12);
+    const any = rows.some((r) => r.kg != null);
+    const list = rows
+      .map((r, i) => {
+        // An RM only proven by a higher-rep set (same load + date as the row below —
+        // e.g. a 3-rep set also makes the 2RM) reads softer than the real one.
+        const next = rows[i + 1];
+        const implied = !!next && r.kg != null && r.kg === next.kg && r.date === next.date;
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-top:1px solid rgba(29,31,32,.07);">
+          <span style="flex:0 0 46px;font:700 15px/1 'Barlow Condensed',sans-serif;letter-spacing:.04em;color:rgb(var(--a-accent2-rgb));">${r.reps}RM</span>
+          <span style="flex:1 1 0;font:700 17px/1 'Barlow Condensed',sans-serif;color:${r.kg == null ? "rgb(170,176,184)" : implied ? "rgb(120,129,140)" : "rgb(var(--a-navy-rgb))"};">${r.kg == null ? "—" : `${fmtKg(r.kg)} kg`}</span>
+          <span style="flex:0 0 auto;font:400 11px/1 Barlow,sans-serif;color:rgb(138,146,156);">${r.date && r.kg != null ? fmtDate(r.date) : ""}</span>
+        </div>`;
+      })
+      .join("");
+    root.innerHTML = `<div style="width:340px;max-width:96vw;max-height:calc(100dvh - 32px);overflow-y:auto;background:#f4f8fc;border:1px solid rgba(29,31,32,.12);border-radius:20px;box-shadow:0 24px 60px rgba(9,17,28,.4);padding:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="font:600 18px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.02em;color:rgb(var(--a-navy-rgb));">${escapeHtml(name)}</div>
+        <button data-rm-close style="flex:0 0 auto;border:none;background:rgba(29,31,32,.06);width:30px;height:30px;border-radius:50%;font-size:13px;color:#5f6873;cursor:pointer;">✕</button>
+      </div>
+      <div style="margin:4px 0 8px;font:400 11px/1.4 Barlow,sans-serif;color:rgb(107,116,128);">Your rep maxes — the heaviest load you've done for at least that many reps.</div>
+      ${any ? list : `<div style="padding:18px 4px;text-align:center;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(138,146,156);">No logged sets for this exercise yet.</div>`}
+      ${b && b.e1rm > 0 ? `<div style="margin-top:8px;padding-top:9px;border-top:1px solid rgba(29,31,32,.1);font:600 11px/1 Barlow,sans-serif;letter-spacing:.08em;color:rgb(107,116,128);">ESTIMATED 1RM · ${fmtKg(Math.round(b.e1rm * 2) / 2)} kg</div>` : ""}
+    </div>`;
+    root.style.display = "flex";
+  };
+  root.addEventListener("click", (e) => {
+    const t = e.target as HTMLElement;
+    if (t === root || t.closest("[data-rm-close]")) root.style.display = "none";
+  });
+  return { root, open };
+}
+
 function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locked: boolean, bests: Map<string, ExBest> | null): string {
   const headStyle = expanded
     ? "border:1px solid rgb(var(--a-accent-rgb));background:rgba(var(--a-accent-rgb),.14);"
@@ -309,7 +350,7 @@ function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locke
     : ex.clip
       ? `<span title="Coach attached a clip" style="flex:0 0 auto;display:grid;place-items:center;width:15px;height:15px;border-radius:5px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font-size:7px;">▶</span>`
       : "";
-  const header = `<button data-ex="${ei}" style="width:100%;display:flex;align-items:center;gap:10px;text-align:left;padding:11px 12px;cursor:pointer;border-radius:12px;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;${headStyle}">
+  const header = `<button data-ex="${ei}" style="-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;width:100%;display:flex;align-items:center;gap:10px;text-align:left;padding:11px 12px;cursor:pointer;border-radius:12px;backdrop-filter:blur(16px);box-shadow:rgba(20,36,52,.07) 0px 4px 14px;${headStyle}">
     <div style="flex:1 1 0;">
       <div style="font:600 16px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(var(--a-navy-rgb));">${ex.name}</div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">${clip}
@@ -715,6 +756,9 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
   // Reps actually done on a set — opened by tapping the set's REPS box.
   const repsEditor = buildRepsEditor((k, reps) => { if (!isLocked()) logSet(athleteId, selected, k, { repsDone: reps }); });
   document.body.appendChild(repsEditor.root);
+  // Long-press an exercise → its rep maxes (1–12) with dates.
+  const rmPopup = buildRmPopup();
+  document.body.appendChild(rmPopup.root);
   document.body.appendChild(rpeSheet.root);
   document.body.appendChild(sessRpeSheet.root);
   document.body.appendChild(painSheet.root);
@@ -857,12 +901,39 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     const best = exerciseBests(athleteId).get(ex.name.trim().toLowerCase())?.maxLoad ?? 0;
     const nums = [
       best,
-      st ? parseFloat(String(st.lastWeek).replace(",", ".")) : NaN,
+      st?.lastWeekKg ?? NaN,
       st?.targetLoad ? parseFloat(st.targetLoad.replace(",", ".")) : NaN,
       st?.targetSuggest ? parseFloat(st.targetSuggest.replace(",", ".")) : NaN,
     ].filter((n) => isFinite(n) && n > 0);
     return nums.length ? Math.max(...nums) : 0;
   };
+
+  // Long-press (≈0.5 s, finger held still) on an exercise header opens its rep maxes;
+  // the click that follows the release is swallowed so the exercise doesn't toggle.
+  let pressTimer: number | null = null;
+  let pressFired = false;
+  let pressAt: [number, number] = [0, 0];
+  const cancelPress = () => { if (pressTimer != null) { clearTimeout(pressTimer); pressTimer = null; } };
+  body?.addEventListener("pointerdown", (e) => {
+    const exBtn = (e.target as HTMLElement).closest<HTMLElement>("[data-ex]");
+    cancelPress();
+    pressFired = false;
+    if (!exBtn) return;
+    pressAt = [e.clientX, e.clientY];
+    pressTimer = window.setTimeout(() => {
+      pressTimer = null;
+      pressFired = true;
+      const ex = getSessionFor(athleteId, selected).exercises[Number(exBtn.dataset.ex)];
+      if (ex) rmPopup.open(ex.name, exerciseBests(athleteId).get(ex.name.trim().toLowerCase()));
+      try { navigator.vibrate?.(15); } catch { /* not supported */ }
+    }, 500);
+  });
+  body?.addEventListener("pointermove", (e) => {
+    if (pressTimer != null && Math.hypot(e.clientX - pressAt[0], e.clientY - pressAt[1]) > 10) cancelPress();
+  });
+  body?.addEventListener("pointerup", cancelPress);
+  body?.addEventListener("pointercancel", cancelPress);
+  body?.addEventListener("contextmenu", (e) => { if ((e.target as HTMLElement).closest("[data-ex]")) e.preventDefault(); });
 
   body?.addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
@@ -883,6 +954,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     const vid = t.closest<HTMLElement>("[data-video]");
     if (vid?.dataset.video) { window.open(vid.dataset.video, "_blank", "noopener"); return; }
     const exBtn = t.closest<HTMLElement>("[data-ex]");
+    if (exBtn && pressFired) { pressFired = false; return; } // that was a long-press
     if (exBtn) {
       const i = Number(exBtn.dataset.ex);
       const session = getSessionFor(athleteId, selected);
@@ -1057,6 +1129,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     calendar.root.remove();
     rpeSheet.root.remove();
     repsEditor.root.remove();
+    rmPopup.root.remove();
     sessRpeSheet.root.remove();
     painSheet.root.remove();
   };

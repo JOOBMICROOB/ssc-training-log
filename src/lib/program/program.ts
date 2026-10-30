@@ -113,7 +113,8 @@ export type LoggedSet = SetTemplate & {
   heldSeconds: number | null; // logged hold duration for a timed set
   repsDone: number | null; // reps hit on an AMRAP set
   prefill: boolean; // shown but not yet confirmed by the athlete
-  lastWeek: string; // "137,5 kg @ RPE8" or ""
+  lastWeek: string; // "5 × 137,5 kg @ RPE 8" or "" — reps, load and RPE of the same set last week
+  lastWeekKg: number | null; // that set's load as a number (for ↺ seeding / typo checks)
 };
 export type SessionExercise = {
   name: string;
@@ -127,7 +128,7 @@ export type SessionExercise = {
   sets: LoggedSet[];
   setCount: number;
   loggedCount: number;
-  lastWeekLabel: string; // compact summary for the header, e.g. "3 × 142,5 kg @8"
+  lastWeekLabel: string; // header summary of last week's sets, e.g. "3 sets · 5 × 142,5 kg @ RPE 8"
 };
 export type Session = {
   date: string;
@@ -201,6 +202,13 @@ function isCompLift(name: string, mainLift: MainLift | null): boolean {
 
 const round2p5 = (kg: number) => Math.round(kg / 2.5) * 2.5;
 
+/** One logged set as "5 × 100 kg @ RPE 8" (reps done, else the prescription then). */
+function fmtLastSet(p: SetLog, prescribedReps: string | undefined): string {
+  if (p.failed) return `✕ ${fmtKg(p.weightKg as number)} kg (failed)`;
+  const reps = setReps({ repsDone: p.repsDone, targetReps: prescribedReps });
+  return `${isFinite(reps) ? `${reps} × ` : ""}${fmtKg(p.weightKg as number)} kg${p.rpe != null ? ` @ RPE ${String(p.rpe).replace(".", ",")}` : ""}`;
+}
+
 export function getSession(template: WeekTemplate, logs: ProgramLogs, date: string, option: "A" | "B" = "A", prevTemplate?: WeekTemplate, oneRm?: Partial<Record<MainLift, number>>, frozen?: Record<string, DayTemplate>, todayISO?: string): Session {
   const weekday = fromISO(date).getDay();
   // Frozen day: the template the athlete actually LOGGED this date against, snapped
@@ -262,10 +270,10 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
             rpeRequired++;
             if (rpe != null) rpeLogged++;
           }
-          const lw =
-            prev?.weightKg != null
-              ? `${fmtKg(prev.weightKg)} kg${prev.rpe != null ? ` @ RPE${prev.rpe}` : ""}${prev.failed ? " · failed" : ""}`
-              : "";
+          // Last week's same set: reps actually done (else what was prescribed then),
+          // load and RPE. Unconfirmed coach prefills aren't something they did.
+          const prevSet = prev?.weightKg != null && !prev.prefill ? prev : undefined;
+          const lw = prevSet ? fmtLastSet(prevSet, prevExSource?.[ei]?.sets?.[si]?.targetReps) : "";
           // Auto-backdown: every set after the first is a fixed load computed live
           // from the top set's LOGGED weight, e.g. 10% ⇒ 100 kg top → 90 kg backoffs.
           let targetLoad = st.targetLoad;
@@ -307,23 +315,21 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
             const pct = parseFloat(st.targetPercent.replace(",", "."));
             if (rm > 0 && isFinite(pct)) targetSuggest = String(round2p5((rm * pct) / 100));
           }
-          return { ...st, targetLoad, fixedLoad, targetSuggest, key, weightKg, rpe, note: log.note ?? "", failed, done, heldSeconds, repsDone, prefill, lastWeek: lw };
+          return { ...st, targetLoad, fixedLoad, targetSuggest, key, weightKg, rpe, note: log.note ?? "", failed, done, heldSeconds, repsDone, prefill, lastWeek: lw, lastWeekKg: prevSet?.weightKg ?? null };
         });
-        // Compact last-week summary for the collapsed header — same-exercise only.
-        const prevWeights = (samePrevEx(ei, ex.name) ? ex.sets : [])
-          .map((_, si) => prevLog.sets?.[`${kp}${ei}_${si}`]?.weightKg)
-          .filter((w): w is number => w != null);
-        let lastWeekLabel = "";
-        if (prevWeights.length) {
-          const same = prevWeights.every((w) => w === prevWeights[0]);
-          const prevRpes = ex.sets
-            .map((_, si) => prevLog.sets?.[`${kp}${ei}_${si}`]?.rpe)
-            .filter((r): r is number => r != null);
-          const rpeStr = prevRpes.length && prevRpes.every((r) => r === prevRpes[0]) ? ` @${prevRpes[0]}` : "";
-          lastWeekLabel = same
-            ? `${prevWeights.length} × ${fmtKg(prevWeights[0])} kg${rpeStr}`
-            : `${fmtKg(Math.min(...prevWeights))}–${fmtKg(Math.max(...prevWeights))} kg`;
-        }
+        // Last-week summary for the header — same-exercise only: reps, load and RPE.
+        // Identical sets collapse to "3 sets · 5 × 100 kg @ RPE 8"; otherwise each set.
+        const prevSets = (samePrevEx(ei, ex.name) ? ex.sets : [])
+          .map((_, si) => {
+            const p = prevLog.sets?.[`${kp}${ei}_${si}`];
+            return p?.weightKg != null && !p.prefill ? fmtLastSet(p, prevExSource?.[ei]?.sets?.[si]?.targetReps) : "";
+          })
+          .filter(Boolean);
+        const lastWeekLabel = !prevSets.length
+          ? ""
+          : prevSets.every((x) => x === prevSets[0])
+            ? `${prevSets.length > 1 ? `${prevSets.length} sets · ` : ""}${prevSets[0]}`
+            : prevSets.join("  ·  ");
         return {
           name: ex.name,
           mainLift: ex.mainLift,

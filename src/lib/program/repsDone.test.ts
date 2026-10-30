@@ -38,4 +38,16 @@ describe("reps done per set", () => {
     expect(setReps({ repsDone: null, targetReps: "3-5" })).toBe(3);
     expect(setReps({ targetReps: "AMRAP" })).toBeNaN();
   });
+
+  it("last week shows reps done, load and RPE per set and in the header", () => {
+    const prev = { "2026-10-19": { sets: { "0_0": { weightKg: 100, rpe: 8 }, "0_1": { weightKg: 100, rpe: 8 }, "0_2": { weightKg: 100, rpe: 8.5, repsDone: 4 } } } };
+    const s = getSession(week, prev, "2026-10-26", "A", week);
+    const ex = s.exercises[0];
+    expect(ex.sets[0].lastWeek).toBe("5 × 100 kg @ RPE 8");
+    expect(ex.sets[0].lastWeekKg).toBe(100);
+    expect(ex.sets[2].lastWeek).toBe("4 × 100 kg @ RPE 8,5");
+    expect(ex.lastWeekLabel).toBe("5 × 100 kg @ RPE 8  ·  5 × 100 kg @ RPE 8  ·  4 × 100 kg @ RPE 8,5");
+    const same = getSession(week, { "2026-10-19": { sets: { "0_0": { weightKg: 90, rpe: 7 }, "0_1": { weightKg: 90, rpe: 7 }, "0_2": { weightKg: 90, rpe: 7 } } } }, "2026-10-26", "A", week);
+    expect(same.exercises[0].lastWeekLabel).toBe("3 sets · 5 × 90 kg @ RPE 7");
+  });
 });

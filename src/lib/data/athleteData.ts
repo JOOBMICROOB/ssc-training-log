@@ -755,22 +755,23 @@ export function getSessionFor(athleteId: string, date: string): Session {
 // that was live on each logged date (the low end of a range).
 export type ExLastSet = { kg: number; reps: number | null; rpe: number | null };
 export type ExLast = { date: string; sets: ExLastSet[] };
-export type ExBest = { maxLoad: number; byReps: Record<number, number>; e1rm: number; mainLift: MainLift | null; last?: ExLast };
+export type ExBest = { maxLoad: number; byReps: Record<number, number>; byRepsDate: Record<number, string>; e1rm: number; mainLift: MainLift | null; last?: ExLast };
 const repsLow = (s: string): number => { const m = String(s).match(/\d+/); return m ? parseInt(m[0], 10) : 0; };
 
 export function exerciseBests(athleteId: string): Map<string, ExBest> {
   const d = getDashboard(athleteId);
   const logs = d.programLogs ?? {};
   const best = new Map<string, ExBest>();
-  const add = (name: string, mainLift: MainLift | null, kg: number, reps: number) => {
+  const add = (name: string, mainLift: MainLift | null, kg: number, reps: number, date: string) => {
     const k = name.trim().toLowerCase();
     if (!k) return;
     let b = best.get(k);
-    if (!b) { b = { maxLoad: 0, byReps: {}, e1rm: 0, mainLift }; best.set(k, b); }
+    if (!b) { b = { maxLoad: 0, byReps: {}, byRepsDate: {}, e1rm: 0, mainLift }; best.set(k, b); }
     if (mainLift != null) b.mainLift = mainLift;
     b.maxLoad = Math.max(b.maxLoad, kg);
     if (reps > 0) {
-      b.byReps[reps] = Math.max(b.byReps[reps] ?? 0, kg);
+      // Strictly heavier only, so the date is when that rep-max was first hit.
+      if (kg > (b.byReps[reps] ?? 0)) { b.byReps[reps] = kg; b.byRepsDate[reps] = date; }
       b.e1rm = Math.max(b.e1rm, epleyE1rm(kg, reps));
     }
   };
@@ -794,10 +795,10 @@ export function exerciseBests(athleteId: string): Map<string, ExBest> {
       list?.forEach((ex, ei) =>
         ex.sets.forEach((st, si) => {
           const log = dayLog.sets![`${prefix}${ei}_${si}`];
-          if (!log || log.weightKg == null || log.prefill) return;
+          if (!log || log.weightKg == null || log.prefill || log.failed) return; // a failed rep proves nothing
           // Reps actually done win over the prescription (4 prescribed, 3 done → a 3RM).
           const reps = log.repsDone ?? repsLow(st.targetReps);
-          add(ex.name, ex.mainLift, log.weightKg, reps);
+          add(ex.name, ex.mainLift, log.weightKg, reps, date);
           addLast(ex.name, date, { kg: log.weightKg, reps: reps > 0 ? reps : null, rpe: log.rpe ?? null });
         }),
       );
@@ -805,6 +806,25 @@ export function exerciseBests(athleteId: string): Map<string, ExBest> {
     scan(day.alt, "B");
   }
   return best;
+}
+
+/**
+ * Rep-max table 1…max for one exercise. An X-RM is the heaviest load done for AT
+ * LEAST X reps (a 5-rep set at 100 also proves a 3RM of 100), with the date it was
+ * done. `kg` is null where nothing qualifies yet.
+ */
+export function repMaxRows(b: ExBest | undefined, max = 12): { reps: number; kg: number | null; date: string | null }[] {
+  return Array.from({ length: max }, (_, i) => {
+    const x = i + 1;
+    let kg: number | null = null;
+    let date: string | null = null;
+    for (const [r, w] of Object.entries(b?.byReps ?? {})) {
+      if (Number(r) < x) continue;
+      const d = b!.byRepsDate[Number(r)] ?? null;
+      if (kg == null || w > kg || (w === kg && d != null && (date == null || d < date))) { kg = w; date = d; }
+    }
+    return { reps: x, kg, date };
+  });
 }
 
 /** Short label for the bests toggle. Compound → #RMs; accessory → top load. */
