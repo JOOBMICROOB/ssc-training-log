@@ -233,12 +233,16 @@ const repsLowOf = (s: string): number => { const m = String(s ?? "").match(/\d+/
  * count shows the prescription struck through next to the real number.
  */
 function repsLabel(st: { targetReps: string; repsDone: number | null }, key: string): string {
-  const tap = `data-repsedit="${key}" title="Double-tap to log the reps you did" style="cursor:pointer;-webkit-user-select:none;user-select:none;`;
-  if (st.repsDone == null) return `<span ${tap}border-bottom:1px dotted rgba(95,104,115,.6);">${st.targetReps} reps</span>`;
+  // A real tap target (≈34px tall chip), not just the small header text.
+  const chip = (border: string, bg: string) =>
+    `data-repsedit="${key}" title="Double-tap to log the reps you did" style="display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:0 11px;margin:-4px 6px -4px 0;border-radius:9px;border:1.5px solid ${border};background:${bg};cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;font:600 14px/1 'Barlow Condensed',sans-serif;letter-spacing:.03em;color:rgb(var(--a-navy-rgb));vertical-align:middle;"`;
+  const pen = `<span style="font-size:11px;opacity:.55;">✎</span>`;
+  if (st.repsDone == null) return `<span ${chip("rgba(var(--a-accent-rgb),.35)", "rgba(var(--a-accent-rgb),.07)")}>${st.targetReps} REPS ${pen}</span>`;
   const low = repsLowOf(st.targetReps);
   const short = isFinite(low) && st.repsDone < low;
   const matches = String(st.repsDone) === String(st.targetReps).trim();
-  return `<span ${tap}">${matches ? "" : `<s style="opacity:.55;">${st.targetReps}</s> `}<b style="font-weight:700;color:${short ? "#c98a1e" : "#2e7d5a"};">${st.repsDone} reps</b></span>`;
+  const col = short ? "201,138,30" : "46,125,90";
+  return `<span ${chip(`rgba(${col},.55)`, `rgba(${col},.10)`)}>${matches ? "" : `<s style="opacity:.5;font-weight:400;">${st.targetReps}</s>`}<b style="font-weight:700;color:rgb(${col});">${st.repsDone} REPS</b>${pen}</span>`;
 }
 
 /**
@@ -907,7 +911,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     if (repsEl) {
       const k = repsEl.dataset.repsedit!;
       const now = Date.now();
-      if (lastRepsTap.key !== k || now - lastRepsTap.at > 450) { lastRepsTap = { key: k, at: now }; return; }
+      if (lastRepsTap.key !== k || now - lastRepsTap.at > 500) { lastRepsTap = { key: k, at: now }; return; }
       lastRepsTap = { key: "", at: 0 };
       if (!unlockGate()) return;
       let target = "";
