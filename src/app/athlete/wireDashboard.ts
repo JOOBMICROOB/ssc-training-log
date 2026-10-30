@@ -266,39 +266,69 @@ function maybeAvatarPrompt(athleteId: string, hasAvatar: boolean): (() => void) 
 }
 
 /**
- * One-time notice (Oct 2026): a bug reset some athletes' profile fields to the
- * defaults. Ask everyone to check their dashboard and fix it with a double-tap.
- * Shown once per athlete per device, and not at all after NOTICE_UNTIL.
+ * One-time notices, shown once per athlete per device (newest last), one at a time:
+ * closing one opens the next unseen one. Each stops showing after its `until` date.
  */
-const NOTICE_UNTIL = "2026-11-30";
-function maybeDataNotice(athleteId: string): (() => void) | undefined {
-  const flag = `ssc.athlete.notice.profileReset.${athleteId}`;
-  let seen = false;
-  try { seen = localStorage.getItem(flag) === "1"; } catch { /* ignore */ }
+type Notice = { id: string; until: string; icon: string; title: string; html: string; ok: string };
+const para = (t: string) => `<p style="margin:0 0 9px;">${t}</p>`;
+const bold = (t: string) => `<b style="color:rgb(var(--a-ink-rgb));">${t}</b>`;
+const NOTICES: Notice[] = [
+  {
+    // Oct 2026: a bug reset some athletes' profile fields to the defaults.
+    id: "profileReset",
+    until: "2026-11-30",
+    icon: "🛠️",
+    title: "Even je gegevens nakijken",
+    html:
+      para("Door een klein probleem in de app zijn bij sommigen de persoonlijke gegevens veranderd, zoals gewichtsklasse, training age of comp total. Je programma's en PR's zijn niet aangetast.") +
+      para(`Kijk je even na of alles op je dashboard nog klopt? ${bold("Dubbeltik op een gegeven om het aan te passen.")}`) +
+      para("Klopt je naam of geslacht niet? Laat het dan even weten aan je coach, dat kan je zelf niet wijzigen.") +
+      para("Sorry voor het ongemak!"),
+    ok: "OKÉ, IK KIJK HET NA",
+  },
+  {
+    // 30 Oct 2026 release notes (v115–v119).
+    id: "updates-2026-10-30",
+    until: "2026-12-15",
+    icon: "💪",
+    title: "Nieuw in de app",
+    html:
+      para(`${bold("👆 Lang indrukken op een oefening")}<br>Hou je vinger even op de naam van een oefening. Je ziet dan je rep-maxes van 1RM tot 12RM, met de datum waarop je ze haalde.`) +
+      para(`${bold("🔢 Reps aanpassen")}<br>Tik op het REPS-vak van een set om in te geven hoeveel reps je echt deed. Dat telt ook mee voor je rep-maxes en PR's.`) +
+      para(`${bold("🧾 Nieuwe set-weergave")}<br>Reps, RPE en gewicht staan op één lijn. Een vak met een blauwe rand en ✎ vul je zelf in, een grijs vak is het voorschrift van je coach.`) +
+      para(`${bold("📅 Last week")}<br>Per set zie je nu de reps, het gewicht en de RPE van vorige week.`),
+    ok: "TOP, BEGREPEN!",
+  },
+];
+const noticeFlag = (athleteId: string, id: string) => `ssc.athlete.notice.${id}.${athleteId}`;
+function unseenNotices(athleteId: string): Notice[] {
   const today = new Date().toISOString().slice(0, 10);
-  if (seen || today > NOTICE_UNTIL) return undefined;
-
+  return NOTICES.filter((n) => {
+    if (today > n.until) return false;
+    try { return localStorage.getItem(noticeFlag(athleteId, n.id)) !== "1"; } catch { return true; }
+  });
+}
+function maybeNotices(athleteId: string): (() => void) | undefined {
+  const queue = unseenNotices(athleteId);
+  if (!queue.length) return undefined;
   const root = document.createElement("div");
   root.style.cssText = "position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(9,17,28,.55);backdrop-filter:blur(3px);padding:20px;";
-  const close = () => {
-    try { localStorage.setItem(flag, "1"); } catch { /* ignore */ }
-    root.remove();
-  };
-  root.innerHTML = `
-    <div style="width:100%;max-width:340px;background:var(--a-panel-bg,#fbfdff);border-radius:20px;box-shadow:0 24px 60px rgba(9,17,28,.4);padding:22px 20px 18px;text-align:center;">
-      <div style="width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:rgba(var(--a-accent-rgb),.14);display:grid;place-items:center;font-size:30px;">🛠️</div>
-      <div style="font:600 20px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.01em;color: rgb(var(--a-ink-rgb));">Even je gegevens nakijken</div>
-      <div style="margin-top:8px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(107,116,128);text-align:left;">
-        <p style="margin:0 0 8px;">Door een klein probleem in de app zijn bij sommigen de persoonlijke gegevens veranderd, zoals gewichtsklasse, training age of comp total. Je programma's en PR's zijn niet aangetast.</p>
-        <p style="margin:0 0 8px;">Kijk je even na of alles op je dashboard nog klopt? <b style="color:rgb(var(--a-ink-rgb));">Dubbeltik op een gegeven om het aan te passen.</b></p>
-        <p style="margin:0 0 8px;">Klopt je naam of geslacht niet? Laat het dan even weten aan je coach, dat kan je zelf niet wijzigen.</p>
-        <p style="margin:0;">Sorry voor het ongemak!</p>
-      </div>
-      <button data-ok style="width:100%;margin-top:16px;padding:13px;border:1px solid rgb(var(--a-navy-rgb));border-radius:12px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">OKÉ, IK KIJK HET NA</button>
+  const show = (n: Notice) => {
+    root.innerHTML = `
+    <div style="width:100%;max-width:340px;max-height:calc(100dvh - 40px);overflow-y:auto;background:var(--a-panel-bg,#fbfdff);border-radius:20px;box-shadow:0 24px 60px rgba(9,17,28,.4);padding:22px 20px 18px;text-align:center;">
+      <div style="width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:rgba(var(--a-accent-rgb),.14);display:grid;place-items:center;font-size:30px;">${n.icon}</div>
+      <div style="font:600 20px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.01em;color: rgb(var(--a-ink-rgb));">${n.title}</div>
+      <div style="margin-top:10px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(107,116,128);text-align:left;">${n.html}</div>
+      <button data-ok style="width:100%;margin-top:10px;padding:13px;border:1px solid rgb(var(--a-navy-rgb));border-radius:12px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">${n.ok}</button>
     </div>`;
+  };
+  show(queue[0]);
   root.addEventListener("click", (e) => {
-    const t = e.target as HTMLElement;
-    if (t.closest("[data-ok]")) close();
+    if (!(e.target as HTMLElement).closest("[data-ok]")) return;
+    const done = queue.shift();
+    if (done) { try { localStorage.setItem(noticeFlag(athleteId, done.id), "1"); } catch { /* ignore */ } }
+    if (queue.length) show(queue[0]);
+    else root.remove();
   });
   document.body.appendChild(root);
   return () => root.remove();
@@ -641,9 +671,9 @@ export function wireDashboard(
 
   const unThemeWidget = mountThemeWidget(host);
   const unCalWidget = mountCalendarWidget(host, athleteId);
-  // One-time notice about the profile-data reset; the avatar nudge waits its turn
+  // One-time notices (profile reset, release notes); the avatar nudge waits its turn
   // so two popups never stack.
-  const unDataNotice = maybeDataNotice(athleteId);
+  const unDataNotice = maybeNotices(athleteId);
   // Friendly one-time nudge to add a profile picture (only if they have none).
   const unAvatarPrompt = unDataNotice ? undefined : maybeAvatarPrompt(athleteId, !!getDashboardModel(athleteId).athlete.avatar);
 

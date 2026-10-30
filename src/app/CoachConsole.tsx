@@ -25,7 +25,7 @@ import {
   type ClientRow,
   type Coach,
 } from "./coach/coachData";
-import { getStaffSession, signInCoach, signOutCoach, startCoachSync, listCoaches, sendProfileNoticeOnce, type CoachSession, type CoachAthlete } from "../lib/auth/coachAuth";
+import { getStaffSession, signInCoach, signOutCoach, startCoachSync, listCoaches, sendBroadcastsOnce, type CoachSession, type CoachAthlete } from "../lib/auth/coachAuth";
 import { NutritionConsole } from "./NutritionConsole";
 import { setAthleteCoachLabel } from "../lib/data/athleteData";
 import { enableCoachProgramSync, repairProgramsFromPublished, pullCoachPrograms, disableCoachProgramSync } from "./coach/coachProgramSync";
@@ -45,7 +45,7 @@ async function syncRoster(session: CoachSession): Promise<CoachAthlete[]> {
   const [coaches, list] = await Promise.all([listCoaches(), startCoachSync(session.userId)]);
   setCoaches(coaches);
   applyRoster(list, session);
-  void sendProfileNoticeOnce(session.userId, list.filter((a) => a.owned).map((a) => a.athleteId));
+  void sendBroadcastsOnce(session.userId, list.filter((a) => a.owned).map((a) => a.athleteId));
   return list;
 }
 

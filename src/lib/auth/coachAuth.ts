@@ -250,17 +250,31 @@ export async function notifyAthlete(athleteCode: string, title: string, body: st
   }
 }
 /**
- * One-off broadcast (Oct 2026): push the profile-reset notice to every athlete this
+ * One-off broadcasts: each is pushed ONCE per coach account to every athlete this
  * coach OWNS (notify-athlete only allows the owner, so shared athletes get it from
- * their own coach). Sent once per coach account — the flag lives in the coach's own
- * app_state row, so a second device doesn't send it again. Only athletes with
- * notifications on actually receive it; everyone still sees the in-app popup.
+ * their own coach). The "sent" flags live in the coach's own app_state row, so a
+ * second device doesn't send again. Only athletes with notifications on receive it;
+ * everyone still sees the matching in-app popup (wireDashboard NOTICES).
  */
-const PROFILE_NOTICE_ID = "profileReset-2026-10";
-let profileNoticeRunning = false;
-export async function sendProfileNoticeOnce(coachUserId: string, ownedCodes: string[]): Promise<void> {
-  if (profileNoticeRunning || !ownedCodes.length || new Date().toISOString().slice(0, 10) > "2026-11-30") return;
-  profileNoticeRunning = true; // roster re-syncs (focus etc.) must not race a second send
+const BROADCASTS: { id: string; until: string; title: string; body: string }[] = [
+  {
+    id: "profileReset-2026-10",
+    until: "2026-11-30",
+    title: "Even je gegevens nakijken",
+    body: "Door een klein probleem zijn sommige persoonlijke gegevens veranderd. Open de app en dubbeltik om ze recht te zetten.",
+  },
+  {
+    id: "updates-2026-10-30",
+    until: "2026-12-15",
+    title: "Nieuw in de app 💪",
+    body: "Hou je vinger op een oefening om je rep-maxes (1RM–12RM) te zien. Open de app voor alle updates.",
+  },
+];
+let broadcastsRunning = false;
+export async function sendBroadcastsOnce(coachUserId: string, ownedCodes: string[]): Promise<void> {
+  if (broadcastsRunning || !ownedCodes.length) return;
+  broadcastsRunning = true; // roster re-syncs (focus etc.) must not race a second send
+  const today = new Date().toISOString().slice(0, 10);
   const st = coachSupabase as unknown as {
     from: (t: string) => {
       select: (c: string) => { eq: (col: string, v: string) => { maybeSingle: () => Promise<{ data: { data?: Record<string, unknown> } | null; error: unknown }> } };
@@ -272,17 +286,15 @@ export async function sendProfileNoticeOnce(coachUserId: string, ownedCodes: str
     if (error) return;
     const base = data?.data ?? {};
     const sent = (base.noticesSent as string[] | undefined) ?? [];
-    if (sent.includes(PROFILE_NOTICE_ID)) return;
-    // Claim the flag BEFORE sending so a second open can't double-send.
+    const due = BROADCASTS.filter((b) => today <= b.until && !sent.includes(b.id));
+    if (!due.length) return;
+    // Claim the flags BEFORE sending so a second open can't double-send.
     const { error: wErr } = await st.from("app_state").upsert(
-      { user_id: coachUserId, data: { ...base, noticesSent: [...sent, PROFILE_NOTICE_ID] } },
+      { user_id: coachUserId, data: { ...base, noticesSent: [...sent, ...due.map((b) => b.id)] } },
       { onConflict: "user_id" },
     );
     if (wErr) return;
-    for (const code of ownedCodes) {
-      await notifyAthlete(code, "Even je gegevens nakijken",
-        "Door een klein probleem zijn sommige persoonlijke gegevens veranderd. Open de app en dubbeltik om ze recht te zetten.");
-    }
+    for (const b of due) for (const code of ownedCodes) await notifyAthlete(code, b.title, b.body);
   } catch {
     /* best-effort */
   }
