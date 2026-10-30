@@ -23,7 +23,7 @@ import { addDays, CARDIO_DISCIPLINES, type Session, type SessionExercise, type L
 import { fmtKg } from "../../lib/calc/records";
 import { showShareSheet } from "./shareSession";
 import { showToast } from "./toast";
-import { openBlockNotes } from "./blockNotesSheet";
+import { openBlockNotes, maybeLoomNotice, closeLoomNotice } from "./blockNotesSheet";
 
 /** Parse a coach load field: "105" → {lo:105,hi:105}; "80-90" → {lo:80,hi:90}. */
 function parseLoadRange(s?: string): { lo: number; hi: number } | null {
@@ -1135,11 +1135,15 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     }
   });
 
+  // A new Loom from the coach → popup (here too: the app may reopen on this screen).
+  // Only on opening — never mid-logging, so it can't pop up between two sets.
+  maybeLoomNotice(athleteId);
   const unsub = subscribeDashboard(() => render());
   render();
 
   return () => {
     unsub();
+    closeLoomNotice();
     calendar.root.remove();
     rpeSheet.root.remove();
     repsEditor.root.remove();

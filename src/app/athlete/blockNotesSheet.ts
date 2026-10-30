@@ -1,6 +1,6 @@
 import { getDashboard } from "../../lib/data/athleteData";
 import { addDays } from "../../lib/program/program";
-import { athleteBlocks, noteHasContent, NOTE_SECTIONS, SECTION_LABEL, type AthleteBlock } from "../../lib/program/blockNotes";
+import { athleteBlocks, noteHasContent, NOTE_SECTIONS, SECTION_LABEL, type AthleteBlock, type BlockNote } from "../../lib/program/blockNotes";
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] as string));
 const localIso = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -24,11 +24,13 @@ export function currentBlock(blocks: AthleteBlock[], today = localIso()): Athlet
  */
 export function openBlockNotes(athleteId: string): void {
   const blocks = blocksFor(athleteId);
+  markLoomsSeen(athleteId, blocks.map((b) => b.note).filter((n): n is BlockNote => !!n));
   const today = localIso();
   const cur = currentBlock(blocks, today);
   const open = new Set<string>(cur ? [cur.key] : blocks[0] ? [blocks[0].key] : []);
 
   const root = document.createElement("div");
+  root.dataset.sscPopup = "blocks";
   root.style.cssText =
     "position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(9,17,28,.55);backdrop-filter:blur(3px);padding:16px;";
 
@@ -97,4 +99,69 @@ export function openBlockNotes(athleteId: string): void {
     }
   });
   document.body.appendChild(root);
+}
+
+// --- "new Loom" notice -----------------------------------------------------------
+// When the coach adds (or changes) a block's Loom, the athlete gets a popup the
+// next time the app shows it: watch it, read the notes, or later. "Seen" is per
+// block + Loom link, so editing only the text doesn't nag again; "Later" only
+// snoozes it for this session.
+
+const seenKey = (athleteId: string) => `ssc.athlete.loomSeen.${athleteId}`;
+function seenLooms(athleteId: string): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(seenKey(athleteId)) || "{}") as Record<string, string>; } catch { return {}; }
+}
+function markLoomsSeen(athleteId: string, notes: BlockNote[]) {
+  const seen = seenLooms(athleteId);
+  let changed = false;
+  for (const n of notes) if (n.loomUrl && !n.deleted && seen[n.id] !== n.loomUrl) { seen[n.id] = n.loomUrl; changed = true; }
+  if (changed) { try { localStorage.setItem(seenKey(athleteId), JSON.stringify(seen)); } catch { /* ignore */ } }
+}
+const snoozed = new Set<string>(); // "Later" — this session only
+
+/** The newest block note with a Loom the athlete hasn't seen yet. */
+function unseenLoom(athleteId: string): BlockNote | undefined {
+  const seen = seenLooms(athleteId);
+  return Object.values(getDashboard(athleteId).blockNotes ?? {})
+    .filter((n) => n && !n.deleted && n.loomUrl && /^https?:\/\//i.test(n.loomUrl) && seen[n.id] !== n.loomUrl && !snoozed.has(`${n.id}|${n.loomUrl}`))
+    .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+}
+
+/**
+ * Show the "new Loom" popup if there is one and no other popup is open. Safe to call
+ * on every data update (the note may only arrive after the cloud sync). Returns
+ * true when it showed.
+ */
+export function maybeLoomNotice(athleteId: string): boolean {
+  if (document.querySelector("[data-ssc-popup]")) return false;
+  const n = unseenLoom(athleteId);
+  if (!n?.loomUrl) return false;
+  const root = document.createElement("div");
+  root.dataset.sscPopup = "loom";
+  root.style.cssText = "position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(9,17,28,.55);backdrop-filter:blur(3px);padding:20px;";
+  root.innerHTML = `
+    <div style="width:100%;max-width:340px;background:var(--a-panel-bg,#fbfdff);border-radius:20px;box-shadow:0 24px 60px rgba(9,17,28,.4);padding:22px 20px 16px;text-align:center;">
+      <div style="width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:rgba(var(--a-accent-rgb),.14);display:grid;place-items:center;font-size:30px;">🎥</div>
+      <div style="font:600 20px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.01em;color:rgb(var(--a-ink-rgb));">Nieuwe Loom van je coach</div>
+      <div style="margin-top:8px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(107,116,128);">Je coach heeft een Loom${NOTE_SECTIONS.some((s) => n.sections[s]?.trim()) ? " en notities" : ""} toegevoegd voor <b style="color:rgb(var(--a-ink-rgb));">${esc(n.blockName)}</b>.</div>
+      <button data-ln="watch" style="width:100%;margin-top:16px;padding:13px;border:1px solid rgb(var(--a-navy-rgb));border-radius:12px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">▶ BEKIJK DE LOOM</button>
+      <button data-ln="read" style="width:100%;margin-top:8px;padding:12px;border:1px solid rgba(var(--a-accent-rgb),.5);border-radius:12px;background:rgba(var(--a-accent-rgb),.08);color:rgb(var(--a-navy-rgb));font:600 12.5px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">LEES DE NOTITIES</button>
+      <button data-ln="later" style="width:100%;margin-top:6px;padding:10px;border:none;background:transparent;color:rgb(138,146,156);font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;cursor:pointer;">LATER</button>
+    </div>`;
+  root.addEventListener("click", (e) => {
+    const what = (e.target as HTMLElement).closest<HTMLElement>("[data-ln]")?.dataset.ln;
+    if (!what) return;
+    root.remove();
+    if (what === "later") { snoozed.add(`${n.id}|${n.loomUrl}`); return; }
+    markLoomsSeen(athleteId, [n]);
+    if (what === "watch") window.open(n.loomUrl!, "_blank", "noopener");
+    else openBlockNotes(athleteId);
+  });
+  document.body.appendChild(root);
+  return true;
+}
+
+/** Remove a pending "new Loom" popup (screen unmount). */
+export function closeLoomNotice() {
+  document.querySelectorAll("[data-ssc-popup='loom']").forEach((el) => el.remove());
 }

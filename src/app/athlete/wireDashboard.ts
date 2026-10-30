@@ -1,4 +1,4 @@
-import { openBlockNotes, blocksFor, currentBlock } from "./blockNotesSheet";
+import { openBlockNotes, blocksFor, currentBlock, maybeLoomNotice, closeLoomNotice } from "./blockNotesSheet";
 import { noteHasContent } from "../../lib/program/blockNotes";
 import {
   getDashboard,
@@ -245,6 +245,7 @@ function maybeAvatarPrompt(athleteId: string, hasAvatar: boolean): (() => void) 
   if (hasAvatar || dismissed) return undefined;
 
   const root = document.createElement("div");
+  root.dataset.sscPopup = "notice";
   root.style.cssText = "position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(9,17,28,.55);backdrop-filter:blur(3px);padding:20px;";
   const close = (remember: boolean) => {
     if (remember) { try { localStorage.setItem(flag, "1"); } catch { /* ignore */ } }
@@ -314,6 +315,7 @@ function maybeNotices(athleteId: string): (() => void) | undefined {
   const queue = unseenNotices(athleteId);
   if (!queue.length) return undefined;
   const root = document.createElement("div");
+  root.dataset.sscPopup = "notice";
   root.style.cssText = "position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:rgba(9,17,28,.55);backdrop-filter:blur(3px);padding:20px;";
   const show = (n: Notice) => {
     root.innerHTML = `
@@ -677,10 +679,12 @@ export function wireDashboard(
   // One-time notices (profile reset, release notes); the avatar nudge waits its turn
   // so two popups never stack.
   const unDataNotice = maybeNotices(athleteId);
+  // A new Loom from the coach comes next (also re-checked when synced data arrives).
+  const loomShown = !unDataNotice && maybeLoomNotice(athleteId);
   // Friendly one-time nudge to add a profile picture (only if they have none).
-  const unAvatarPrompt = unDataNotice ? undefined : maybeAvatarPrompt(athleteId, !!getDashboardModel(athleteId).athlete.avatar);
+  const unAvatarPrompt = unDataNotice || loomShown ? undefined : maybeAvatarPrompt(athleteId, !!getDashboardModel(athleteId).athlete.avatar);
 
-  const unsub = subscribeDashboard(() => { applyModel(host, getDashboardModel(athleteId)); unBlockTile.refresh(); });
+  const unsub = subscribeDashboard(() => { applyModel(host, getDashboardModel(athleteId)); unBlockTile.refresh(); maybeLoomNotice(athleteId); });
   return () => {
     unsub();
     modal.root.remove();
@@ -689,6 +693,7 @@ export function wireDashboard(
     unAvatarPrompt?.();
     unDataNotice?.();
     unBlockTile.remove();
+    closeLoomNotice();
   };
 }
 
