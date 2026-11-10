@@ -1,7 +1,10 @@
 import { openBlockNotes, blocksFor, currentBlock, maybeLoomNotice, closeLoomNotice } from "./blockNotesSheet";
 import { noteHasContent } from "../../lib/program/blockNotes";
+import { openGyms } from "./gymSheet";
+import { GYM_TYPE_SHORT } from "../../lib/program/gyms";
 import {
   getDashboard,
+  getGyms,
   getDashboardModel,
   getMonthFor,
   submitCheckin,
@@ -704,29 +707,38 @@ export function wireDashboard(
  */
 function mountBlockNotesTile(host: HTMLElement, athleteId: string): { refresh: () => void; remove: () => void } {
   const row = host.querySelector<HTMLElement>("#competitionsBtn")?.parentElement;
+  // One row under Competitions / Team shop: BLOCK NOTES | MY GYM.
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "display:flex;gap:8px;margin-top:8px;";
+  const tileCss = "flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:5px;padding:13px;border-radius:12px;cursor:pointer;text-align:left;";
   const tile = document.createElement("button");
   tile.id = "blockNotesBtn";
-  tile.style.cssText =
-    "width:100%;margin-top:8px;display:flex;align-items:center;gap:12px;padding:13px;border:1px solid rgba(var(--a-accent-rgb),.45);border-radius:12px;background:rgba(var(--a-accent-rgb),.08);cursor:pointer;text-align:left;";
+  tile.style.cssText = tileCss + "border:1px solid rgba(var(--a-accent-rgb),.45);background:rgba(var(--a-accent-rgb),.08);";
+  const gymTile = document.createElement("button");
+  gymTile.id = "myGymBtn";
+  gymTile.style.cssText = tileCss + "border:1px solid rgba(29,31,32,.14);background:transparent;";
+  const title = (icon: string, t: string) => `<span style="font:600 15px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.05em;color:rgb(var(--a-ink-rgb));white-space:nowrap;">${icon} ${t}</span>`;
+  const sub = (t: string, strong = false) => `<span style="font:400 10.5px/1.35 Barlow,sans-serif;color:${strong ? "rgb(var(--a-accent2-rgb))" : "rgb(107,116,128)"};${strong ? "font-weight:600;" : ""}">${t.replace(/</g, "&lt;")}</span>`;
   const refresh = () => {
     const blocks = blocksFor(athleteId);
     const cur = currentBlock(blocks);
     const fresh = cur && noteHasContent(cur.note);
-    const sub = fresh ? `${cur!.name} · new notes from your coach` : cur ? `${cur.name} · your blocks & coach notes` : "Your blocks & coach notes";
-    tile.innerHTML = `<span style="flex:0 0 auto;font-size:20px;">📘</span>
-      <span style="flex:1 1 0;display:flex;flex-direction:column;gap:5px;min-width:0;">
-        <span style="font:600 15px/1.1 'Barlow Condensed',sans-serif;letter-spacing:.05em;color:rgb(var(--a-ink-rgb));">BLOCK NOTES</span>
-        <span style="font:400 10.5px/1.35 Barlow,sans-serif;color:${fresh ? "rgb(var(--a-accent2-rgb))" : "rgb(107,116,128)"};${fresh ? "font-weight:600;" : ""}">${sub.replace(/</g, "&lt;")}</span>
-      </span>
-      <span style="flex:0 0 auto;color:rgb(var(--a-accent2-rgb));">›</span>`;
+    tile.innerHTML = title("📘", "BLOCK NOTES") + sub(fresh ? `${cur!.name} · new notes from your coach` : cur ? `${cur.name} · coach notes` : "Your blocks & coach notes", !!fresh);
+    const { gyms, mainId } = getGyms(athleteId);
+    const main = gyms.find((g) => g.id === mainId);
+    gymTile.innerHTML = title("📍", "MY GYM") + (main
+      ? sub(`${main.name}${main.city ? ` · ${main.city}` : ""} · ${GYM_TYPE_SHORT[main.type]}${gyms.length > 1 ? ` · +${gyms.length - 1} more` : ""}`)
+      : sub("Add your main gym", true));
   };
   refresh();
   tile.addEventListener("click", () => openBlockNotes(athleteId));
-  row?.insertAdjacentElement("afterend", tile);
+  gymTile.addEventListener("click", () => openGyms(athleteId, refresh));
+  wrap.append(tile, gymTile);
+  row?.insertAdjacentElement("afterend", wrap);
   const label = host.querySelector<HTMLElement>("#blockLabel");
   const onLabel = () => openBlockNotes(athleteId);
   if (label) { label.style.cursor = "pointer"; label.addEventListener("click", onLabel); }
-  return { refresh, remove: () => { tile.remove(); label?.removeEventListener("click", onLabel); } };
+  return { refresh, remove: () => { wrap.remove(); label?.removeEventListener("click", onLabel); } };
 }
 
 const CAL_MONTHS = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];

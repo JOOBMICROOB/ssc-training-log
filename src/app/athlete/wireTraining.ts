@@ -17,6 +17,9 @@ import {
   bestLabel,
   repMaxRows,
   athleteHasProgramOn,
+  getGyms,
+  sessionGymFor,
+  setSessionGym,
   type ExBest,
 } from "../../lib/data/athleteData";
 import { addDays, CARDIO_DISCIPLINES, type Session, type SessionExercise, type LoggedSet, type SetLog } from "../../lib/program/program";
@@ -24,6 +27,7 @@ import { fmtKg } from "../../lib/calc/records";
 import { showShareSheet } from "./shareSession";
 import { showToast } from "./toast";
 import { openBlockNotes, maybeLoomNotice, closeLoomNotice } from "./blockNotesSheet";
+import { pickSessionGym } from "./gymSheet";
 
 /** Parse a coach load field: "105" → {lo:105,hi:105}; "80-90" → {lo:80,hi:90}. */
 function parseLoadRange(s?: string): { lo: number; hi: number } | null {
@@ -234,7 +238,7 @@ function setRow(ex: SessionExercise, ei: number, st: LoggedSet, si: number, lock
     </div>`;
   const rowTint = isLogged ? "border-left:2px solid #4f9d69;background:rgba(79,157,105,.05);" : partial ? "border-left:2px solid #d9a441;" : "border-left:2px solid rgba(var(--a-accent-rgb),.45);";
   const last = st.lastWeek && !hideLastWeek
-    ? `<div style="margin-top:6px;font:400 10.5px/1 Barlow,sans-serif;letter-spacing:.06em;color:rgb(138,146,156);">LAST WEEK · ${st.lastWeek}</div>`
+    ? `<div style="margin-top:6px;font:400 10.5px/1 Barlow,sans-serif;letter-spacing:.06em;color:rgb(138,146,156);">${ex.lastAt ? `LAST @ ${escapeHtml(ex.lastAt.gym).toUpperCase()}` : "LAST WEEK"} · ${st.lastWeek}</div>`
     : "";
   const noteInput = `<input data-note="${key}" ${ro} placeholder="Notes / velocity" value="${st.note.replace(/"/g, "&quot;")}" style="width:100%;margin-top:7px;padding:7px 10px;background:rgb(242,242,243);border:1px solid rgba(29,31,32,.16);color:rgb(29,31,32);font-size:12.5px;border-radius:10px;box-sizing:border-box;">`;
   return `<div style="margin-left:12px;padding:8px 10px 9px 12px;${rowTint}">
@@ -359,6 +363,11 @@ function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locke
       ${ex.cue && ex.cue.trim() ? `<div style="margin-top:5px;padding:6px 9px;border-radius:8px;background:rgba(var(--a-accent-rgb),.08);border:1px solid rgba(var(--a-accent-rgb),.18);font:400 11.5px/1.35 Barlow,sans-serif;color:rgb(var(--a-accent2-rgb));white-space:normal;"><span style="font:600 8.5px/1 Barlow,sans-serif;letter-spacing:.12em;color:rgb(107,116,128);">COACH · </span>${escapeHtml(ex.cue.trim())}</div>` : ""}
       ${(() => {
         if (bests) { const b = bestLabel(ex.name, ex.mainLift, bests); return b ? `<div style="margin-top:3px;font:400 9.5px/1 Barlow,sans-serif;letter-spacing:.06em;color:rgb(var(--a-accent2-rgb));">BESTS · ${b}</div>` : ""; }
+        // Per-gym exercise (machine / cable / dumbbell, 2+ gyms): the last time AT THIS GYM.
+        if (ex.lastAt) {
+          const when = ex.lastAt.date ? new Date(`${ex.lastAt.date}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "";
+          return `<div style="margin-top:3px;font:400 9.5px/1.3 Barlow,sans-serif;letter-spacing:.06em;color:rgb(var(--a-accent2-rgb));">📍 ${ex.lastWeekLabel ? `LAST @ ${escapeHtml(ex.lastAt.gym).toUpperCase()} (${when}) · ${ex.lastWeekLabel}` : `FIRST TIME @ ${escapeHtml(ex.lastAt.gym).toUpperCase()} — tracked per gym`}</div>`;
+        }
         return ex.lastWeekLabel ? `<div style="margin-top:3px;font:400 9.5px/1 Barlow,sans-serif;letter-spacing:.06em;color:rgb(var(--a-accent2-rgb));">LAST WEEK · ${ex.lastWeekLabel}</div>` : "";
       })()}
     </div>
@@ -372,7 +381,7 @@ function exerciseBlock(ex: SessionExercise, ei: number, expanded: boolean, locke
   return `<div>${header}${body}</div>`;
 }
 
-function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selected: string, isOpen: (ei: number) => boolean, bests: Map<string, ExBest> | null, noProgram = false): string {
+function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selected: string, isOpen: (ei: number) => boolean, bests: Map<string, ExBest> | null, noProgram = false, gymChip = ""): string {
   // The calendar trigger lives in the day row so it's ALWAYS reachable — including
   // on rest days and weeks with no program — letting the athlete jump to any past
   // (or future) week even when the current one has nothing scheduled.
@@ -399,7 +408,7 @@ function bodyMarkup(week: ReturnType<typeof getWeekFor>, session: Session, selec
     </div>
     <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
       <span style="font:400 11px/1 Barlow,sans-serif;letter-spacing:.1em;color:rgb(107,116,128);">${session.exercises.length === 0 && session.cardio.length ? `${session.cardio.length} CARDIO` : `${session.exercises.length} EXERCISES · ${session.loggedCount} / ${session.setCount} SETS LOGGED`}</span>
-      ${refToggle}
+      ${refToggle}${gymChip}
     </div>
   </div>`;
   const altBlock = session.hasAlt ? altSelector(session) : "";
@@ -819,7 +828,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       return;
     }
 
-    if (body) body.innerHTML = bodyMarkup(week, session, selected, (ei) => isExOpen(session, ei), showBests ? exerciseBests(athleteId) : null);
+    if (body) body.innerHTML = bodyMarkup(week, session, selected, (ei) => isExOpen(session, ei), showBests ? exerciseBests(athleteId, sessionGymFor(athleteId, selected)) : null, false, gymChip());
 
     // Pain (defaults to None / 0) + session RPE buttons — open the picker on tap.
     const painVal = host.querySelector<HTMLElement>("#painVal");
@@ -903,7 +912,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     const ex = session.exercises[Number(m[1])];
     const st = ex?.sets[Number(m[2])];
     if (!ex) return 0;
-    const best = exerciseBests(athleteId).get(ex.name.trim().toLowerCase())?.maxLoad ?? 0;
+    const best = exerciseBests(athleteId, sessionGymFor(athleteId, selected)).get(ex.name.trim().toLowerCase())?.maxLoad ?? 0;
     const nums = [
       best,
       st?.lastWeekKg ?? NaN,
@@ -911,6 +920,15 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
       st?.targetSuggest ? parseFloat(st.targetSuggest.replace(",", ".")) : NaN,
     ].filter((n) => isFinite(n) && n > 0);
     return nums.length ? Math.max(...nums) : 0;
+  };
+
+  // With 2+ gyms: which gym this session is at (default the main gym). Machine /
+  // cable / dumbbell exercises show that gym's numbers.
+  const gymChip = (): string => {
+    const { gyms } = getGyms(athleteId);
+    if (gyms.length < 2) return "";
+    const g = gyms.find((x) => x.id === sessionGymFor(athleteId, selected)) ?? gyms[0];
+    return `<button id="gymPick" title="Which gym is this session at?" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid rgba(var(--a-accent-rgb),.4);border-radius:9px;background:transparent;color:rgb(41,61,80);font:600 9.5px/1 Barlow,sans-serif;letter-spacing:.1em;cursor:pointer;max-width:170px;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ${escapeHtml(g.name).toUpperCase()}</span> ▾</button>`;
   };
 
   // Long-press (≈0.5 s, finger held still) on an exercise header opens its rep maxes;
@@ -924,7 +942,7 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     if (pressFired) return; // already open from this press
     pressFired = true;
     const ex = getSessionFor(athleteId, selected).exercises[Number(exBtn.dataset.ex)];
-    if (ex) rmPopup.open(ex.name, exerciseBests(athleteId).get(ex.name.trim().toLowerCase()));
+    if (ex) rmPopup.open(ex.lastAt ? `${ex.name} @ ${ex.lastAt.gym}` : ex.name, exerciseBests(athleteId, sessionGymFor(athleteId, selected)).get(ex.name.trim().toLowerCase()));
     try { navigator.vibrate?.(15); } catch { /* not supported */ }
   };
   body?.addEventListener("pointerdown", (e) => {
@@ -965,6 +983,10 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     const wkNav = t.closest<HTMLElement>("[data-week]");
     if (wkNav) { selected = addDays(selected, Number(wkNav.dataset.week) * 7); manualOpen.clear(); return render(); }
     if (t.closest("#refToggle")) { showBests = !showBests; return render(); }
+    if (t.closest("#gymPick")) {
+      if (!unlockGate()) return;
+      return pickSessionGym(athleteId, sessionGymFor(athleteId, selected), (id) => setSessionGym(athleteId, selected, id));
+    }
     const vid = t.closest<HTMLElement>("[data-video]");
     if (vid?.dataset.video) { window.open(vid.dataset.video, "_blank", "noopener"); return; }
     const exBtn = t.closest<HTMLElement>("[data-ex]");

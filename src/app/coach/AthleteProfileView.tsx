@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getDashboardModel, getDashboard, getSessionFor, setAthleteInfo, setCompPr, setCompTotal, setPrBaseline, markNoteChecked, removeNote, clearNotes, setWeekLockOff, IPF_CLASSES } from "../../lib/data/athleteData";
+import { getDashboardModel, getDashboard, getSessionFor, setAthleteInfo, setCompPr, setCompTotal, setPrBaseline, markNoteChecked, removeNote, clearNotes, setWeekLockOff, IPF_CLASSES, streakInfo, setStreakFreeze } from "../../lib/data/athleteData";
 import { createAthlete, athleteLoginEmail, resetAthletePassword, listCoaches, shareAthlete, unshareAthlete, sharesForAthlete, setAthleteNutrition, notifyAthlete } from "../../lib/auth/coachAuth";
 import { fmtKg } from "../../lib/calc/records";
 import { renderBwSvgInner, DASH_STYLE } from "../../lib/calc/bwChart";
@@ -214,6 +214,7 @@ function FullProfile({ client, coachUserId, onRosterChange }: { client: ClientRo
             </span>
           </span>
         </label>
+        <StreakFreeze athleteId={athleteId} firstName={a.firstName} />
         <LoginAccess athleteId={athleteId} firstName={a.firstName} live={live} />
         {live && <SharePanel client={client} coachUserId={coachUserId} onRosterChange={onRosterChange} />}
         {!live && <p className="cc-cell-s" style={{ marginTop: 12 }}>This is a demo entry — the training panels below fill in once they’re a real synced account (create one with “+ New athlete”).</p>}
@@ -221,6 +222,49 @@ function FullProfile({ client, coachUserId, onRosterChange }: { client: ClientRo
 
       <AthletePanels client={client} />
     </>
+  );
+}
+
+/* -------------------------------------------------------- streak freeze ----- */
+/**
+ * Freeze a missed training day so it doesn't break the athlete's streak (it then
+ * counts as neither a break nor a streak day). Shows the day that ended the current
+ * streak, and every frozen day with an undo.
+ */
+function StreakFreeze({ athleteId, firstName }: { athleteId: string; firstName: string }) {
+  const [, force] = useState(0);
+  const info = streakInfo(athleteId);
+  const fmt = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const freeze = (d: string, on: boolean) => { setStreakFreeze(athleteId, d, on); force((n) => n + 1); };
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ font: "600 12px/1.2 var(--font-body)", color: "var(--navy)" }}>Streak · {info.streak} day{info.streak === 1 ? "" : "s"} 🔥</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+        {info.breakDay ? (
+          <>
+            <span style={{ font: "400 10.5px/1.45 var(--font-body)", color: "var(--muted)" }}>Ended by a missed session on <strong>{fmt(info.breakDay)}</strong>.</span>
+            <button
+              className="cc-mini"
+              onClick={() => { if (confirm(`Freeze ${fmt(info.breakDay!)} for ${firstName}? That day then doesn't break their streak.`)) freeze(info.breakDay!, true); }}
+            >
+              ❄️ Freeze {fmt(info.breakDay)}
+            </button>
+          </>
+        ) : (
+          <span style={{ font: "400 10.5px/1.45 var(--font-body)", color: "var(--muted)" }}>No missed session breaking it.</span>
+        )}
+      </div>
+      {info.frozen.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
+          {info.frozen.map((d) => (
+            <span key={d} className="cc-pr-badge" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+              ❄️ {fmt(d)}
+              <button title="Un-freeze" onClick={() => freeze(d, false)} style={{ border: "none", background: "transparent", color: "var(--muted)", cursor: "pointer", padding: 0 }}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

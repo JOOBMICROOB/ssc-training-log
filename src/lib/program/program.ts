@@ -86,6 +86,7 @@ export type DayLog = {
   // cleared once the session is complete/confirmed. The server pushes in a short
   // window after this time; it never writes back, so it can't clobber a log.
   autoLocked?: boolean; // locked automatically (2h untouched), not hand-confirmed
+  gymId?: string; // the gym this session was trained at (absent = the main gym)
 };
 export type ProgramLogs = Record<string, DayLog>; // key = ISO date
 
@@ -129,6 +130,9 @@ export type SessionExercise = {
   setCount: number;
   loggedCount: number;
   lastWeekLabel: string; // header summary of last week's sets, e.g. "3 sets · 5 × 142,5 kg @ RPE 8"
+  // Set when this exercise is tracked per gym: the "last" numbers are the last time
+  // it was done AT THIS GYM (not simply last week). date null = never done there yet.
+  lastAt?: { gym: string; date: string | null };
 };
 export type Session = {
   date: string;
@@ -203,7 +207,14 @@ function isCompLift(name: string, mainLift: MainLift | null): boolean {
 const round2p5 = (kg: number) => Math.round(kg / 2.5) * 2.5;
 
 /** One logged set as "5 × 100 kg @ RPE 8" (reps done, else the prescription then). */
-function fmtLastSet(p: SetLog, prescribedReps: string | undefined): string {
+/** Header summary of previous sets: "3 sets · 5 × 100 kg @ RPE 8", or each set listed. */
+export function summarizeLastSets(sets: string[]): string {
+  const xs = sets.filter(Boolean);
+  if (!xs.length) return "";
+  return xs.every((x) => x === xs[0]) ? `${xs.length > 1 ? `${xs.length} sets · ` : ""}${xs[0]}` : xs.join("  ·  ");
+}
+
+export function fmtLastSet(p: SetLog, prescribedReps: string | undefined): string {
   if (p.failed) return `✕ ${fmtKg(p.weightKg as number)} kg (failed)`;
   const reps = setReps({ repsDone: p.repsDone, targetReps: prescribedReps });
   return `${isFinite(reps) ? `${reps} × ` : ""}${fmtKg(p.weightKg as number)} kg${p.rpe != null ? ` @ RPE ${String(p.rpe).replace(".", ",")}` : ""}`;
@@ -325,11 +336,7 @@ export function getSession(template: WeekTemplate, logs: ProgramLogs, date: stri
             return p?.weightKg != null && !p.prefill ? fmtLastSet(p, prevExSource?.[ei]?.sets?.[si]?.targetReps) : "";
           })
           .filter(Boolean);
-        const lastWeekLabel = !prevSets.length
-          ? ""
-          : prevSets.every((x) => x === prevSets[0])
-            ? `${prevSets.length > 1 ? `${prevSets.length} sets · ` : ""}${prevSets[0]}`
-            : prevSets.join("  ·  ");
+        const lastWeekLabel = summarizeLastSets(prevSets);
         return {
           name: ex.name,
           mainLift: ex.mainLift,

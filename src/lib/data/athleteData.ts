@@ -22,9 +22,12 @@ import {
   type WeekTemplate,
   type DayTemplate,
   type MainLift,
+  fmtLastSet,
+  summarizeLastSets,
 } from "../program/program";
 import { epleyE1rm } from "../calc/epley";
 import { mergeBlockNotes, type BlockNote } from "../program/blockNotes";
+import { mergeGyms, liveGyms, mainGymId, isGymSpecific, type Gym, type GymState, type GymType } from "../program/gyms";
 
 /**
  * Athlete dashboard data.
@@ -133,6 +136,11 @@ export type DashboardData = {
   // Streak only counts training days on/after this date — so backfilled history
   // (weeks logged in retrospect) never inflates the streak.
   streakStart?: string;
+  // Days the coach froze (a missed day that must not break the streak). Keyed by
+  // date; newest `at` wins on sync so an un-freeze survives a stale device too.
+  streakFreezes?: Record<string, { on: boolean; at: number }>;
+  // Where the athlete trains (athlete-owned, see lib/program/gyms).
+  gyms?: GymState;
   // Web-push subscription (PushSubscription JSON) so the coach's publish can send
   // this athlete a notification. Written by their device when they opt in.
   pushSub?: unknown;
@@ -370,11 +378,17 @@ function blockLabelOf(blockName: string | undefined, weekName: string | undefine
  * unfinished session today doesn't reset the streak, it simply doesn't count yet.
  */
 function computeStreak(data: DashboardData, today: Date): number {
+  return streakWalk(data, today).streak;
+}
+
+/** The streak, plus the past training day that ended it (null if nothing broke it). */
+function streakWalk(data: DashboardData, today: Date): { streak: number; breakDay: string | null } {
   const logs = data.programLogs ?? {};
   const todayIso = iso(today);
   let streak = 0;
   let cursor = todayIso;
   const floor = data.streakStart ?? "";
+  const frozen = new Set(Object.entries(data.streakFreezes ?? {}).filter(([, v]) => v?.on).map(([d]) => d));
   // The last published week repeats forward forever (templateForDate). Once an
   // athlete outruns their written program (block ended, coach hasn't published the
   // next block), those repeated sessions are "phantom" — unlogged by definition.
@@ -383,6 +397,7 @@ function computeStreak(data: DashboardData, today: Date): number {
   const beyondProgram = (d: string) => !!lastWeekStart && d > addDays(lastWeekStart, 6);
   for (let guard = 0; guard < 400; guard++) {
     if (floor && cursor < floor) break; // don't count backfilled history before the floor
+    if (frozen.has(cursor)) { cursor = addDays(cursor, -1); continue; } // a coach-frozen day: no break, no count
     // Read each past day against the template it was LOGGED against (frozen), so a
     // coach re-publishing an already-logged week can't make it look unlogged.
     const s = getSession(templateForDate(data, cursor), logs, cursor, data.sessionChoice?.[cursor] ?? "A", undefined, undefined, data.loggedDays, todayIso);
@@ -411,9 +426,23 @@ function computeStreak(data: DashboardData, today: Date): number {
       cursor = addDays(cursor, -1);
       continue; // today's session (grace) or a phantom repeat day — never a break
     }
-    break; // a past training day left unlogged, inside the written program, ends the streak
+    return { streak, breakDay: cursor }; // a past training day left unlogged, inside the written program, ends the streak
   }
-  return streak;
+  return { streak, breakDay: null };
+}
+
+/** Coach view: the streak, the missed day that ended it, and the frozen days. */
+export function streakInfo(athleteId: string, today = new Date()): { streak: number; breakDay: string | null; frozen: string[] } {
+  const d = getDashboard(athleteId);
+  const { streak, breakDay } = streakWalk(d, today);
+  const frozen = Object.entries(d.streakFreezes ?? {}).filter(([, v]) => v?.on).map(([k]) => k).sort().reverse();
+  return { streak, breakDay, frozen };
+}
+
+/** Coach freezes (or un-freezes) a missed day so it doesn't break the streak. */
+export function setStreakFreeze(athleteId: string, date: string, on: boolean) {
+  const d = getDashboard(athleteId);
+  save(athleteId, { ...d, streakFreezes: { ...(d.streakFreezes ?? {}), [date]: { on, at: Date.now() } } });
 }
 
 /**
@@ -748,7 +777,88 @@ export function getSessionFor(athleteId: string, date: string): Session {
   // The athlete's 1RM per lift (their recorded PRs) — feeds %1RM auto-loads.
   const pr = (k: string) => { const p = (d.prs ?? []).find((x) => x.key === k); const n = p ? parseFloat(p.value.replace(",", ".")) : 0; return isFinite(n) ? n : 0; };
   const oneRm = { squat: pr("squat"), bench: pr("bench"), deadlift: pr("deadlift") };
-  return getSession(templateForDate(d, date), d.programLogs ?? {}, date, d.sessionChoice?.[date] ?? "A", templateForDate(d, addDays(date, -7)), oneRm, d.loggedDays, todayISO());
+  const s = getSession(templateForDate(d, date), d.programLogs ?? {}, date, d.sessionChoice?.[date] ?? "A", templateForDate(d, addDays(date, -7)), oneRm, d.loggedDays, todayISO());
+  if (liveGyms(d.gyms).length >= 2) applyGymHistory(d, s, date);
+  return s;
+}
+
+// --- gyms ----------------------------------------------------------------------
+/** The gym a session was (or will be) trained at: stamped on the day, else the main gym. */
+function sessionGymOf(d: DashboardData, date: string): string | undefined {
+  return d.programLogs?.[date]?.gymId ?? mainGymId(d.gyms);
+}
+export function sessionGymFor(athleteId: string, date: string): string | undefined {
+  return sessionGymOf(getDashboard(athleteId), date);
+}
+export function getGyms(athleteId: string): { gyms: Gym[]; mainId: string | undefined } {
+  const d = getDashboard(athleteId);
+  return { gyms: liveGyms(d.gyms), mainId: mainGymId(d.gyms) };
+}
+/** Add or edit a gym. The first gym an athlete adds becomes their main gym. */
+export function saveGym(athleteId: string, g: { id?: string; name: string; city: string; type: GymType }): string {
+  const d = getDashboard(athleteId);
+  const id = g.id ?? `gym_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const state: GymState = { list: { ...(d.gyms?.list ?? {}) }, main: d.gyms?.main };
+  state.list[id] = { id, name: g.name.trim(), city: g.city.trim(), type: g.type, updatedAt: Date.now() };
+  if (!mainGymId(d.gyms)) state.main = { id, at: Date.now() };
+  save(athleteId, { ...d, gyms: state });
+  return id;
+}
+export function removeGym(athleteId: string, id: string) {
+  const d = getDashboard(athleteId);
+  const g = d.gyms?.list[id];
+  if (!g) return;
+  save(athleteId, { ...d, gyms: { ...d.gyms!, list: { ...d.gyms!.list, [id]: { ...g, deleted: true, updatedAt: Date.now() } } } });
+}
+export function setMainGym(athleteId: string, id: string) {
+  const d = getDashboard(athleteId);
+  save(athleteId, { ...d, gyms: { list: { ...(d.gyms?.list ?? {}) }, main: { id, at: Date.now() } } });
+}
+/** Which gym a given session is trained at (athlete switches it on the training screen). */
+export function setSessionGym(athleteId: string, date: string, gymId: string) {
+  const d = getDashboard(athleteId);
+  const logs: ProgramLogs = { ...(d.programLogs ?? {}) };
+  logs[date] = { ...(logs[date] ?? {}), gymId };
+  save(athleteId, { ...d, programLogs: logs });
+}
+
+/**
+ * Per-gym history: for exercises whose numbers only make sense in one gym (machines,
+ * cables, dumbbells), "last" means the last time it was done AT THIS SESSION'S GYM —
+ * matched by exercise name, any day, up to ~6 months back — instead of last week.
+ */
+function applyGymHistory(d: DashboardData, s: Session, date: string) {
+  const gymId = sessionGymOf(d, date);
+  const gym = liveGyms(d.gyms).find((g) => g.id === gymId);
+  if (!gym) return;
+  const logs = d.programLogs ?? {};
+  const earlier = Object.keys(logs).filter((k) => k < date && k >= addDays(date, -183)).sort().reverse();
+  for (const ex of s.exercises) {
+    if (!isGymSpecific(ex)) continue;
+    const name = ex.name.trim().toLowerCase();
+    let found: { date: string; list: DayTemplate["exercises"]; idx: number; prefix: string } | null = null;
+    for (const d2 of earlier) {
+      if (sessionGymOf(d, d2) !== gymId) continue;
+      const tpl = d.loggedDays?.[d2] ?? templateForDate(d, d2)[new Date(`${d2}T00:00:00`).getDay()];
+      if (!tpl || tpl.rest) continue;
+      const prefix = d.sessionChoice?.[d2] === "B" && tpl.alt?.length ? "B" : "";
+      const list = (prefix ? tpl.alt : tpl.exercises) ?? [];
+      const idx = list.findIndex((x) => x.name.trim().toLowerCase() === name);
+      if (idx < 0) continue;
+      const real = list[idx].sets.some((_, si) => { const p = logs[d2]?.sets?.[`${prefix}${idx}_${si}`]; return p?.weightKg != null && !p.prefill; });
+      if (real) { found = { date: d2, list, idx, prefix }; break; }
+    }
+    const lines: string[] = [];
+    ex.sets.forEach((st, si) => {
+      const p = found ? logs[found.date]?.sets?.[`${found.prefix}${found.idx}_${si}`] : undefined;
+      const ok = p?.weightKg != null && !p.prefill;
+      st.lastWeek = ok ? fmtLastSet(p!, found!.list[found!.idx].sets[si]?.targetReps) : "";
+      st.lastWeekKg = ok ? (p!.weightKg as number) : null;
+      if (ok) lines.push(st.lastWeek);
+    });
+    ex.lastWeekLabel = summarizeLastSets(lines);
+    ex.lastAt = { gym: gym.name, date: found?.date ?? null };
+  }
 }
 
 // --- per-exercise bests (all-time) -------------------------------------------
@@ -762,8 +872,11 @@ export type ExLast = { date: string; sets: ExLastSet[] };
 export type ExBest = { maxLoad: number; byReps: Record<number, number>; byRepsDate: Record<number, string>; e1rm: number; mainLift: MainLift | null; last?: ExLast };
 const repsLow = (s: string): number => { const m = String(s).match(/\d+/); return m ? parseInt(m[0], 10) : 0; };
 
-export function exerciseBests(athleteId: string): Map<string, ExBest> {
+/** `gymId`: for per-gym exercises (machines, cables, dumbbells) count only sessions at
+ *  that gym — applied once the athlete has 2+ gyms. Barbell work always counts. */
+export function exerciseBests(athleteId: string, gymId?: string): Map<string, ExBest> {
   const d = getDashboard(athleteId);
+  const perGym = !!gymId && liveGyms(d.gyms).length >= 2;
   const logs = d.programLogs ?? {};
   const best = new Map<string, ExBest>();
   const add = (name: string, mainLift: MainLift | null, kg: number, reps: number, date: string) => {
@@ -798,6 +911,7 @@ export function exerciseBests(athleteId: string): Map<string, ExBest> {
     const scan = (list: typeof day.exercises | undefined, prefix: string) =>
       list?.forEach((ex, ei) =>
         ex.sets.forEach((st, si) => {
+          if (perGym && isGymSpecific(ex) && sessionGymOf(d, date) !== gymId) return; // another gym's machine
           const log = dayLog.sets![`${prefix}${ei}_${si}`];
           if (!log || log.weightKg == null || log.prefill || log.failed) return; // a failed rep proves nothing
           // Reps actually done win over the prescription (4 prescribed, 3 done → a 3RM).
@@ -1105,6 +1219,8 @@ export function logSet(athleteId: string, date: string, key: string, patch: SetL
   const data = freezeDay(getDashboard(athleteId), date);
   const logs: ProgramLogs = { ...(data.programLogs ?? {}) };
   const day = { ...(logs[date] ?? {}) };
+  // Stamp the gym on first log, so a later change of main gym doesn't move history.
+  if (!day.gymId) { const g = mainGymId(data.gyms); if (g) day.gymId = g; }
   const merged: SetLog = { ...(day.sets?.[key] ?? {}), ...patch };
   // The athlete confirming/entering a weight (or a fail, or their reps) turns a coach
   // prefill into a real log, so it now counts toward "done". Clearing reps back to
@@ -1454,6 +1570,14 @@ function mergeNotes(a: DashboardData["notes"] | undefined, b: DashboardData["not
   return { tags: b?.tags ?? a?.tags ?? [], sent, deleted: [...deleted], wipe };
 }
 
+/** Per-key merge where the entry with the newest `at` wins. */
+function mergeStamped<T extends { at: number }>(a: Record<string, T> | undefined, b: Record<string, T> | undefined): Record<string, T> | undefined {
+  if (!a && !b) return undefined;
+  const out: Record<string, T> = { ...(a ?? {}) };
+  for (const [k, v] of Object.entries(b ?? {})) if (v && (!out[k] || v.at >= out[k].at)) out[k] = v;
+  return out;
+}
+
 /**
  * Merge a device's write onto the freshest server row so it can't wipe fields it
  * doesn't currently hold. Objects merge field-by-field (a value the writer lacks
@@ -1482,6 +1606,8 @@ function mergeDashboard(server: Partial<DashboardData>, incoming: DashboardData)
     checkin: obj("checkin") as DashboardData["checkin"],
     notes: mergeNotes(server.notes, incoming.notes),
     blockNotes: mergeBlockNotes(server.blockNotes, incoming.blockNotes),
+    gyms: mergeGyms(server.gyms, incoming.gyms),
+    streakFreezes: mergeStamped(server.streakFreezes, incoming.streakFreezes),
     programLogs: mergeLogs(server.programLogs, incoming.programLogs, server.logClears, incoming.logClears),
     // Frozen logged-day snapshots union by date (each is written once per date and is
     // identical across devices), minus any dropped by a newer per-date clear.
