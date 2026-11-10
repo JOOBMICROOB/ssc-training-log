@@ -922,12 +922,16 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     return nums.length ? Math.max(...nums) : 0;
   };
 
-  // With 2+ gyms: which gym this session is at (default the main gym). Machine /
-  // cable / dumbbell exercises show that gym's numbers.
+  // Which gym this session is at (default the main gym). With 2+ gyms it's a chip to
+  // switch (machine / cable / dumbbell exercises then show that gym's numbers).
   const gymChip = (): string => {
     const { gyms } = getGyms(athleteId);
-    if (gyms.length < 2) return "";
+    if (!gyms.length) return "";
     const g = gyms.find((x) => x.id === sessionGymFor(athleteId, selected)) ?? gyms[0];
+    // One gym: just a quiet grey hint that gyms exist (tap → add another).
+    if (gyms.length === 1) {
+      return `<button id="gymPick" title="Your gym — tap to add another" style="flex:0 0 auto;border:none;background:transparent;padding:4px 2px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgb(150,158,168);font:500 9.5px/1 Barlow,sans-serif;letter-spacing:.08em;cursor:pointer;">📍 ${escapeHtml(g.name).toUpperCase()}</button>`;
+    }
     return `<button id="gymPick" title="Which gym is this session at?" style="flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid rgba(var(--a-accent-rgb),.4);border-radius:9px;background:transparent;color:rgb(41,61,80);font:600 9.5px/1 Barlow,sans-serif;letter-spacing:.1em;cursor:pointer;max-width:170px;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ${escapeHtml(g.name).toUpperCase()}</span> ▾</button>`;
   };
 
@@ -984,8 +988,9 @@ export function wireTraining(host: HTMLElement, athleteId: string): () => void {
     if (wkNav) { selected = addDays(selected, Number(wkNav.dataset.week) * 7); manualOpen.clear(); return render(); }
     if (t.closest("#refToggle")) { showBests = !showBests; return render(); }
     if (t.closest("#gymPick")) {
-      if (!unlockGate()) return;
-      return pickSessionGym(athleteId, sessionGymFor(athleteId, selected), (id) => setSessionGym(athleteId, selected, id));
+      const cur = sessionGymFor(athleteId, selected);
+      // Only switching to ANOTHER gym is an edit (gated on a confirmed session).
+      return pickSessionGym(athleteId, cur, (id) => { if (id !== cur && unlockGate()) setSessionGym(athleteId, selected, id); });
     }
     const vid = t.closest<HTMLElement>("[data-video]");
     if (vid?.dataset.video) { window.open(vid.dataset.video, "_blank", "noopener"); return; }
