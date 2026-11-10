@@ -275,7 +275,9 @@ function maybeAvatarPrompt(athleteId: string, hasAvatar: boolean): (() => void) 
  * One-time notices, shown once per athlete per device (newest last), one at a time:
  * closing one opens the next unseen one. Each stops showing after its `until` date.
  */
-type Notice = { id: string; until: string; icon: string; title: string; html: string; ok: string };
+// `action`: an optional main button that does something (e.g. open My gym); the ok
+// button then becomes a quiet secondary one. Either button marks the notice seen.
+type Notice = { id: string; until: string; icon: string; title: string; html: string; ok: string; action?: { label: string; run: (athleteId: string) => void } };
 const para = (t: string) => `<p style="margin:0 0 9px;">${t}</p>`;
 const bold = (t: string) => `<b style="color:rgb(var(--a-ink-rgb));">${t}</b>`;
 const NOTICES: Notice[] = [
@@ -305,6 +307,19 @@ const NOTICES: Notice[] = [
       para(`${bold("📅 Last week")}<br>Per set zie je nu de reps, het gewicht en de RPE van vorige week.`),
     ok: "TOP, BEGREPEN!",
   },
+  {
+    // 10 Nov 2026 release notes (v124): gyms.
+    id: "updates-2026-11-10",
+    until: "2026-12-31",
+    icon: "📍",
+    title: "Nieuw: je gyms",
+    html:
+      para(`${bold("📍 Voeg je gym toe")}<br>Tik op de tegel ${bold("MY GYM")} op je dashboard en voeg je hoofdgym toe: naam, stad en type gym.`) +
+      para(`${bold("🏋️ Train je ook ergens anders?")}<br>Voeg een tweede gym toe. Bovenaan je sessie kies je dan in welke gym je traint.`) +
+      para(`${bold("📊 Per gym bijgehouden")}<br>Machines, kabels en dumbbells hebben per gym hun eigen cijfers: je ziet je laatste keer en je rep-maxes van díe gym. Barbell-oefeningen blijven overal hetzelfde.`),
+    ok: "LATER",
+    action: { label: "VOEG MIJN GYM TOE", run: (athleteId) => openGyms(athleteId) },
+  },
 ];
 const noticeFlag = (athleteId: string, id: string) => `ssc.athlete.notice.${id}.${athleteId}`;
 function unseenNotices(athleteId: string): Notice[] {
@@ -326,14 +341,24 @@ function maybeNotices(athleteId: string): (() => void) | undefined {
       <div style="width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:rgba(var(--a-accent-rgb),.14);display:grid;place-items:center;font-size:30px;">${n.icon}</div>
       <div style="font:600 20px/1.15 'Barlow Condensed',sans-serif;letter-spacing:.01em;color: rgb(var(--a-ink-rgb));">${n.title}</div>
       <div style="margin-top:10px;font:400 12.5px/1.5 Barlow,sans-serif;color:rgb(107,116,128);text-align:left;">${n.html}</div>
-      <button data-ok style="width:100%;margin-top:10px;padding:13px;border:1px solid rgb(var(--a-navy-rgb));border-radius:12px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">${n.ok}</button>
+      ${n.action
+        ? `<button data-act style="width:100%;margin-top:10px;padding:13px;border:1px solid rgb(var(--a-navy-rgb));border-radius:12px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">${n.action.label}</button>
+           <button data-ok style="width:100%;margin-top:6px;padding:10px;border:none;background:transparent;color:rgb(138,146,156);font:600 12px/1 'Barlow Condensed',sans-serif;letter-spacing:.1em;cursor:pointer;">${n.ok}</button>`
+        : `<button data-ok style="width:100%;margin-top:10px;padding:13px;border:1px solid rgb(var(--a-navy-rgb));border-radius:12px;background:rgb(var(--a-navy-rgb));color:rgb(242,242,243);font:600 13px/1 'Barlow Condensed',sans-serif;letter-spacing:.12em;cursor:pointer;">${n.ok}</button>`}
     </div>`;
   };
   show(queue[0]);
   root.addEventListener("click", (e) => {
-    if (!(e.target as HTMLElement).closest("[data-ok]")) return;
+    const t = e.target as HTMLElement;
+    const act = t.closest("[data-act]");
+    if (!act && !t.closest("[data-ok]")) return;
     const done = queue.shift();
     if (done) { try { localStorage.setItem(noticeFlag(athleteId, done.id), "1"); } catch { /* ignore */ } }
+    if (act && done?.action) {
+      root.remove(); // any remaining notices show on the next open
+      done.action.run(athleteId);
+      return;
+    }
     if (queue.length) show(queue[0]);
     else root.remove();
   });

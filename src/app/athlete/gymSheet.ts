@@ -29,9 +29,9 @@ export function openGyms(athleteId: string, onChange?: () => void): void {
     return `<div style="${CARD}">
       ${head(first ? "ADD YOUR MAIN GYM" : g ? "EDIT GYM" : "ADD A GYM", first ? "Where you usually train. Add a second gym later — your machine and cable exercises are then tracked per gym." : "Machine, cable and dumbbell exercises get their own numbers per gym.")}
       <label style="${LABEL}">GYM NAME</label>
-      <input data-g-name style="${INPUT}" placeholder="e.g. Atlas" value="${esc(g?.name ?? "")}" autocomplete="off">
+      <input data-g-name style="${INPUT}" placeholder="Gym name" value="${esc(g?.name ?? "")}" autocomplete="off">
       <label style="${LABEL}">CITY</label>
-      <input data-g-city style="${INPUT}" placeholder="e.g. Roeselare" value="${esc(g?.city ?? "")}" autocomplete="off">
+      <input data-g-city style="${INPUT}" placeholder="City" value="${esc(g?.city ?? "")}" autocomplete="off">
       <label style="${LABEL}">TYPE OF GYM</label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
         ${GYM_TYPES.map((t) => { const on = type === t.id; return `<button data-g-type="${t.id}" style="min-height:40px;padding:8px;border-radius:10px;cursor:pointer;font:600 12px/1.2 Barlow,sans-serif;text-align:center;border:1.5px solid ${on ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.3)"};background:${on ? "rgb(var(--a-navy-rgb))" : "rgba(var(--a-accent-rgb),.06)"};color:${on ? "#f2f2f3" : "rgb(var(--a-navy-rgb))"};">${t.label}</button>`; }).join("")}
